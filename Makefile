@@ -26,6 +26,14 @@ install-cli:
 
 # test: 
 # 	$(GOTEST) -v ./...
+
+deps:
+	$(GOGET) github.com/fatih/color
+	$(GOGET) google.golang.org/grpc
+	$(GOGET) gopkg.in/yaml.v2
+	$(GOGET) github.com/rs/xid
+	$(GOGET) github.com/golang/protobuf/proto
+
 clean: 
 	rm -f ./bin/$(BINARY_NAME)
 run:
