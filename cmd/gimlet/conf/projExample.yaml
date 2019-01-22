@@ -1,0 +1,8 @@
+# The name of the Gimlet project
+Name: ""
+
+# The host to run the Gimlet internal gRPC server
+DefaultHost: "localhost"
+
+# The port to host the internal gRPC server on using DefaultHost
+DefaultPort: ":59999"
