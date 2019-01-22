@@ -13,10 +13,10 @@ all: build-gimlet build-cli
 install: all install-gimlet install-cli
 
 build-gimlet:
-	$(GOBUILD) -o ./bin/$(GIMLET_BINARY) ./cmd/gimlet-core/*.go
+	$(GOBUILD) -o ./bin/$(GIMLET_BINARY) ./cmd/gimlet/*.go
 
 build-cli:
-	$(GOBUILD) -o ./bin/$(CLI_BINARY) ./cmd/cli/*.go
+	$(GOBUILD) -o ./bin/$(CLI_BINARY) ./cmd/gmbh/*.go
 
 install-gimlet:
 	cp bin/$(GIMLET_BINARY) /usr/local/bin/

@@ -4,6 +4,8 @@
 # so that the Go Toolchain can find them without changing your GOPATH.
 
 if [ $GOPATH != "" ]; then
+
+    # Link the packages to build gimlet and gmbh
     gPATH=$GOPATH"/src/github.com/gimlet-gmbh/gimlet/"
     PKGPATH=$GOPATH"/src/github.com/gimlet-gmbh"
     echo "Linking with Gopath="$GOPATH
@@ -23,11 +25,11 @@ if [ $GOPATH != "" ]; then
         fi
     done
 
-    # Link the gmbh client package
+    # Link the gmbh client package for use with services
     if [ -d $PKGPATH/gmbh ]; then
         echo "gmbh is already linked"
     else 
-        ln -s ../pkg/gmbh-go $PKGPath/gmbh
+        ln -s $PWD/../pkg/gmbh $PKGPATH/gmbh
         echo "linking gmbh to go path"
     fi
     
