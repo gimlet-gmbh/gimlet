@@ -7,79 +7,67 @@ package gmbh
  */
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/gimlet-gmbh/gimlet/ipc"
+	"github.com/gimlet-gmbh/gimlet/gprint"
+	"github.com/gimlet-gmbh/gimlet/gproto"
 )
 
-type (
+const version = "00.05.01"
 
-	// Request -
-	Request = ipc.Request
+// HandlerFunc is the publically exposed function to register and use the callback functions
+// from within gimlet. Its behavior is modeled after the http handler that is baked into go
+// by default
+type HandlerFunc = func(req Request, resp *Responder)
 
-	// Responder -
-	Responder = ipc.Responder
-
-	// handlerFunc is the function type
-	handlerFunc = func(req ipc.Request, resp *ipc.Responder)
-)
-
-/*
- @ Point
-
- About to refactor the whole API to get read a config instead of
- setting properties with a config
-
-*/
-
-func init() {
-
+// Gimlet - the structure between a service and CORE
+type Gimlet struct {
+	ServiceName         string `yaml:"name"`
+	isServer            bool   `yaml:"isserver"`
+	isClient            bool   `yaml:"isclient"`
+	address             string
+	registeredFunctions map[string]HandlerFunc
 }
 
-// var c *Cabal
+// g - the gimlet object that contains the parsed yaml config and other associated data
+var g *Gimlet
 
-// // Cabal - singleton for cabal coms
-// type Cabal struct {
-// 	name     string
-// 	isServer bool
-// 	isClient bool
-// 	address  string
-
-// 	registeredFunctions map[string]func(req ipc.Request, resp *ipc.Responder)
-// }
-
-// func newService()
-
-// NewComsModule - start coms
-func NewComsModule() *Cabal {
-	c = &Cabal{
-		isClient: false,
-		isServer: false,
-
-		registeredFunctions: map[string]handlerFunc{},
+// NewService should be called only once. It returns the object in which parameters, and
+// handler functions can be attached to Gimlet.
+func NewService(configPath string) (*Gimlet, error) {
+	if g != nil {
+		return g, nil
 	}
-	return c
+
+	var err error
+	g, err = parseYamlConfig(configPath)
+	if err != nil {
+		gprint.Err(err.Error(), 0)
+		return nil, errors.New("could not parse config")
+	}
+
+	g.registeredFunctions = make(map[string]HandlerFunc)
+
+	return g, nil
+
 }
 
-// SetServer - Tell CORE that this service is capable of implementing
-// all functionality required to be make data requests to.
-func (c *Cabal) SetServer() {
-	c.isServer = true
-}
-
-// SetClient - Tell CORE that this service is capable of making data
-// requests to other services.
-func (c *Cabal) SetClient() {
-	c.isClient = true
-}
-
-// Start - Registers the service with CORE.
-func (c *Cabal) Start(name string) {
-	c.name = name
-	addr, _ := _ephemeralRegisterService(name, c.isClient, c.isServer)
+// Start registers the service with gimlet.
+//
+// Note that this blocks until receiving the signal to quit. If starting a webserver
+// run this in a go thread as to not block content from being delivered the desired
+// output.
+//
+// TODO: Find a better way to start
+func (g *Gimlet) Start() {
+	addr, _ := _ephemeralRegisterService(g.ServiceName, g.isClient, g.isServer)
+	// if err != nil {
+	// 	return err
+	// }
 
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
@@ -95,22 +83,97 @@ func (c *Cabal) Start(name string) {
 	}
 
 	<-done
-	_makeUnregisterRequest(c.name)
+	_makeUnregisterRequest(g.ServiceName)
 	os.Exit(0)
+	// return nil
 }
 
 // Route - Callback functions to be used when handling data
-// requests from CORE
-func (c *Cabal) Route(route string, handler func(ipc.Request, *ipc.Responder)) {
-	// *NOTE* add checking for duplicates, etc...
-	c.registeredFunctions[route] = handler
+// requests from gimlet or other services
+//
+// TODO: Add a mechanism to safely add these and check for collisions, etc.
+func (g *Gimlet) Route(route string, handler HandlerFunc) {
+	g.registeredFunctions[route] = handler
 }
 
-// MakeRequest - Make a data request across Cabal
-func (c *Cabal) MakeRequest(target, method, data string) ipc.Responder {
+// MakeRequest is the default method for making data requests through gimlet
+func (g *Gimlet) MakeRequest(target, method, data string) Responder {
 	resp, err := _makeDataRequest(target, method, data)
 	if err != nil {
 		panic(err)
 	}
 	return resp
+}
+
+// Request is the publically exposed requester between services in gimlet
+type Request struct {
+	// Sender is the name of the service that is sending the message
+	Sender string
+
+	// Target is the name or alias of the intended recepient
+	Target string
+
+	// Method is the handler to invoke on target entry
+	// TODO: Change this as it can be considered confusing with
+	// 		 the HTTP methods...
+	Method string
+
+	// Data1 is the data to send
+	// TODO: remove this and more articulately handle data
+	Data1 string
+}
+
+// Responder is the publically exposed responder between services in gimlet
+type Responder struct {
+	// Result is the resulting datat from target
+	// TODO: remove this and more articulately handle data
+	Result string
+
+	// ErrorString is the corresponding error string if HadError is true
+	ErrorString string
+
+	// HadError is true if the request was not completed without error
+	HadError bool
+}
+
+// requestFromProto takes a gproto request and returns the corresponding
+// Request object
+func requestFromProto(r gproto.Request) Request {
+	return Request{
+		Sender: r.Sender,
+		Target: r.Target,
+		Method: r.Method,
+		Data1:  r.Data1,
+	}
+}
+
+// ToProto returns the gproto Request object corresponding to the current
+// Request object
+func (r *Request) toProto() *gproto.Request {
+	return &gproto.Request{
+		Sender: r.Sender,
+		Target: r.Target,
+		Method: r.Method,
+		Data1:  r.Data1,
+	}
+}
+
+// ResponderFromProto takes a gproto Responder and returns the corresponding
+// Responder object
+func responderFromProto(r gproto.Responder) Responder {
+	return Responder{
+		Result:      r.Result,
+		ErrorString: r.ErrorString,
+		HadError:    r.HadError,
+	}
+}
+
+// ToProto returns the gproto Request object corresponding to the current
+// Responder object
+func (r *Responder) toProto() *gproto.Responder {
+	return &gproto.Responder{
+		Result:      r.Result,
+		ErrorString: r.ErrorString,
+		HadError:    r.HadError,
+	}
 }

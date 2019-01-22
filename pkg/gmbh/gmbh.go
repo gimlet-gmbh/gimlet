@@ -1,33 +1,58 @@
 package gmbh
 
-import (
-	"github.com/gimlet-gmbh/gimlet/gproto"
-	"github.com/gimlet-gmbh/gimlet/ipc"
-)
-
 /*
  * gmbh.go
- *
  * Abe Dick
  * Nov 2018
  */
 
+import (
+	"errors"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
+
+	"github.com/gimlet-gmbh/gimlet/gprint"
+	"github.com/gimlet-gmbh/gimlet/gproto"
+	yaml "gopkg.in/yaml.v2"
+)
+
 func handleDataRequest(req gproto.Request) (*gproto.Responder, error) {
 
-	request := ipc.RequestFromProto(req)
-	responder := ipc.Responder{}
+	var request Request
+	request = requestFromProto(req)
+	responder := Responder{}
 
-	handler, ok := c.registeredFunctions[request.Method]
+	handler, ok := g.registeredFunctions[request.Method]
 	if !ok {
 		responder.HadError = true
-		responder.ErrorString = "Could not locate method in -cabal_generic"
+		responder.ErrorString = "Could not locate method in registered process map"
 	} else {
 		handler(request, &responder)
 	}
 
-	return responder.ToProto(), nil
+	return responder.toProto(), nil
 }
 
 func createLog() {
 
+}
+
+func parseYamlConfig(relativePath string) (*Gimlet, error) {
+	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	var conf Gimlet
+	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
+	if err != nil {
+		gprint.Err(path+relativePath, 0)
+		return nil, errors.New("could not find yaml file")
+	}
+	err = yaml.Unmarshal(yamlFile, &conf)
+	if err != nil {
+		return nil, errors.New("could not unmarshal config")
+	}
+	return &conf, nil
 }

@@ -1,5 +1,11 @@
 package main
 
+/*
+ * main.go
+ * Abe Dick
+ * January 2019
+ */
+
 import (
 	"fmt"
 	"os"
@@ -8,12 +14,6 @@ import (
 	"github.com/gimlet-gmbh/gimlet/gcore"
 	"github.com/gimlet-gmbh/gimlet/gprint"
 )
-
-/*
- * main.go
- * Abe Dick
- * January 2019
- */
 
 func init() {
 	if len(os.Args) < 2 {

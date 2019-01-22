@@ -1,5 +1,11 @@
 package main
 
+/**
+ * main.go
+ * Abe Dick
+ * January 2019
+ */
+
 import (
 	"fmt"
 	"os"
@@ -14,12 +20,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/gimlet-gmbh/gimlet/gprint"
 )
-
-/**
- * main.go
- * Abe Dick
- * January 2019
- */
 
 const (
 	VERSION    = "00.02.00"
