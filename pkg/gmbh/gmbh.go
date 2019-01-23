@@ -22,6 +22,7 @@ import (
 )
 
 const version = "00.05.01"
+const debug = true
 
 // HandlerFunc is the publically exposed function to register and use the callback functions
 // from within gimlet. Its behavior is modeled after the http handler that is baked into go
@@ -35,6 +36,7 @@ type Gimlet struct {
 	isClient            bool   `yaml:"isclient"`
 	address             string
 	registeredFunctions map[string]HandlerFunc
+	msgCounter          int
 }
 
 // g - the gimlet object that contains the parsed yaml config and other associated data
@@ -68,10 +70,10 @@ func NewService(configPath string) (*Gimlet, error) {
 //
 // TODO: Find a better way to start
 func (g *Gimlet) Start() {
-	addr, _ := _ephemeralRegisterService(g.ServiceName, g.isClient, g.isServer)
-	// if err != nil {
-	// 	return err
-	// }
+	addr, err := _ephemeralRegisterService(g.ServiceName, g.isClient, g.isServer)
+	if err != nil {
+		dlog("gmbh.Start: " + err.Error())
+	}
 
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
@@ -85,6 +87,8 @@ func (g *Gimlet) Start() {
 	if addr != "" {
 		go rpcConnect(addr)
 	}
+
+	dlog("gmbh started")
 
 	<-done
 	_makeUnregisterRequest(g.ServiceName)
@@ -215,4 +219,10 @@ func parseYamlConfig(relativePath string) (*Gimlet, error) {
 		return nil, errors.New("could not unmarshal config")
 	}
 	return &conf, nil
+}
+
+func dlog(msg string) {
+	if debug {
+		gprint.LogMsg(msg)
+	}
 }

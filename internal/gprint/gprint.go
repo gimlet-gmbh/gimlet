@@ -2,6 +2,7 @@ package gprint
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/fatih/color"
 )
@@ -20,6 +21,11 @@ func Ln(msg string, indent int) {
 	color.Set(color.FgBlue)
 	out(setIndent(indent) + msg)
 	color.Unset()
+}
+
+// LogMsg with a timestamp
+func LogMsg(msg string) {
+	log.Println(msg)
 }
 
 // Cln prints a custom single line w/ tag

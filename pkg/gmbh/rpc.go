@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/gimlet-gmbh/gimlet/gproto"
@@ -89,6 +90,10 @@ func _makeDataRequest(target string, method string, data string) (Responder, err
 		},
 	}
 
+	mcs := strconv.Itoa(g.msgCounter)
+	g.msgCounter++
+	dlog("<==" + mcs + "== target: " + target + ", method: " + method)
+
 	reply, err := client.MakeDataRequest(ctx, &request)
 	if err != nil {
 		// panic(err)
@@ -101,6 +106,7 @@ func _makeDataRequest(target string, method string, data string) (Responder, err
 		return r, err
 
 	}
+	dlog(" ==" + mcs + "==> result: " + reply.Resp.Result + ", errors?: " + reply.Resp.ErrorString)
 
 	return responderFromProto(*reply.Resp), nil
 }
@@ -147,7 +153,9 @@ func (s *_server) UnregisterService(ctx context.Context, in *gproto.UnregisterRe
 
 func (s *_server) MakeDataRequest(ctx context.Context, in *gproto.DataReq) (*gproto.DataResp, error) {
 
-	fmt.Println("Recieved data request from: " + in.Req.Sender + " w/ target: " + in.Req.Target)
+	mcs := strconv.Itoa(g.msgCounter)
+	g.msgCounter++
+	dlog("==" + mcs + "==> from: " + in.Req.Sender + ", method: " + in.Req.Method)
 
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
