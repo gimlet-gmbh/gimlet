@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"syscall"
@@ -43,14 +44,18 @@ type ServiceHandler struct {
 // as they are discovered and services as they come online via
 // the new service discovery method
 type ServiceControl struct {
-	Name       string
-	Aliases    []string
-	Config     string
+	Name    string
+	Aliases []string
+	Config  string
+
+	// ConfigPath is the absolute path to the main directory of the service
 	ConfigPath string
-	BinPath    string
-	Static     *StaticControl
-	Process    *pmgmt.Process
-	Address    string
+
+	// BinPath is the absolute path to the binary of the service
+	BinPath string
+	Static  *StaticControl
+	Process *pmgmt.Process
+	Address string
 }
 
 // StaticControl things at service discovery
@@ -67,7 +72,8 @@ type StaticControl struct {
 
 func NewServiceControl(stat *StaticControl) *ServiceControl {
 	return &ServiceControl{
-		Name:    stat.Name,
+		Name: stat.Name,
+		// ConfigPath: stat.Path,
 		Aliases: stat.Aliases,
 		Static:  stat,
 	}
@@ -129,7 +135,8 @@ func (s *ServiceHandler) GetService(name string) (*ServiceControl, error) {
 func StartService(service *ServiceControl) (string, error) {
 
 	if service.Static.Language == "go" {
-		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath)
+		fmt.Println(service.ConfigPath)
+		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath, service.ConfigPath)
 		pid, err := service.Process.Controller.Start(service.Process)
 		if err != nil {
 			return "", err

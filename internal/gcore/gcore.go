@@ -128,6 +128,7 @@ func (c *Core) ServiceDiscovery() {
 		}
 
 		newService.BinPath = nservice.path + newService.Static.Path
+		newService.ConfigPath = nservice.path
 
 		gprint.Ln("Starting Service...", 2)
 		gprint.Ln(newService.BinPath, 3)
@@ -162,7 +163,8 @@ func (c *Core) getServicePath() string {
 func (c *Core) startService(service *service.ServiceControl) (string, error) {
 
 	if service.Static.Language == "go" {
-		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath)
+		fmt.Println("service config path: " + service.ConfigPath)
+		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath, service.ConfigPath)
 		pid, err := service.Process.Controller.Start(service.Process)
 		if err != nil {
 			return "", err

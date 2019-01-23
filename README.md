@@ -6,4 +6,4 @@ Run the install script in the scripts folder. Make sure that you have set your g
 
 
 ## Long Term Roadmap
-* service adn pmgmt need refactored
+* service and pmgmt need refactored

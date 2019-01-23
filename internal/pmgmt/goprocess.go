@@ -83,10 +83,18 @@ func (g *GoProcess) GetCmd(p *Process) *exec.Cmd {
 	var cmd *exec.Cmd
 	cmd = exec.Command(p.Info.path, p.Info.args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	// cmd.Stdout = p.files.stdOut
-	// cmd.Stderr = p.files.stdOut
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	gprint.Err(p.Info.dir, 3)
+	file, err := createLogFile(p.Info.dir+"gimlet/", "."+p.Info.name+".txt")
+	if err != nil {
+		gprint.Err("could not create log file for "+p.Info.name, 3)
+		gprint.Err("using Stdout instead", 3)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd
+	}
+	cmd.Stdout = file
+	cmd.Stderr = file
 	return cmd
 }
 

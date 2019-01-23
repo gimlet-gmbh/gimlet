@@ -7,7 +7,7 @@ package pmgmt
  */
 
 // NewGoProcess returns a new golang process
-func NewGoProcess(name, path string) *Process {
+func NewGoProcess(name, path, dir string) *Process {
 	p := Process{
 		// id: getProcID(),
 		Controller: &GoProcess{},
@@ -15,6 +15,7 @@ func NewGoProcess(name, path string) *Process {
 			name: name,
 			args: []string{},
 			path: path,
+			dir:  dir,
 			// build: build,
 		},
 		Runtime: pRuntime{

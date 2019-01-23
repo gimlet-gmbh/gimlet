@@ -1,8 +1,12 @@
 package pmgmt
 
 import (
+	"errors"
+	"os"
 	"os/exec"
 	"time"
+
+	"github.com/gimlet-gmbh/gimlet/gprint"
 )
 
 /*
@@ -50,6 +54,25 @@ type pRuntime struct {
 
 type pError struct {
 	errors []error
+}
+
+func createLogFile(path, filename string) (*os.File, error) {
+
+	checkDir(path)
+
+	stdOut, err := os.OpenFile(path+filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	if err != nil {
+		gprint.Err(err.Error(), 3)
+		return nil, errors.New("could not create log file")
+	}
+
+	return stdOut, nil
+}
+
+func checkDir(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.Mkdir(path, 0755)
+	}
 }
 
 // type pFiles struct {
