@@ -1,4 +1,4 @@
-package gcore
+package core
 
 /**
  * rpcControlServer.go

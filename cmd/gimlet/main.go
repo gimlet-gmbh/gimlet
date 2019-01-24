@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/gimlet-gmbh/gimlet/gcore"
+	"github.com/gimlet-gmbh/gimlet/core"
 	"github.com/gimlet-gmbh/gimlet/notify"
 )
 
@@ -24,13 +24,13 @@ func init() {
 
 func main() {
 
-	core := gcore.StartCore(os.Args[1])
+	Gimletcore := core.StartCore(os.Args[1])
 
 	printLogo()
-	notify.StdMsgBlue("Starting version: "+core.Version+" ("+core.CodeName+")", 0)
+	notify.StdMsgBlue("Starting version: "+Gimletcore.Version+" ("+Gimletcore.CodeName+")", 0)
 
-	core.StartInternalServer()
-	core.ServiceDiscovery()
+	Gimletcore.StartInternalServer()
+	Gimletcore.ServiceDiscovery()
 }
 
 func printLogo() {
