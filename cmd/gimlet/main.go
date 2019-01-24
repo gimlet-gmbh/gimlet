@@ -24,13 +24,13 @@ func init() {
 
 func main() {
 
-	Gimletcore := core.StartCore(os.Args[1])
+	gimlet := core.StartCore(os.Args[1])
 
 	printLogo()
-	notify.StdMsgBlue("Starting version: "+Gimletcore.Version+" ("+Gimletcore.CodeName+")", 0)
+	notify.StdMsgBlue("Starting version: "+gimlet.Version+" ("+gimlet.CodeName+")", 0)
 
-	Gimletcore.StartInternalServer()
-	Gimletcore.ServiceDiscovery()
+	gimlet.StartInternalServer()
+	gimlet.ServiceDiscovery()
 }
 
 func printLogo() {
