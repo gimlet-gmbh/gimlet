@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/xid"
 
-	"github.com/gimlet-gmbh/gimlet/gproto"
+	"github.com/gimlet-gmbh/gimlet/cabal"
 	"github.com/gimlet-gmbh/gimlet/notify"
 )
 
@@ -19,7 +19,7 @@ import (
 // _server is for gRPC interface fulfilment
 type _server struct{}
 
-func (s *_server) EphemeralRegisterService(ctx context.Context, in *gproto.RegServReq) (*gproto.RegServRep, error) {
+func (s *_server) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
 
 	notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.Name))
 	service, err := core.serviceHandler.GetService(in.NewServ.Name)
@@ -33,7 +33,7 @@ func (s *_server) EphemeralRegisterService(ctx context.Context, in *gproto.RegSe
 		notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.Name))
 	}
 
-	reply := &gproto.RegServRep{
+	reply := &cabal.RegServRep{
 		Status:   "acknowledged",
 		ID:       xid.New().String(),
 		CorePath: core.ProjectPath,
@@ -43,7 +43,7 @@ func (s *_server) EphemeralRegisterService(ctx context.Context, in *gproto.RegSe
 	return reply, nil
 }
 
-func (s *_server) MakeDataRequest(ctx context.Context, in *gproto.DataReq) (*gproto.DataResp, error) {
+func (s *_server) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
 
 	notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.Sender, in.Req.Target, in.Req.Method))
 
@@ -54,15 +54,15 @@ func (s *_server) MakeDataRequest(ctx context.Context, in *gproto.DataReq) (*gpr
 		responder.ErrorString = "Could not contact target"
 	}
 
-	reply := &gproto.DataResp{Resp: responder}
+	reply := &cabal.DataResp{Resp: responder}
 	return reply, nil
 }
 
-func (s *_server) UnregisterService(ctx context.Context, in *gproto.UnregisterReq) (*gproto.UnregisterResp, error) {
+func (s *_server) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
 	// printDebug("Received unregister request")
 	// printDebug("\tName: " + in.Name)
 
-	reply := &gproto.UnregisterResp{Awk: false}
+	reply := &cabal.UnregisterResp{Awk: false}
 	// err := removeServiceFromList(in.Name, -1)
 	// if err != nil {
 	// reply.Awk = false
@@ -71,14 +71,14 @@ func (s *_server) UnregisterService(ctx context.Context, in *gproto.UnregisterRe
 	return reply, nil
 }
 
-func handleDataRequest(req gproto.Request) (*gproto.Responder, error) {
+func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
 	address, err := core.serviceHandler.GetAddress(req.Target)
 	if err != nil {
-		return &gproto.Responder{}, err
+		return &cabal.Responder{}, err
 	}
 	return _makeDataRequest(req, address)
 }
 
-func (s *_server) QueryStatus(ctx context.Context, in *gproto.QueryRequest) (*gproto.QueryResponse, error) {
+func (s *_server) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
 	return nil, nil
 }

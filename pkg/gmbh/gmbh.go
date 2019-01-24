@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/gimlet-gmbh/gimlet/gprint"
-	"github.com/gimlet-gmbh/gimlet/gproto"
+	"github.com/gimlet-gmbh/gimlet/cabal"
+	"github.com/gimlet-gmbh/gimlet/notify"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -52,7 +52,7 @@ func NewService(configPath string) (*Gimlet, error) {
 	var err error
 	g, err = parseYamlConfig(configPath)
 	if err != nil {
-		gprint.Err(err.Error(), 0)
+		notify.StdMsgErr(err.Error())
 		return nil, errors.New("could not parse config")
 	}
 
@@ -133,8 +133,8 @@ type Request struct {
 
 // ToProto returns the gproto Request object corresponding to the current
 // Request object
-func (r *Request) toProto() *gproto.Request {
-	return &gproto.Request{
+func (r *Request) toProto() *cabal.Request {
+	return &cabal.Request{
 		Sender: r.Sender,
 		Target: r.Target,
 		Method: r.Method,
@@ -157,8 +157,8 @@ type Responder struct {
 
 // ToProto returns the gproto Request object corresponding to the current
 // Responder object
-func (r *Responder) toProto() *gproto.Responder {
-	return &gproto.Responder{
+func (r *Responder) toProto() *cabal.Responder {
+	return &cabal.Responder{
 		Result:      r.Result,
 		ErrorString: r.ErrorString,
 		HadError:    r.HadError,
@@ -167,7 +167,7 @@ func (r *Responder) toProto() *gproto.Responder {
 
 // requestFromProto takes a gproto request and returns the corresponding
 // Request object
-func requestFromProto(r gproto.Request) Request {
+func requestFromProto(r cabal.Request) Request {
 	return Request{
 		Sender: r.Sender,
 		Target: r.Target,
@@ -178,7 +178,7 @@ func requestFromProto(r gproto.Request) Request {
 
 // ResponderFromProto takes a gproto Responder and returns the corresponding
 // Responder object
-func responderFromProto(r gproto.Responder) Responder {
+func responderFromProto(r cabal.Responder) Responder {
 	return Responder{
 		Result:      r.Result,
 		ErrorString: r.ErrorString,
@@ -186,7 +186,7 @@ func responderFromProto(r gproto.Responder) Responder {
 	}
 }
 
-func handleDataRequest(req gproto.Request) (*gproto.Responder, error) {
+func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
 
 	var request Request
 	request = requestFromProto(req)
@@ -211,7 +211,7 @@ func parseYamlConfig(relativePath string) (*Gimlet, error) {
 	var conf Gimlet
 	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
 	if err != nil {
-		gprint.Err(path+relativePath, 0)
+		notify.StdMsgErr(path + relativePath)
 		return nil, errors.New("could not find yaml file")
 	}
 	err = yaml.Unmarshal(yamlFile, &conf)
@@ -223,6 +223,6 @@ func parseYamlConfig(relativePath string) (*Gimlet, error) {
 
 func dlog(msg string) {
 	if debug {
-		gprint.LogMsg(msg)
+		notify.StdMsgMagenta(msg)
 	}
 }

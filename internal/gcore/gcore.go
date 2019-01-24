@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"syscall"
 
-	gproto "github.com/gimlet-gmbh/gimlet/gproto"
+	"github.com/gimlet-gmbh/gimlet/cabal"
 	grouter "github.com/gimlet-gmbh/gimlet/grouter"
 	notify "github.com/gimlet-gmbh/gimlet/notify"
 	pmgmt "github.com/gimlet-gmbh/gimlet/pmgmt"
@@ -266,7 +266,7 @@ func (c *Core) rpcConnect() {
 		}
 
 		s := grpc.NewServer()
-		gproto.RegisterCabalServer(s, &_server{})
+		cabal.RegisterCabalServer(s, &_server{})
 
 		reflection.Register(s)
 		if err := s.Serve(list); err != nil {

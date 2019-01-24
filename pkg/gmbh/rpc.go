@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gimlet-gmbh/gimlet/gproto"
+	"github.com/gimlet-gmbh/gimlet/cabal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -22,12 +22,12 @@ import (
 ** Client
 **********************************************************************************/
 
-func getRPCClient() (gproto.CabalClient, error) {
+func getRPCClient() (cabal.CabalClient, error) {
 	con, err := grpc.Dial("localhost:59999", grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
-	return gproto.NewCabalClient(con), nil
+	return cabal.NewCabalClient(con), nil
 
 }
 
@@ -36,7 +36,7 @@ func getContextCancel() (context.Context, context.CancelFunc) {
 	return ctx, can
 }
 
-func makeRequest() (gproto.CabalClient, context.Context, context.CancelFunc, error) {
+func makeRequest() (cabal.CabalClient, context.Context, context.CancelFunc, error) {
 	client, err := getRPCClient()
 	if err != nil {
 		return nil, nil, nil, err
@@ -54,8 +54,8 @@ func _ephemeralRegisterService(name string, isClient bool, isServer bool) (strin
 	}
 	defer can()
 
-	request := gproto.RegServReq{
-		NewServ: &gproto.NewService{
+	request := cabal.RegServReq{
+		NewServ: &cabal.NewService{
 			Name:     name,
 			Aliases:  []string{},
 			IsClient: isClient,
@@ -81,8 +81,8 @@ func _makeDataRequest(target string, method string, data string) (Responder, err
 	}
 	defer can()
 
-	request := gproto.DataReq{
-		Req: &gproto.Request{
+	request := cabal.DataReq{
+		Req: &cabal.Request{
 			Sender: "test",
 			Target: target,
 			Method: method,
@@ -118,7 +118,7 @@ func _makeUnregisterRequest(name string) {
 	}
 	defer can()
 
-	_, _ = client.UnregisterService(ctx, &gproto.UnregisterReq{Name: name})
+	_, _ = client.UnregisterService(ctx, &cabal.UnregisterReq{Name: name})
 }
 
 /**********************************************************************************
@@ -135,7 +135,7 @@ func rpcConnect(address string) {
 	}
 
 	s := grpc.NewServer()
-	gproto.RegisterCabalServer(s, &_server{})
+	cabal.RegisterCabalServer(s, &_server{})
 
 	reflection.Register(s)
 	if err := s.Serve(list); err != nil {
@@ -143,15 +143,15 @@ func rpcConnect(address string) {
 	}
 }
 
-func (s *_server) EphemeralRegisterService(ctx context.Context, in *gproto.RegServReq) (*gproto.RegServRep, error) {
-	return &gproto.RegServRep{Status: "invalid operation"}, nil
+func (s *_server) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
+	return &cabal.RegServRep{Status: "invalid operation"}, nil
 }
 
-func (s *_server) UnregisterService(ctx context.Context, in *gproto.UnregisterReq) (*gproto.UnregisterResp, error) {
-	return &gproto.UnregisterResp{Awk: false}, nil
+func (s *_server) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
+	return &cabal.UnregisterResp{Awk: false}, nil
 }
 
-func (s *_server) MakeDataRequest(ctx context.Context, in *gproto.DataReq) (*gproto.DataResp, error) {
+func (s *_server) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
@@ -162,13 +162,13 @@ func (s *_server) MakeDataRequest(ctx context.Context, in *gproto.DataReq) (*gpr
 		panic(err)
 	}
 
-	reply := &gproto.DataResp{Resp: responder}
+	reply := &cabal.DataResp{Resp: responder}
 	return reply, nil
 }
 
-func (s *_server) QueryStatus(ctx context.Context, in *gproto.QueryRequest) (*gproto.QueryResponse, error) {
+func (s *_server) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
 
-	response := gproto.QueryResponse{
+	response := cabal.QueryResponse{
 		Awk:     true,
 		Status:  true,
 		Details: make(map[string]string),

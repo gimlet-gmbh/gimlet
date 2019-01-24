@@ -10,17 +10,17 @@ import (
 	"context"
 	"time"
 
-	"github.com/gimlet-gmbh/gimlet/gproto"
+	"github.com/gimlet-gmbh/gimlet/cabal"
 	"github.com/gimlet-gmbh/gimlet/notify"
 	"google.golang.org/grpc"
 )
 
-func getRPCClient(address string) (gproto.CabalClient, error) {
+func getRPCClient(address string) (cabal.CabalClient, error) {
 	con, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
-	return gproto.NewCabalClient(con), nil
+	return cabal.NewCabalClient(con), nil
 }
 
 func getContextCancel() (context.Context, context.CancelFunc) {
@@ -28,7 +28,7 @@ func getContextCancel() (context.Context, context.CancelFunc) {
 	return ctx, can
 }
 
-func makeRequest(address string) (gproto.CabalClient, context.Context, context.CancelFunc, error) {
+func makeRequest(address string) (cabal.CabalClient, context.Context, context.CancelFunc, error) {
 	client, err := getRPCClient(address)
 	if err != nil {
 		return nil, nil, nil, err
@@ -38,21 +38,21 @@ func makeRequest(address string) (gproto.CabalClient, context.Context, context.C
 	return client, ctx, can, nil
 }
 
-func _makeDataRequest(req gproto.Request, address string) (*gproto.Responder, error) {
+func _makeDataRequest(req cabal.Request, address string) (*cabal.Responder, error) {
 	client, ctx, can, err := makeRequest(address)
 	if err != nil {
 		panic(err)
 	}
 	defer can()
 
-	request := gproto.DataReq{
+	request := cabal.DataReq{
 		Req: &req,
 	}
 
 	reply, err := client.MakeDataRequest(ctx, &request)
 	if err != nil {
 		notify.StdMsgErr(err.Error(), 1)
-		r := gproto.Responder{
+		r := cabal.Responder{
 			HadError:    true,
 			ErrorString: err.Error(),
 		}
@@ -62,15 +62,15 @@ func _makeDataRequest(req gproto.Request, address string) (*gproto.Responder, er
 	return reply.Resp, nil
 }
 
-func requestQueryData(address string) (*gproto.QueryResponse, error) {
+func requestQueryData(address string) (*cabal.QueryResponse, error) {
 	client, ctx, can, err := makeRequest(address)
 	if err != nil {
 		panic(err)
 	}
 	defer can()
 
-	req := gproto.QueryRequest{
-		Query: gproto.QueryRequest_STATUS,
+	req := cabal.QueryRequest{
+		Query: cabal.QueryRequest_STATUS,
 	}
 
 	// reply, err := client.QueryStatus(ctx, &req)
