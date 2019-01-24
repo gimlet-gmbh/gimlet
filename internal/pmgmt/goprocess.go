@@ -13,8 +13,6 @@ import (
 	"os/exec"
 	"syscall"
 	"time"
-
-	"github.com/gimlet-gmbh/gimlet/gprint"
 )
 
 // GoProcess represents the controller for a Golang process
@@ -67,7 +65,7 @@ func (g *GoProcess) ForkExec(p *Process, pid chan int) {
 		if err != nil {
 			// l.Message("proc error", "err: "+error.Error())
 			p.Errs.errors = append(p.Errs.errors, error)
-			gprint.Err(fmt.Sprintf("Process Failed: %d", p.Runtime.Pid), 0)
+			// gprint.Err(fmt.Sprintf("Process Failed: %d", p.Runtime.Pid), 0)
 		}
 
 		if p.Runtime.userKilled {
@@ -84,11 +82,11 @@ func (g *GoProcess) GetCmd(p *Process) *exec.Cmd {
 	cmd = exec.Command(p.Info.path, p.Info.args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	gprint.Err(p.Info.dir, 3)
+	// gprint.Err(p.Info.dir, 3)
 	file, err := createLogFile(p.Info.dir+"gimlet/", "."+p.Info.name+".txt")
 	if err != nil {
-		gprint.Err("could not create log file for "+p.Info.name, 3)
-		gprint.Err("using Stdout instead", 3)
+		// gprint.Err("could not create log file for "+p.Info.name, 3)
+		// gprint.Err("using Stdout instead", 3)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		return cmd

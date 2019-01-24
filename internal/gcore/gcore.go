@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"syscall"
 
-	gprint "github.com/gimlet-gmbh/gimlet/gprint"
 	gproto "github.com/gimlet-gmbh/gimlet/gproto"
 	grouter "github.com/gimlet-gmbh/gimlet/grouter"
+	notify "github.com/gimlet-gmbh/gimlet/notify"
 	pmgmt "github.com/gimlet-gmbh/gimlet/pmgmt"
 	service "github.com/gimlet-gmbh/gimlet/service"
 
@@ -36,6 +36,8 @@ TODO: gproto to cabal
 // The global config and controller for the core
 // Not much of a way around this when using rpc
 var core *Core
+
+const addr = "localhost:59999"
 
 // Core - internal representation of CORE
 type Core struct {
@@ -83,74 +85,59 @@ func StartCore(path string) *Core {
 
 // StartInternalServer starts the gRPC server to run core on
 func (c *Core) StartInternalServer() {
-	gprint.Ln("Attempting to start internal server", 0)
+	notify.StdMsgBlue("Attempting to start internal server")
 	c.rpcConnect()
 }
 
 // ServiceDiscovery scans all directories in the ./services folder looking for gimlet configuration files
 func (c *Core) ServiceDiscovery() {
-	gprint.Ln("Service Discovery", 0)
-	gprint.Ln("Scanning for configurations with base directory:", 1)
-
 	path := c.getServicePath()
-	gprint.Ln(path, 1)
+
+	notify.StdMsgBlue("service discovery started in")
+	notify.StdMsgBlue(path)
 
 	tmpService := c.findAllServices(path)
-	gprint.Ln(fmt.Sprintf("Found %d services", len(tmpService)), 1)
-
-	j := 1
 	for i, nservice := range tmpService {
 
 		staticData := c.parseYamlConfig(nservice.path + nservice.configFile)
 
-		gprint.Ln(fmt.Sprintf("(%d/%d)", i+1, j), 1)
-		j++
-		gprint.Ln("Service Data...", 2)
-		gprint.Ln("Name: "+staticData.Name, 3)
-		gprint.Ln("Aliases: "+fmt.Sprintf("%v", staticData.Aliases), 3)
-		gprint.Ln("Language: "+staticData.Language, 3)
-		gprint.Ln("Makefile: "+strconv.FormatBool(staticData.Makefile), 3)
-		gprint.Ln("Path: "+path+"/"+staticData.Path, 3)
-		gprint.Ln("IsClient: "+strconv.FormatBool(staticData.IsClient), 3)
-		gprint.Ln("IsServer: "+strconv.FormatBool(staticData.IsServer), 3)
+		notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(tmpService)))
+		notify.StdMsgBlue(staticData.Name, 1)
+		notify.StdMsgBlue(path+"/"+staticData.Path, 1)
 
 		newService := service.NewServiceControl(staticData)
 		err := c.serviceHandler.AddService(newService)
 		if err != nil {
-			gprint.Err("Could not add service", 3)
-			gprint.Err("reported error: "+err.Error(), 3)
+			notify.StdMsgErr("Could not add service")
+			notify.StdMsgErr("reported error: " + err.Error())
 			continue
 		}
 
 		if staticData.IsServer {
 			newService.Address = c.router.GetNextAddress()
-			gprint.Ln("Assigning address: "+newService.Address, 4)
+			notify.StdMsgBlue("Assigning address: "+newService.Address, 1)
 		}
 
 		newService.BinPath = nservice.path + newService.Static.Path
 		newService.ConfigPath = nservice.path
 
-		gprint.Ln("Starting Service...", 2)
-		gprint.Ln(newService.BinPath, 3)
-
 		pid, err := c.startService(newService)
 		if err != nil {
-			gprint.Err("Could not start service", 3)
-			gprint.Err("Reported error: "+err.Error(), 3)
+			notify.StdMsgErr("Could not add service", 1)
+			notify.StdMsgErr("reported error: "+err.Error(), 1)
 			continue
 		}
 
-		gprint.Ln("Registering service as ephemeral", 3)
-		gprint.Green("Started service with pid: "+pid, 3)
+		notify.StdMsgGreen(fmt.Sprintf("Service running in ephemeral mode with pid=(%v)", pid), 1)
 	}
-	gprint.Ln("Startup complete", 0)
-	gprint.Green("Blocking main thread until SIGINT", 0)
+	notify.StdMsgBlue("Startup complete")
+	notify.StdMsgGreen("Blocking main thread until SIGINT")
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT)
 	_ = <-sig
 
-	gprint.Ln("Recieved shutdown signal", 0)
+	notify.StdMsgMagenta("Recieved shutdown signal")
 	c.serviceHandler.KillAllServices()
 
 	os.Exit(0)
@@ -163,7 +150,7 @@ func (c *Core) getServicePath() string {
 func (c *Core) startService(service *service.ServiceControl) (string, error) {
 
 	if service.Static.Language == "go" {
-		fmt.Println("service config path: " + service.ConfigPath)
+		// fmt.Println("service config path: " + service.ConfigPath)
 		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath, service.ConfigPath)
 		pid, err := service.Process.Controller.Start(service.Process)
 		if err != nil {
@@ -195,7 +182,7 @@ func (c *Core) findAllServices(baseDir string) []tmpService {
 		fpath := baseDir + "/" + file.Name()
 		potentialSymbolic, err := filepath.EvalSymlinks(fpath)
 		if err != nil {
-			gprint.Err(err.Error(), 0)
+			notify.StdMsgErr(err.Error(), 0)
 			continue
 		}
 
@@ -209,7 +196,7 @@ func (c *Core) findAllServices(baseDir string) []tmpService {
 		// Try and open the symbolic link path and check for dir, skip if not
 		newFile, err := os.Stat(potentialSymbolic)
 		if err != nil {
-			gprint.Err(err.Error(), 0)
+			notify.StdMsgErr(err.Error())
 			continue
 		}
 
@@ -270,8 +257,7 @@ func (c *Core) parseProjectYamlConfig(path string) *ProjectConfig {
 // see the coms package for how it was done there
 func (c *Core) rpcConnect() {
 
-	addr := "localhost:59999"
-	gprint.Green("Starting gmbH Core Server at: "+addr, 1)
+	notify.StdMsgGreen("Starting gmbH Core Server at: "+addr, 1)
 
 	go func() {
 		list, err := net.Listen("tcp", addr)

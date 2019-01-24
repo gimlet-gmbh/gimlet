@@ -17,8 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fatih/color"
-	"github.com/gimlet-gmbh/gimlet/gprint"
+	"github.com/gimlet-gmbh/gimlet/notify"
 )
 
 const (
@@ -31,6 +30,10 @@ const (
 var cmd *exec.Cmd
 
 func main() {
+
+	notify.SetTag("[cli] ")
+	notify.SetVerbose(true)
+
 	startGimlet()
 }
 
@@ -92,7 +95,6 @@ func startListener(sig chan os.Signal, wg *sync.WaitGroup) {
 	fmt.Println("")
 	time.Sleep(time.Millisecond * 500)
 
-	// Kill the process
 	kill()
 
 	wg.Done()
@@ -137,11 +139,11 @@ func getCurrentDir() string {
 }
 
 func println(msg string, indent int) {
-	gprint.Cln(PROMPT, msg, indent, color.FgHiMagenta)
+	notify.StdMsgMagenta(msg, indent)
 }
 
 func printerr(msg string, indent int) {
-	gprint.Cln(PROMPT, msg, indent, color.FgRed)
+	notify.StdMsgErr(msg, indent)
 }
 
 // func genConfig() {

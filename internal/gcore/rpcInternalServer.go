@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/xid"
 
-	"github.com/gimlet-gmbh/gimlet/gprint"
 	"github.com/gimlet-gmbh/gimlet/gproto"
+	"github.com/gimlet-gmbh/gimlet/notify"
 )
 
 /*
@@ -21,16 +21,16 @@ type _server struct{}
 
 func (s *_server) EphemeralRegisterService(ctx context.Context, in *gproto.RegServReq) (*gproto.RegServRep, error) {
 
-	gprint.Log(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.Name), 0)
+	notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.Name))
 	service, err := core.serviceHandler.GetService(in.NewServ.Name)
 	if err != nil {
 		panic(err)
 	}
 
 	if service.Static.IsServer {
-		gprint.Log(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.Name, service.Address), 0)
+		notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.Name, service.Address))
 	} else {
-		gprint.Log(fmt.Sprintf("-> %s: acknowledged", in.NewServ.Name), 0)
+		notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.Name))
 	}
 
 	reply := &gproto.RegServRep{
@@ -45,11 +45,11 @@ func (s *_server) EphemeralRegisterService(ctx context.Context, in *gproto.RegSe
 
 func (s *_server) MakeDataRequest(ctx context.Context, in *gproto.DataReq) (*gproto.DataResp, error) {
 
-	gprint.Log(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.Sender, in.Req.Target, in.Req.Method), 0)
+	notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.Sender, in.Req.Target, in.Req.Method))
 
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
-		gprint.Log(fmt.Sprintf("Could not contact: %s", in.Req.Target), 1)
+		notify.StdMsgLog(fmt.Sprintf("Could not contact: %s", in.Req.Target), 1)
 		responder.HadError = true
 		responder.ErrorString = "Could not contact target"
 	}

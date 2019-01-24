@@ -2,12 +2,11 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"syscall"
 
-	"github.com/gimlet-gmbh/gimlet/gprint"
+	"github.com/gimlet-gmbh/gimlet/notify"
 	"github.com/gimlet-gmbh/gimlet/pmgmt"
 )
 
@@ -119,7 +118,8 @@ func (s *ServiceHandler) KillAllServices() {
 	for _, n := range s.Names {
 		err := raise(s.Services[n].Process.Runtime.Pid, syscall.SIGINT)
 		if err == nil {
-			gprint.Ln("Successfully signaled shutdown: "+n, 0)
+			// gprint.Ln("Successfully signaled shutdown: "+n, 0)
+			notify.StdMsgMagenta("Successfully signaled shutdown: " + n)
 		}
 	}
 }
@@ -135,7 +135,7 @@ func (s *ServiceHandler) GetService(name string) (*ServiceControl, error) {
 func StartService(service *ServiceControl) (string, error) {
 
 	if service.Static.Language == "go" {
-		fmt.Println(service.ConfigPath)
+		// fmt.Println(service.ConfigPath)
 		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath, service.ConfigPath)
 		pid, err := service.Process.Controller.Start(service.Process)
 		if err != nil {

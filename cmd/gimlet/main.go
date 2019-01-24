@@ -12,12 +12,12 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gimlet-gmbh/gimlet/gcore"
-	"github.com/gimlet-gmbh/gimlet/gprint"
+	"github.com/gimlet-gmbh/gimlet/notify"
 )
 
 func init() {
 	if len(os.Args) < 2 {
-		gprint.Err("must start gimlet with argument containing path to project", 0)
+		notify.StdMsgErr("must start gimlet with argument containing path to project")
 		os.Exit(1)
 	}
 }
@@ -27,7 +27,7 @@ func main() {
 	core := gcore.StartCore(os.Args[1])
 
 	printLogo()
-	gprint.Ln("Starting version: "+core.Version+" ("+core.CodeName+")", 0)
+	notify.StdMsgBlue("Starting version: "+core.Version+" ("+core.CodeName+")", 0)
 
 	core.StartInternalServer()
 	core.ServiceDiscovery()

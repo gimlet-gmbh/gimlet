@@ -10,8 +10,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/gimlet-gmbh/gimlet/gprint"
 	"github.com/gimlet-gmbh/gimlet/gproto"
+	"github.com/gimlet-gmbh/gimlet/notify"
 	"google.golang.org/grpc"
 )
 
@@ -51,7 +51,7 @@ func _makeDataRequest(req gproto.Request, address string) (*gproto.Responder, er
 
 	reply, err := client.MakeDataRequest(ctx, &request)
 	if err != nil {
-		gprint.Err(err.Error(), 1)
+		notify.StdMsgErr(err.Error(), 1)
 		r := gproto.Responder{
 			HadError:    true,
 			ErrorString: err.Error(),
