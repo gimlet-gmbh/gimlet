@@ -1,5 +1,11 @@
 package core
 
+/**
+ * gcore.go
+ * Abe Dick
+ * January 2019
+ */
+
 import (
 	"fmt"
 	"io/ioutil"
@@ -15,33 +21,35 @@ import (
 	"time"
 
 	"github.com/gimlet-gmbh/gimlet/cabal"
-	grouter "github.com/gimlet-gmbh/gimlet/grouter"
-	notify "github.com/gimlet-gmbh/gimlet/notify"
-	pmgmt "github.com/gimlet-gmbh/gimlet/pmgmt"
-	service "github.com/gimlet-gmbh/gimlet/service"
+	"github.com/gimlet-gmbh/gimlet/grouter"
+	"github.com/gimlet-gmbh/gimlet/notify"
+	"github.com/gimlet-gmbh/gimlet/pmgmt"
+	"github.com/gimlet-gmbh/gimlet/service"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	yaml "gopkg.in/yaml.v2"
 )
 
-/**
-TODO: gproto to cabal
-*/
-
-/**
- * gcore.go
- * Abe Dick
- * January 2019
- */
-
 // The global config and controller for the core
 // Not much of a way around this when using rpc
 var core *Core
 
+// CabalMode is the parameter that controls how data is sent between processes
+type CabalMode int
+
 const (
-	addr = "localhost:59999"
-	sep  = "------------------------------------------------------------------------"
+	// Ephemeral mode assumes that no enforcement of data types will be made at either
+	// end of the gRPC calls between the gimlet-gmbh package while services exchange
+	// data.
+	//
+	// Ephemeral mode works much like http handlers work in the http package of go.
+	Ephemeral CabalMode = 0
+
+	// Custom mode assumes that a shared structure will be used between both services.
+	//
+	// TODO: Semantics of how to enforce data modes
+	Custom CabalMode = 1
 )
 
 // Core - internal representation of the gimlet core
@@ -53,6 +61,9 @@ type Core struct {
 	router         *grouter.Router
 	log            *os.File
 	logm           *sync.Mutex
+
+	// controlLock is the mutex used when doing operations in the control rpc service
+	controlLock *sync.Mutex
 
 	// ServiceDir is the directory in which services live within a Gimlet project
 	ServiceDir string `yaml:"serviceDirectory"`
@@ -269,9 +280,9 @@ func (c *Core) parseProjectYamlConfig(path string) *ProjectConfig {
 	return &conf
 }
 
-// StartInternalServer starts the gRPC server to run core on
-func (c *Core) StartInternalServer() {
-	notify.StdMsgBlue("Attempting to start internal server")
+// StartCabalServer starts the gRPC server to run core on
+func (c *Core) StartCabalServer() {
+	notify.StdMsgBlue("Attempting to start cabal server")
 	c.rpcConnect()
 }
 
@@ -281,7 +292,7 @@ func (c *Core) StartInternalServer() {
 // see the coms package for how it was done there
 func (c *Core) rpcConnect() {
 
-	notify.StdMsgGreen("Starting gmbH Core Server at: "+addr, 1)
+	notify.StdMsgGreen("Starting gmbH Core Server at: "+c.CabalAddress, 1)
 
 	go func() {
 		list, err := net.Listen("tcp", c.CabalAddress)
@@ -303,8 +314,9 @@ func (c *Core) rpcConnect() {
 
 // StartControlServer starts the gRPC server to run core on
 func (c *Core) StartControlServer() {
-	notify.StdMsgBlue("Attempting to start internal server")
-	c.rpcConnect()
+	notify.StdMsgBlue("Attempting to start control server")
+	notify.StdMsgErr("not implemented...", 1)
+	// c.rpcConnect()
 }
 
 func (c *Core) logRuntimeData(path string) {
@@ -316,7 +328,7 @@ func (c *Core) logRuntimeData(path string) {
 		notify.StdMsgErr("could not create log file: " + err.Error())
 		return
 	}
-
+	sep := "------------------------------------------------------------------------"
 	c.log.WriteString("\n" + sep + "\n")
 	c.log.WriteString("startTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
 	c.log.WriteString("cabalAddress=\"" + c.CabalAddress + "\"\n")

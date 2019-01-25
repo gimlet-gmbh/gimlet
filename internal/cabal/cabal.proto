@@ -82,13 +82,24 @@ service Cabal {
     rpc QueryStatus (QueryRequest) returns (QueryResponse) {}
 }
 
-service Ctl {
-    /* 
-     * QueryStatus
-     *
-     * Use this to query the status of all processes attached to CORE.
-     */
-    rpc QueryStatus (QueryRequest) returns (QueryResponse) {}
+
+// Control runs communications between the gimlet core and gmbhCtrl
+service Control {
+
+    rpc StartService (StartRequest) returns (StartReply) {}    
+    rpc RestartService (SearchRequest) returns (StatusReply) {}
+    rpc KillService (SearchRequest) returns (StatusReply) {}
+
+    rpc ListAll (AllRequest) returns (ListReply) {}
+    rpc RestartAll (AllRequest) returns (StatusReply) {} 
+    rpc KillAll (AllRequest) returns (StatusReply) {}
+
+    // StopSever kills all of the attached services and then calls shutdown procedure
+    rpc StopServer (StopRequest) returns (StatusReply) {}
+}
+
+message AllRequest {
+    string Status = 1;
 }
 
 message RegServReq {
@@ -226,9 +237,48 @@ message QueryResponse {
     // True if running without errors
     bool Status = 2;
 
-    // The details map to pass
     map<string, string> Details = 3;
-
-    // The error messages reported from gmbh gplugin
     repeated string Errors = 4;
+}
+
+message StartRequest {
+    string name = 1;
+    string path = 2;
+    bool binary = 3;
+}
+
+message SearchRequest {
+    string Name = 1;
+    string Path = 2;
+    string Pid = 3;
+    string Id = 4;
+}
+
+message StopRequest {
+    string Status = 4;
+}
+
+message StatusReply {
+    string status = 1;
+}
+
+message StartReply {
+    bool Success = 1;
+    int32 Pid = 2;
+}
+
+message ListReply {
+    repeated Service services = 1;
+    int32 length = 2;
+}
+
+// Service holds data associated gimlet service
+message Service {
+    string Id = 10;
+    string Name = 11;
+    string Path = 12;
+    string Status = 14;
+    int32 Restarts = 15;
+    int32 Pid = 16;
+    string StartTime = 17;
 }

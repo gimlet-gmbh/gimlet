@@ -53,7 +53,46 @@ func (x QueryRequest_QueryLevel) String() string {
 }
 
 func (QueryRequest_QueryLevel) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{10, 0}
+	return fileDescriptor_1eb1bde13dcc095c, []int{11, 0}
+}
+
+type AllRequest struct {
+	Status               string   `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AllRequest) Reset()         { *m = AllRequest{} }
+func (m *AllRequest) String() string { return proto.CompactTextString(m) }
+func (*AllRequest) ProtoMessage()    {}
+func (*AllRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{0}
+}
+
+func (m *AllRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AllRequest.Unmarshal(m, b)
+}
+func (m *AllRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AllRequest.Marshal(b, m, deterministic)
+}
+func (m *AllRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AllRequest.Merge(m, src)
+}
+func (m *AllRequest) XXX_Size() int {
+	return xxx_messageInfo_AllRequest.Size(m)
+}
+func (m *AllRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AllRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AllRequest proto.InternalMessageInfo
+
+func (m *AllRequest) GetStatus() string {
+	if m != nil {
+		return m.Status
+	}
+	return ""
 }
 
 type RegServReq struct {
@@ -68,7 +107,7 @@ func (m *RegServReq) Reset()         { *m = RegServReq{} }
 func (m *RegServReq) String() string { return proto.CompactTextString(m) }
 func (*RegServReq) ProtoMessage()    {}
 func (*RegServReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{0}
+	return fileDescriptor_1eb1bde13dcc095c, []int{1}
 }
 
 func (m *RegServReq) XXX_Unmarshal(b []byte) error {
@@ -121,7 +160,7 @@ func (m *RegServRep) Reset()         { *m = RegServRep{} }
 func (m *RegServRep) String() string { return proto.CompactTextString(m) }
 func (*RegServRep) ProtoMessage()    {}
 func (*RegServRep) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{1}
+	return fileDescriptor_1eb1bde13dcc095c, []int{2}
 }
 
 func (m *RegServRep) XXX_Unmarshal(b []byte) error {
@@ -199,7 +238,7 @@ func (m *NewService) Reset()         { *m = NewService{} }
 func (m *NewService) String() string { return proto.CompactTextString(m) }
 func (*NewService) ProtoMessage()    {}
 func (*NewService) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{2}
+	return fileDescriptor_1eb1bde13dcc095c, []int{3}
 }
 
 func (m *NewService) XXX_Unmarshal(b []byte) error {
@@ -271,7 +310,7 @@ func (m *S2S) Reset()         { *m = S2S{} }
 func (m *S2S) String() string { return proto.CompactTextString(m) }
 func (*S2S) ProtoMessage()    {}
 func (*S2S) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{3}
+	return fileDescriptor_1eb1bde13dcc095c, []int{4}
 }
 
 func (m *S2S) XXX_Unmarshal(b []byte) error {
@@ -325,7 +364,7 @@ func (m *DataReq) Reset()         { *m = DataReq{} }
 func (m *DataReq) String() string { return proto.CompactTextString(m) }
 func (*DataReq) ProtoMessage()    {}
 func (*DataReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{4}
+	return fileDescriptor_1eb1bde13dcc095c, []int{5}
 }
 
 func (m *DataReq) XXX_Unmarshal(b []byte) error {
@@ -365,7 +404,7 @@ func (m *DataResp) Reset()         { *m = DataResp{} }
 func (m *DataResp) String() string { return proto.CompactTextString(m) }
 func (*DataResp) ProtoMessage()    {}
 func (*DataResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{5}
+	return fileDescriptor_1eb1bde13dcc095c, []int{6}
 }
 
 func (m *DataResp) XXX_Unmarshal(b []byte) error {
@@ -408,7 +447,7 @@ func (m *Request) Reset()         { *m = Request{} }
 func (m *Request) String() string { return proto.CompactTextString(m) }
 func (*Request) ProtoMessage()    {}
 func (*Request) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{6}
+	return fileDescriptor_1eb1bde13dcc095c, []int{7}
 }
 
 func (m *Request) XXX_Unmarshal(b []byte) error {
@@ -471,7 +510,7 @@ func (m *Responder) Reset()         { *m = Responder{} }
 func (m *Responder) String() string { return proto.CompactTextString(m) }
 func (*Responder) ProtoMessage()    {}
 func (*Responder) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{7}
+	return fileDescriptor_1eb1bde13dcc095c, []int{8}
 }
 
 func (m *Responder) XXX_Unmarshal(b []byte) error {
@@ -529,7 +568,7 @@ func (m *UnregisterReq) Reset()         { *m = UnregisterReq{} }
 func (m *UnregisterReq) String() string { return proto.CompactTextString(m) }
 func (*UnregisterReq) ProtoMessage()    {}
 func (*UnregisterReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{8}
+	return fileDescriptor_1eb1bde13dcc095c, []int{9}
 }
 
 func (m *UnregisterReq) XXX_Unmarshal(b []byte) error {
@@ -583,7 +622,7 @@ func (m *UnregisterResp) Reset()         { *m = UnregisterResp{} }
 func (m *UnregisterResp) String() string { return proto.CompactTextString(m) }
 func (*UnregisterResp) ProtoMessage()    {}
 func (*UnregisterResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{9}
+	return fileDescriptor_1eb1bde13dcc095c, []int{10}
 }
 
 func (m *UnregisterResp) XXX_Unmarshal(b []byte) error {
@@ -623,7 +662,7 @@ func (m *QueryRequest) Reset()         { *m = QueryRequest{} }
 func (m *QueryRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryRequest) ProtoMessage()    {}
 func (*QueryRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{10}
+	return fileDescriptor_1eb1bde13dcc095c, []int{11}
 }
 
 func (m *QueryRequest) XXX_Unmarshal(b []byte) error {
@@ -655,21 +694,19 @@ type QueryResponse struct {
 	// if the process awknoledges request
 	Awk bool `protobuf:"varint,1,opt,name=Awk,proto3" json:"Awk,omitempty"`
 	// True if running without errors
-	Status bool `protobuf:"varint,2,opt,name=Status,proto3" json:"Status,omitempty"`
-	// The details map to pass
-	Details map[string]string `protobuf:"bytes,3,rep,name=Details,proto3" json:"Details,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// The error messages reported from gmbh gplugin
-	Errors               []string `protobuf:"bytes,4,rep,name=Errors,proto3" json:"Errors,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Status               bool              `protobuf:"varint,2,opt,name=Status,proto3" json:"Status,omitempty"`
+	Details              map[string]string `protobuf:"bytes,3,rep,name=Details,proto3" json:"Details,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Errors               []string          `protobuf:"bytes,4,rep,name=Errors,proto3" json:"Errors,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *QueryResponse) Reset()         { *m = QueryResponse{} }
 func (m *QueryResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryResponse) ProtoMessage()    {}
 func (*QueryResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1eb1bde13dcc095c, []int{11}
+	return fileDescriptor_1eb1bde13dcc095c, []int{12}
 }
 
 func (m *QueryResponse) XXX_Unmarshal(b []byte) error {
@@ -718,8 +755,387 @@ func (m *QueryResponse) GetErrors() []string {
 	return nil
 }
 
+type StartRequest struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Path                 string   `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Binary               bool     `protobuf:"varint,3,opt,name=binary,proto3" json:"binary,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StartRequest) Reset()         { *m = StartRequest{} }
+func (m *StartRequest) String() string { return proto.CompactTextString(m) }
+func (*StartRequest) ProtoMessage()    {}
+func (*StartRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{13}
+}
+
+func (m *StartRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartRequest.Unmarshal(m, b)
+}
+func (m *StartRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartRequest.Marshal(b, m, deterministic)
+}
+func (m *StartRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartRequest.Merge(m, src)
+}
+func (m *StartRequest) XXX_Size() int {
+	return xxx_messageInfo_StartRequest.Size(m)
+}
+func (m *StartRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartRequest proto.InternalMessageInfo
+
+func (m *StartRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *StartRequest) GetPath() string {
+	if m != nil {
+		return m.Path
+	}
+	return ""
+}
+
+func (m *StartRequest) GetBinary() bool {
+	if m != nil {
+		return m.Binary
+	}
+	return false
+}
+
+type SearchRequest struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=Name,proto3" json:"Name,omitempty"`
+	Path                 string   `protobuf:"bytes,2,opt,name=Path,proto3" json:"Path,omitempty"`
+	Pid                  string   `protobuf:"bytes,3,opt,name=Pid,proto3" json:"Pid,omitempty"`
+	Id                   string   `protobuf:"bytes,4,opt,name=Id,proto3" json:"Id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SearchRequest) Reset()         { *m = SearchRequest{} }
+func (m *SearchRequest) String() string { return proto.CompactTextString(m) }
+func (*SearchRequest) ProtoMessage()    {}
+func (*SearchRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{14}
+}
+
+func (m *SearchRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SearchRequest.Unmarshal(m, b)
+}
+func (m *SearchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SearchRequest.Marshal(b, m, deterministic)
+}
+func (m *SearchRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SearchRequest.Merge(m, src)
+}
+func (m *SearchRequest) XXX_Size() int {
+	return xxx_messageInfo_SearchRequest.Size(m)
+}
+func (m *SearchRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SearchRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SearchRequest proto.InternalMessageInfo
+
+func (m *SearchRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *SearchRequest) GetPath() string {
+	if m != nil {
+		return m.Path
+	}
+	return ""
+}
+
+func (m *SearchRequest) GetPid() string {
+	if m != nil {
+		return m.Pid
+	}
+	return ""
+}
+
+func (m *SearchRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+type StopRequest struct {
+	Status               string   `protobuf:"bytes,4,opt,name=Status,proto3" json:"Status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StopRequest) Reset()         { *m = StopRequest{} }
+func (m *StopRequest) String() string { return proto.CompactTextString(m) }
+func (*StopRequest) ProtoMessage()    {}
+func (*StopRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{15}
+}
+
+func (m *StopRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StopRequest.Unmarshal(m, b)
+}
+func (m *StopRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StopRequest.Marshal(b, m, deterministic)
+}
+func (m *StopRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StopRequest.Merge(m, src)
+}
+func (m *StopRequest) XXX_Size() int {
+	return xxx_messageInfo_StopRequest.Size(m)
+}
+func (m *StopRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StopRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StopRequest proto.InternalMessageInfo
+
+func (m *StopRequest) GetStatus() string {
+	if m != nil {
+		return m.Status
+	}
+	return ""
+}
+
+type StatusReply struct {
+	Status               string   `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StatusReply) Reset()         { *m = StatusReply{} }
+func (m *StatusReply) String() string { return proto.CompactTextString(m) }
+func (*StatusReply) ProtoMessage()    {}
+func (*StatusReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{16}
+}
+
+func (m *StatusReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StatusReply.Unmarshal(m, b)
+}
+func (m *StatusReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StatusReply.Marshal(b, m, deterministic)
+}
+func (m *StatusReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StatusReply.Merge(m, src)
+}
+func (m *StatusReply) XXX_Size() int {
+	return xxx_messageInfo_StatusReply.Size(m)
+}
+func (m *StatusReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_StatusReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StatusReply proto.InternalMessageInfo
+
+func (m *StatusReply) GetStatus() string {
+	if m != nil {
+		return m.Status
+	}
+	return ""
+}
+
+type StartReply struct {
+	Success              bool     `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	Pid                  int32    `protobuf:"varint,2,opt,name=Pid,proto3" json:"Pid,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StartReply) Reset()         { *m = StartReply{} }
+func (m *StartReply) String() string { return proto.CompactTextString(m) }
+func (*StartReply) ProtoMessage()    {}
+func (*StartReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{17}
+}
+
+func (m *StartReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartReply.Unmarshal(m, b)
+}
+func (m *StartReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartReply.Marshal(b, m, deterministic)
+}
+func (m *StartReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartReply.Merge(m, src)
+}
+func (m *StartReply) XXX_Size() int {
+	return xxx_messageInfo_StartReply.Size(m)
+}
+func (m *StartReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartReply proto.InternalMessageInfo
+
+func (m *StartReply) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *StartReply) GetPid() int32 {
+	if m != nil {
+		return m.Pid
+	}
+	return 0
+}
+
+type ListReply struct {
+	Services             []*Service `protobuf:"bytes,1,rep,name=services,proto3" json:"services,omitempty"`
+	Length               int32      `protobuf:"varint,2,opt,name=length,proto3" json:"length,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
+}
+
+func (m *ListReply) Reset()         { *m = ListReply{} }
+func (m *ListReply) String() string { return proto.CompactTextString(m) }
+func (*ListReply) ProtoMessage()    {}
+func (*ListReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{18}
+}
+
+func (m *ListReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListReply.Unmarshal(m, b)
+}
+func (m *ListReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListReply.Marshal(b, m, deterministic)
+}
+func (m *ListReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListReply.Merge(m, src)
+}
+func (m *ListReply) XXX_Size() int {
+	return xxx_messageInfo_ListReply.Size(m)
+}
+func (m *ListReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListReply proto.InternalMessageInfo
+
+func (m *ListReply) GetServices() []*Service {
+	if m != nil {
+		return m.Services
+	}
+	return nil
+}
+
+func (m *ListReply) GetLength() int32 {
+	if m != nil {
+		return m.Length
+	}
+	return 0
+}
+
+// Service holds data associated gimlet service
+type Service struct {
+	Id                   string   `protobuf:"bytes,10,opt,name=Id,proto3" json:"Id,omitempty"`
+	Name                 string   `protobuf:"bytes,11,opt,name=Name,proto3" json:"Name,omitempty"`
+	Path                 string   `protobuf:"bytes,12,opt,name=Path,proto3" json:"Path,omitempty"`
+	Status               string   `protobuf:"bytes,14,opt,name=Status,proto3" json:"Status,omitempty"`
+	Restarts             int32    `protobuf:"varint,15,opt,name=Restarts,proto3" json:"Restarts,omitempty"`
+	Pid                  int32    `protobuf:"varint,16,opt,name=Pid,proto3" json:"Pid,omitempty"`
+	StartTime            string   `protobuf:"bytes,17,opt,name=StartTime,proto3" json:"StartTime,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Service) Reset()         { *m = Service{} }
+func (m *Service) String() string { return proto.CompactTextString(m) }
+func (*Service) ProtoMessage()    {}
+func (*Service) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1eb1bde13dcc095c, []int{19}
+}
+
+func (m *Service) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Service.Unmarshal(m, b)
+}
+func (m *Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Service.Marshal(b, m, deterministic)
+}
+func (m *Service) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Service.Merge(m, src)
+}
+func (m *Service) XXX_Size() int {
+	return xxx_messageInfo_Service.Size(m)
+}
+func (m *Service) XXX_DiscardUnknown() {
+	xxx_messageInfo_Service.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Service proto.InternalMessageInfo
+
+func (m *Service) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *Service) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *Service) GetPath() string {
+	if m != nil {
+		return m.Path
+	}
+	return ""
+}
+
+func (m *Service) GetStatus() string {
+	if m != nil {
+		return m.Status
+	}
+	return ""
+}
+
+func (m *Service) GetRestarts() int32 {
+	if m != nil {
+		return m.Restarts
+	}
+	return 0
+}
+
+func (m *Service) GetPid() int32 {
+	if m != nil {
+		return m.Pid
+	}
+	return 0
+}
+
+func (m *Service) GetStartTime() string {
+	if m != nil {
+		return m.StartTime
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterEnum("cabal.QueryRequest_QueryLevel", QueryRequest_QueryLevel_name, QueryRequest_QueryLevel_value)
+	proto.RegisterType((*AllRequest)(nil), "cabal.AllRequest")
 	proto.RegisterType((*RegServReq)(nil), "cabal.RegServReq")
 	proto.RegisterType((*RegServRep)(nil), "cabal.RegServRep")
 	proto.RegisterType((*NewService)(nil), "cabal.NewService")
@@ -733,6 +1149,13 @@ func init() {
 	proto.RegisterType((*QueryRequest)(nil), "cabal.QueryRequest")
 	proto.RegisterType((*QueryResponse)(nil), "cabal.QueryResponse")
 	proto.RegisterMapType((map[string]string)(nil), "cabal.QueryResponse.DetailsEntry")
+	proto.RegisterType((*StartRequest)(nil), "cabal.StartRequest")
+	proto.RegisterType((*SearchRequest)(nil), "cabal.SearchRequest")
+	proto.RegisterType((*StopRequest)(nil), "cabal.StopRequest")
+	proto.RegisterType((*StatusReply)(nil), "cabal.StatusReply")
+	proto.RegisterType((*StartReply)(nil), "cabal.StartReply")
+	proto.RegisterType((*ListReply)(nil), "cabal.ListReply")
+	proto.RegisterType((*Service)(nil), "cabal.Service")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -942,64 +1365,264 @@ var _Cabal_serviceDesc = grpc.ServiceDesc{
 	Metadata: "cabal.proto",
 }
 
-// CtlClient is the client API for Ctl service.
+// ControlClient is the client API for Control service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type CtlClient interface {
-	QueryStatus(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error)
+type ControlClient interface {
+	StartService(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error)
+	RestartService(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*StatusReply, error)
+	KillService(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*StatusReply, error)
+	ListAll(ctx context.Context, in *AllRequest, opts ...grpc.CallOption) (*ListReply, error)
+	RestartAll(ctx context.Context, in *AllRequest, opts ...grpc.CallOption) (*StatusReply, error)
+	KillAll(ctx context.Context, in *AllRequest, opts ...grpc.CallOption) (*StatusReply, error)
+	// StopSever kills all of the attached services and then calls shutdown procedure
+	StopServer(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StatusReply, error)
 }
 
-type ctlClient struct {
+type controlClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewCtlClient(cc *grpc.ClientConn) CtlClient {
-	return &ctlClient{cc}
+func NewControlClient(cc *grpc.ClientConn) ControlClient {
+	return &controlClient{cc}
 }
 
-func (c *ctlClient) QueryStatus(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error) {
-	out := new(QueryResponse)
-	err := c.cc.Invoke(ctx, "/cabal.ctl/QueryStatus", in, out, opts...)
+func (c *controlClient) StartService(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error) {
+	out := new(StartReply)
+	err := c.cc.Invoke(ctx, "/cabal.Control/StartService", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// CtlServer is the server API for Ctl service.
-type CtlServer interface {
-	QueryStatus(context.Context, *QueryRequest) (*QueryResponse, error)
+func (c *controlClient) RestartService(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*StatusReply, error) {
+	out := new(StatusReply)
+	err := c.cc.Invoke(ctx, "/cabal.Control/RestartService", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
-func RegisterCtlServer(s *grpc.Server, srv CtlServer) {
-	s.RegisterService(&_Ctl_serviceDesc, srv)
+func (c *controlClient) KillService(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*StatusReply, error) {
+	out := new(StatusReply)
+	err := c.cc.Invoke(ctx, "/cabal.Control/KillService", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
-func _Ctl_QueryStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryRequest)
+func (c *controlClient) ListAll(ctx context.Context, in *AllRequest, opts ...grpc.CallOption) (*ListReply, error) {
+	out := new(ListReply)
+	err := c.cc.Invoke(ctx, "/cabal.Control/ListAll", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) RestartAll(ctx context.Context, in *AllRequest, opts ...grpc.CallOption) (*StatusReply, error) {
+	out := new(StatusReply)
+	err := c.cc.Invoke(ctx, "/cabal.Control/RestartAll", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) KillAll(ctx context.Context, in *AllRequest, opts ...grpc.CallOption) (*StatusReply, error) {
+	out := new(StatusReply)
+	err := c.cc.Invoke(ctx, "/cabal.Control/KillAll", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) StopServer(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*StatusReply, error) {
+	out := new(StatusReply)
+	err := c.cc.Invoke(ctx, "/cabal.Control/StopServer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ControlServer is the server API for Control service.
+type ControlServer interface {
+	StartService(context.Context, *StartRequest) (*StartReply, error)
+	RestartService(context.Context, *SearchRequest) (*StatusReply, error)
+	KillService(context.Context, *SearchRequest) (*StatusReply, error)
+	ListAll(context.Context, *AllRequest) (*ListReply, error)
+	RestartAll(context.Context, *AllRequest) (*StatusReply, error)
+	KillAll(context.Context, *AllRequest) (*StatusReply, error)
+	// StopSever kills all of the attached services and then calls shutdown procedure
+	StopServer(context.Context, *StopRequest) (*StatusReply, error)
+}
+
+func RegisterControlServer(s *grpc.Server, srv ControlServer) {
+	s.RegisterService(&_Control_serviceDesc, srv)
+}
+
+func _Control_StartService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CtlServer).QueryStatus(ctx, in)
+		return srv.(ControlServer).StartService(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cabal.ctl/QueryStatus",
+		FullMethod: "/cabal.Control/StartService",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CtlServer).QueryStatus(ctx, req.(*QueryRequest))
+		return srv.(ControlServer).StartService(ctx, req.(*StartRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Ctl_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "cabal.ctl",
-	HandlerType: (*CtlServer)(nil),
+func _Control_RestartService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).RestartService(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cabal.Control/RestartService",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).RestartService(ctx, req.(*SearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_KillService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).KillService(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cabal.Control/KillService",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).KillService(ctx, req.(*SearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_ListAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).ListAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cabal.Control/ListAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).ListAll(ctx, req.(*AllRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_RestartAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).RestartAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cabal.Control/RestartAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).RestartAll(ctx, req.(*AllRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_KillAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).KillAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cabal.Control/KillAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).KillAll(ctx, req.(*AllRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_StopServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).StopServer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cabal.Control/StopServer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).StopServer(ctx, req.(*StopRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Control_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "cabal.Control",
+	HandlerType: (*ControlServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "QueryStatus",
-			Handler:    _Ctl_QueryStatus_Handler,
+			MethodName: "StartService",
+			Handler:    _Control_StartService_Handler,
+		},
+		{
+			MethodName: "RestartService",
+			Handler:    _Control_RestartService_Handler,
+		},
+		{
+			MethodName: "KillService",
+			Handler:    _Control_KillService_Handler,
+		},
+		{
+			MethodName: "ListAll",
+			Handler:    _Control_ListAll_Handler,
+		},
+		{
+			MethodName: "RestartAll",
+			Handler:    _Control_RestartAll_Handler,
+		},
+		{
+			MethodName: "KillAll",
+			Handler:    _Control_KillAll_Handler,
+		},
+		{
+			MethodName: "StopServer",
+			Handler:    _Control_StopServer_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -1009,49 +1632,68 @@ var _Ctl_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("cabal.proto", fileDescriptor_1eb1bde13dcc095c) }
 
 var fileDescriptor_1eb1bde13dcc095c = []byte{
-	// 690 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0xcb, 0x6e, 0x1a, 0x31,
-	0x14, 0x0d, 0x03, 0x04, 0x72, 0x49, 0x08, 0x71, 0xd3, 0x6a, 0xc4, 0xa2, 0xa2, 0x56, 0x17, 0x91,
-	0x22, 0xa1, 0x76, 0x9a, 0x45, 0x9b, 0xae, 0x48, 0xa0, 0x6a, 0x24, 0xf2, 0xa8, 0x87, 0x7c, 0x80,
-	0x81, 0x2b, 0x32, 0x62, 0xc2, 0x10, 0xdb, 0x24, 0xca, 0xb2, 0xbf, 0xd1, 0x4f, 0xea, 0x57, 0x55,
-	0xd7, 0xf6, 0xf0, 0x50, 0xb3, 0xa9, 0xba, 0xc2, 0xe7, 0xdc, 0xc7, 0x1c, 0x9f, 0xeb, 0x0b, 0xd4,
-	0x46, 0x72, 0x28, 0xd3, 0xf6, 0x5c, 0x65, 0x26, 0x63, 0x65, 0x0b, 0xf8, 0x17, 0x00, 0x81, 0x93,
-	0x18, 0xd5, 0xa3, 0xc0, 0x07, 0x76, 0x0c, 0x95, 0x2b, 0x7c, 0x22, 0x14, 0x16, 0x5a, 0x85, 0xa3,
-	0x5a, 0x74, 0xd0, 0x76, 0x35, 0x9e, 0x4d, 0x46, 0x28, 0xf2, 0x0c, 0xfe, 0xab, 0xb0, 0x56, 0x3b,
-	0x67, 0x6f, 0x60, 0x3b, 0x36, 0xd2, 0x2c, 0xb4, 0x2d, 0xdd, 0x11, 0x1e, 0xb1, 0x10, 0x2a, 0x9d,
-	0xf1, 0x58, 0xa1, 0xd6, 0x61, 0xd1, 0x06, 0x72, 0xc8, 0xea, 0x10, 0x5c, 0x74, 0xc3, 0x92, 0x25,
-	0x83, 0x8b, 0x2e, 0x6b, 0x42, 0xf5, 0x3c, 0x53, 0x78, 0x23, 0xcd, 0x5d, 0x58, 0xb6, 0xec, 0x12,
-	0xb3, 0x36, 0xec, 0x7a, 0x01, 0x03, 0x39, 0x4c, 0x31, 0x0c, 0x5a, 0xc5, 0xa3, 0x5a, 0x04, 0x5e,
-	0x5e, 0x1c, 0xc5, 0x62, 0x23, 0xce, 0x15, 0xc0, 0x4a, 0x33, 0x63, 0x50, 0xba, 0x92, 0xf7, 0xe8,
-	0x95, 0xd9, 0xb3, 0xd5, 0x95, 0x26, 0x52, 0xa3, 0xb6, 0xcd, 0x48, 0x97, 0x83, 0xa4, 0xe3, 0x42,
-	0x9f, 0xa7, 0x09, 0xce, 0x8c, 0x95, 0x5c, 0x15, 0x4b, 0xec, 0x62, 0xd4, 0x16, 0x95, 0x55, 0x6e,
-	0x63, 0x0e, 0xf3, 0x6b, 0x28, 0xc6, 0x51, 0xfc, 0xef, 0x1f, 0xeb, 0x67, 0x23, 0x69, 0x92, 0x6c,
-	0xe6, 0xfd, 0x59, 0x62, 0x7e, 0x0c, 0x95, 0xae, 0x34, 0x92, 0x26, 0xd3, 0x82, 0xa2, 0xc0, 0x07,
-	0x3f, 0x95, 0xba, 0xbf, 0xb6, 0xc0, 0x87, 0x05, 0x6a, 0x23, 0x28, 0xc4, 0x3f, 0x40, 0xd5, 0x25,
-	0xeb, 0x39, 0x7b, 0x0f, 0x25, 0xfa, 0xf5, 0xe9, 0x8d, 0x65, 0xba, 0x9e, 0x67, 0xb3, 0x31, 0x2a,
-	0x61, 0xa3, 0x7c, 0x02, 0x15, 0xdf, 0xc1, 0x0e, 0x0f, 0x29, 0xb4, 0x1c, 0x9e, 0x45, 0xc4, 0x0f,
-	0xa4, 0x9a, 0xa0, 0x09, 0x03, 0xc7, 0x3b, 0x44, 0xfc, 0x25, 0x9a, 0xbb, 0x6c, 0xec, 0x35, 0x7b,
-	0xc4, 0x0e, 0xa1, 0x4c, 0x22, 0x3e, 0x86, 0x91, 0xa5, 0x1d, 0xe0, 0x12, 0x76, 0x96, 0xdf, 0xa6,
-	0x52, 0x81, 0x7a, 0x91, 0x1a, 0x9f, 0xe3, 0x11, 0x6b, 0x41, 0xad, 0xa7, 0x54, 0xa6, 0x62, 0xa3,
-	0x92, 0xd9, 0x24, 0x1c, 0xda, 0xe0, 0x3a, 0x45, 0x56, 0x7d, 0x97, 0x63, 0xcb, 0x84, 0x23, 0xe7,
-	0x7d, 0x8e, 0xf9, 0x25, 0xec, 0xdd, 0xce, 0x14, 0x4e, 0x12, 0x6d, 0x50, 0x91, 0x61, 0x75, 0x08,
-	0x92, 0xb1, 0xbf, 0x4d, 0x90, 0x8c, 0x69, 0x2a, 0x33, 0x9a, 0x8a, 0xbb, 0x87, 0x3d, 0xd3, 0x54,
-	0xe4, 0xe6, 0xd3, 0xf4, 0x90, 0x73, 0xa8, 0xaf, 0xb7, 0xd3, 0x73, 0xd6, 0x80, 0xa2, 0x7c, 0x9a,
-	0xda, 0x86, 0x55, 0x41, 0x47, 0x6e, 0x60, 0xf7, 0xc7, 0x02, 0xd5, 0x73, 0xee, 0xe1, 0x09, 0x94,
-	0x2d, 0xb6, 0x39, 0xf5, 0xe8, 0xad, 0x77, 0x7d, 0x3d, 0xc7, 0x81, 0x3e, 0x3e, 0x62, 0x2a, 0x5c,
-	0x32, 0x6f, 0x03, 0xac, 0x48, 0x06, 0xb0, 0x1d, 0x0f, 0x3a, 0x83, 0xdb, 0xb8, 0xb1, 0x45, 0x67,
-	0xd1, 0xbb, 0xb9, 0x16, 0x83, 0x46, 0x81, 0x55, 0xa1, 0xf4, 0xed, 0xb6, 0xdf, 0x6f, 0x04, 0xfc,
-	0x77, 0x01, 0xf6, 0x7c, 0x4b, 0x72, 0x54, 0x23, 0x29, 0xeb, 0xac, 0x94, 0x75, 0x9e, 0xa6, 0x6b,
-	0xab, 0x18, 0x58, 0x32, 0x5f, 0xc5, 0xaf, 0x50, 0xe9, 0xa2, 0x91, 0x49, 0x4a, 0xf7, 0xa5, 0xfd,
-	0x79, 0xb7, 0xa9, 0xd1, 0x35, 0x6c, 0xfb, 0x9c, 0xde, 0xcc, 0xa8, 0x67, 0x91, 0x57, 0x50, 0x53,
-	0x6b, 0xb5, 0x0e, 0x4b, 0xf6, 0x05, 0x7b, 0xd4, 0x3c, 0x85, 0xdd, 0xf5, 0x02, 0x92, 0x33, 0xc5,
-	0x67, 0xef, 0x3c, 0x1d, 0xe9, 0x51, 0x3c, 0xca, 0x74, 0x91, 0x7b, 0xef, 0xc0, 0x69, 0xf0, 0xb9,
-	0x10, 0xfd, 0x0c, 0xa0, 0x7c, 0x4e, 0x0a, 0xd8, 0x19, 0x84, 0xbd, 0xf9, 0x1d, 0xde, 0xa3, 0x92,
-	0xa9, 0xf0, 0xbe, 0xe7, 0xdb, 0x7b, 0xb0, 0x7c, 0xbf, 0xf9, 0x1f, 0x55, 0xf3, 0x2f, 0x6a, 0xce,
-	0xb7, 0xd8, 0x09, 0xec, 0x5f, 0xca, 0x29, 0xfa, 0x95, 0xb1, 0x33, 0xc9, 0x37, 0xc5, 0x73, 0xcd,
-	0xfd, 0x0d, 0xac, 0xa9, 0xea, 0x0c, 0x0e, 0x56, 0xa3, 0xce, 0x3f, 0x79, 0xe8, 0xf3, 0x36, 0xde,
-	0x54, 0xf3, 0xf5, 0x0b, 0xac, 0xed, 0x71, 0x0a, 0x35, 0x6b, 0xa1, 0xf7, 0xf9, 0xd5, 0x0b, 0xa3,
-	0x6f, 0x1e, 0xbe, 0xe4, 0x35, 0xdf, 0x8a, 0x3a, 0x50, 0x1c, 0x99, 0xf4, 0x7f, 0x5a, 0x0c, 0xb7,
-	0xed, 0x5f, 0xfa, 0xa7, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xc0, 0x3a, 0x8d, 0xc5, 0xe1, 0x05,
-	0x00, 0x00,
+	// 1007 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x56, 0x4d, 0x6f, 0xe3, 0x36,
+	0x13, 0xb6, 0x65, 0x3b, 0x72, 0xc6, 0x8e, 0xe3, 0xf0, 0xcd, 0x5b, 0x08, 0x46, 0x51, 0xa4, 0xc4,
+	0x16, 0x58, 0x74, 0x01, 0x63, 0xeb, 0x6e, 0x8b, 0x6c, 0xda, 0x8b, 0x37, 0x49, 0xd1, 0xa0, 0xce,
+	0x47, 0x29, 0xe7, 0xd0, 0x23, 0x6d, 0x13, 0x8e, 0x10, 0x45, 0x52, 0x48, 0x3a, 0x81, 0x8f, 0xfd,
+	0x09, 0xbd, 0xf6, 0xde, 0x3f, 0xd3, 0x5f, 0x55, 0x0c, 0x45, 0x4a, 0x72, 0xe3, 0x3d, 0x6c, 0x4f,
+	0xe6, 0x33, 0x9c, 0x19, 0x3e, 0xf3, 0x69, 0x41, 0x67, 0xce, 0x67, 0x3c, 0x1e, 0x66, 0x32, 0xd5,
+	0x29, 0x69, 0x19, 0x40, 0x5f, 0x01, 0x8c, 0xe3, 0x98, 0x89, 0xc7, 0x95, 0x50, 0x9a, 0x7c, 0x06,
+	0x3b, 0xa1, 0xe6, 0x7a, 0xa5, 0x82, 0xfa, 0x51, 0xfd, 0xf5, 0x2e, 0xb3, 0x88, 0xbe, 0x07, 0x60,
+	0x62, 0x19, 0x0a, 0xf9, 0xc4, 0xc4, 0x23, 0x79, 0x03, 0xfe, 0x95, 0x78, 0x46, 0x64, 0xd4, 0x3a,
+	0xa3, 0x83, 0x61, 0xee, 0xd9, 0x4a, 0xa3, 0xb9, 0x60, 0x4e, 0x83, 0xfe, 0x59, 0xaf, 0xd8, 0x66,
+	0x1f, 0x7b, 0x81, 0x04, 0xe0, 0x8f, 0x17, 0x0b, 0x29, 0x94, 0x0a, 0x1a, 0xe6, 0xc2, 0x41, 0xd2,
+	0x03, 0xef, 0xe2, 0x2c, 0x68, 0x1a, 0xa1, 0x77, 0x71, 0x46, 0x06, 0xd0, 0x3e, 0x4d, 0xa5, 0xb8,
+	0xe1, 0xfa, 0x2e, 0x68, 0x19, 0x69, 0x81, 0xc9, 0x10, 0xba, 0x96, 0xc0, 0x94, 0xcf, 0x62, 0x11,
+	0x78, 0x47, 0x8d, 0xd7, 0x9d, 0x11, 0x58, 0x7a, 0xe1, 0x28, 0x64, 0x1b, 0xf7, 0x54, 0x02, 0x94,
+	0x9c, 0x09, 0x81, 0xe6, 0x15, 0x7f, 0x10, 0x96, 0x99, 0x39, 0x1b, 0x5e, 0x71, 0xc4, 0x95, 0x50,
+	0xc6, 0x19, 0xf2, 0xca, 0x21, 0xf2, 0xb8, 0x50, 0xa7, 0x71, 0x24, 0x12, 0x6d, 0x28, 0xb7, 0x59,
+	0x81, 0xf3, 0x3b, 0x74, 0x2b, 0xa4, 0x61, 0x6e, 0xee, 0x72, 0x4c, 0xaf, 0xa1, 0x11, 0x8e, 0xc2,
+	0x4f, 0x7f, 0x6c, 0x92, 0xce, 0xb9, 0x8e, 0xd2, 0xc4, 0xe6, 0xa7, 0xc0, 0xf4, 0x0d, 0xf8, 0x67,
+	0x5c, 0x73, 0xac, 0xcc, 0x11, 0x34, 0x98, 0x78, 0xb4, 0x55, 0xe9, 0xd9, 0xb0, 0x6d, 0x71, 0x19,
+	0x5e, 0xd1, 0xb7, 0xd0, 0xce, 0x95, 0x55, 0x46, 0x5e, 0x41, 0x13, 0x7f, 0xad, 0x7a, 0xbf, 0x50,
+	0x57, 0x59, 0x9a, 0x2c, 0x84, 0x64, 0xe6, 0x96, 0x2e, 0xc1, 0xaf, 0xb6, 0x87, 0xc0, 0xab, 0xa2,
+	0x78, 0x06, 0xa1, 0x7c, 0xca, 0xe5, 0x52, 0xe8, 0xc0, 0xcb, 0xe5, 0x39, 0x42, 0xf9, 0xa5, 0xd0,
+	0x77, 0xe9, 0xc2, 0x72, 0xb6, 0x88, 0x1c, 0x42, 0x0b, 0x49, 0x7c, 0x13, 0x8c, 0x8c, 0x38, 0x07,
+	0x94, 0xc3, 0x6e, 0xf1, 0x36, 0x9a, 0x32, 0xa1, 0x56, 0xb1, 0xb6, 0x3a, 0x16, 0x91, 0x23, 0xe8,
+	0x9c, 0x4b, 0x99, 0xca, 0x50, 0xcb, 0x28, 0x59, 0x06, 0x33, 0x73, 0x59, 0x15, 0x61, 0xaa, 0x7e,
+	0xe6, 0x0b, 0x23, 0x09, 0xe6, 0x79, 0xee, 0x1d, 0xa6, 0x97, 0xb0, 0x77, 0x9b, 0x48, 0xb1, 0x8c,
+	0x94, 0x16, 0x12, 0x13, 0xd6, 0x03, 0x2f, 0x5a, 0xd8, 0x68, 0xbc, 0x68, 0x81, 0x55, 0x49, 0xb0,
+	0x2a, 0x79, 0x1c, 0xe6, 0x8c, 0x55, 0xe1, 0x9b, 0xad, 0x69, 0x21, 0xa5, 0xd0, 0xab, 0xba, 0x53,
+	0x19, 0xe9, 0x43, 0x83, 0x3f, 0xdf, 0x1b, 0x87, 0x6d, 0x86, 0x47, 0xaa, 0xa1, 0xfb, 0xeb, 0x4a,
+	0xc8, 0xb5, 0xcb, 0xe1, 0x3b, 0x68, 0x19, 0x6c, 0x74, 0x7a, 0xa3, 0x2f, 0x6c, 0xd6, 0xab, 0x3a,
+	0x39, 0x98, 0x88, 0x27, 0x11, 0xb3, 0x5c, 0x99, 0x0e, 0x01, 0x4a, 0x21, 0x01, 0xd8, 0x09, 0xa7,
+	0xe3, 0xe9, 0x6d, 0xd8, 0xaf, 0xe1, 0x99, 0x9d, 0xdf, 0x5c, 0xb3, 0x69, 0xbf, 0x4e, 0xda, 0xd0,
+	0xfc, 0xe9, 0x76, 0x32, 0xe9, 0x7b, 0xf4, 0xef, 0x3a, 0xec, 0x59, 0x97, 0x98, 0x51, 0x25, 0x90,
+	0xd9, 0xb8, 0x64, 0x36, 0x7e, 0xbe, 0xaf, 0x8c, 0xa2, 0x67, 0x84, 0x6e, 0x14, 0x7f, 0x00, 0xff,
+	0x4c, 0x68, 0x1e, 0xc5, 0x18, 0x2f, 0xce, 0xcf, 0x97, 0x9b, 0x1c, 0x73, 0x87, 0x43, 0xab, 0x73,
+	0x9e, 0x68, 0xb9, 0x66, 0xce, 0x02, 0x9d, 0x9a, 0x54, 0xab, 0xa0, 0x69, 0x3a, 0xd8, 0xa2, 0xc1,
+	0x09, 0x74, 0xab, 0x06, 0x48, 0xe7, 0x5e, 0xac, 0x6d, 0xe6, 0xf1, 0x88, 0x4d, 0xf1, 0xc4, 0xe3,
+	0x95, 0xcb, 0x7d, 0x0e, 0x4e, 0xbc, 0xe3, 0x3a, 0xbd, 0x82, 0x6e, 0xa8, 0xb9, 0xd4, 0x2e, 0x85,
+	0xae, 0x48, 0xf5, 0x4a, 0x91, 0x08, 0x34, 0x33, 0xdc, 0x08, 0xb6, 0x70, 0x78, 0x46, 0x2e, 0xb3,
+	0x28, 0xe1, 0x72, 0x6d, 0xe7, 0xd3, 0x22, 0xfa, 0x1b, 0xec, 0x85, 0x82, 0xcb, 0xf9, 0x5d, 0xc5,
+	0xe1, 0x8b, 0x59, 0x24, 0xd0, 0xbc, 0xa9, 0x38, 0x34, 0xeb, 0xa5, 0x0f, 0x8d, 0x9b, 0xc8, 0x35,
+	0x33, 0x1e, 0xcd, 0x72, 0x5a, 0x14, 0xcb, 0x69, 0x41, 0xbf, 0x82, 0x4e, 0xa8, 0xd3, 0xec, 0xe5,
+	0x3e, 0x6d, 0x6e, 0xec, 0x53, 0xa3, 0x86, 0x27, 0x26, 0xb2, 0x78, 0x8d, 0x6a, 0x6a, 0x63, 0x29,
+	0xe6, 0x88, 0x1e, 0x03, 0xd8, 0xc0, 0x51, 0x2b, 0x00, 0x3f, 0x5c, 0xcd, 0xe7, 0xd8, 0x87, 0x79,
+	0x15, 0x1d, 0x74, 0xbc, 0x90, 0x6a, 0xcb, 0xf0, 0xa2, 0xd7, 0xb0, 0x3b, 0x89, 0x94, 0x35, 0xfc,
+	0x1a, 0xda, 0x2a, 0x5f, 0x71, 0x68, 0xd9, 0xa8, 0xac, 0x06, 0xb7, 0xad, 0x8b, 0x7b, 0xa4, 0x12,
+	0x8b, 0x64, 0x69, 0x03, 0x6f, 0x31, 0x8b, 0xe8, 0x5f, 0x75, 0xf0, 0xdd, 0x9e, 0xcc, 0x83, 0x06,
+	0x17, 0x74, 0x91, 0xbe, 0xce, 0x96, 0xf4, 0x75, 0x2b, 0xe9, 0x2b, 0xb3, 0xd1, 0xdb, 0xd8, 0xfd,
+	0x03, 0x68, 0x33, 0xa1, 0x30, 0x50, 0x15, 0xec, 0x9b, 0x57, 0x0b, 0xec, 0x42, 0xeb, 0x17, 0xa1,
+	0x91, 0xcf, 0x61, 0xd7, 0x24, 0x65, 0x1a, 0x3d, 0x88, 0xe0, 0xc0, 0x38, 0x2a, 0x05, 0xa3, 0xdf,
+	0x3d, 0x68, 0x9d, 0x62, 0x6c, 0xe4, 0x03, 0x04, 0xe7, 0xd9, 0x9d, 0x78, 0x10, 0x92, 0xc7, 0xcc,
+	0xce, 0xa8, 0x8b, 0xe0, 0xa0, 0xd8, 0x75, 0xee, 0x4f, 0x6d, 0xf0, 0x42, 0x94, 0xd1, 0x1a, 0x79,
+	0x07, 0xfb, 0x97, 0xfc, 0x5e, 0xd8, 0xf5, 0x6a, 0x4a, 0xea, 0x52, 0x67, 0x65, 0x83, 0xfd, 0x0d,
+	0xac, 0xd0, 0xea, 0x03, 0x1c, 0x94, 0x6b, 0xc1, 0x3d, 0x79, 0x68, 0xf5, 0x36, 0xf6, 0xcf, 0xe0,
+	0xff, 0x5b, 0xa4, 0xc6, 0xc7, 0x09, 0x74, 0xcc, 0xb8, 0xd9, 0x14, 0xfd, 0x6f, 0xcb, 0x9a, 0x18,
+	0x1c, 0x6e, 0x9b, 0x4b, 0x5a, 0x1b, 0xfd, 0xd1, 0x00, 0xff, 0x34, 0x4d, 0xb4, 0x4c, 0x63, 0x72,
+	0x6c, 0x67, 0xc7, 0xd1, 0x70, 0x8e, 0xaa, 0x03, 0x55, 0xc4, 0x5e, 0x36, 0x1b, 0xad, 0x91, 0x1f,
+	0xa1, 0x67, 0xab, 0xf0, 0xef, 0x10, 0x36, 0x86, 0x67, 0x40, 0x4a, 0x63, 0xd7, 0xd0, 0xb4, 0x46,
+	0xde, 0x43, 0xe7, 0x97, 0x28, 0x8e, 0xff, 0x8b, 0xe9, 0x5b, 0xf0, 0xb1, 0x77, 0xc7, 0x71, 0x5c,
+	0xd4, 0xa9, 0xfc, 0x44, 0x19, 0xb8, 0xbf, 0xa9, 0xa2, 0xbd, 0x69, 0x8d, 0x7c, 0x87, 0x9f, 0x18,
+	0x86, 0xea, 0x47, 0x8c, 0xb6, 0x3f, 0x34, 0x02, 0x1f, 0x39, 0x7e, 0x92, 0xcd, 0xf7, 0x38, 0x92,
+	0x69, 0x96, 0xff, 0x97, 0x93, 0x52, 0xa7, 0x98, 0xf9, 0xed, 0x76, 0xb3, 0x1d, 0xf3, 0xd5, 0xf5,
+	0xed, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xe4, 0x9e, 0x08, 0x47, 0x84, 0x09, 0x00, 0x00,
 }

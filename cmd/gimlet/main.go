@@ -27,9 +27,10 @@ func main() {
 	gimlet := core.StartCore(os.Args[1])
 
 	printLogo()
-	notify.StdMsgBlue("Starting version: "+gimlet.Version+" ("+gimlet.CodeName+")", 0)
+	notify.StdMsgBlue("Starting version: " + gimlet.Version + " (" + gimlet.CodeName + ")")
 
-	gimlet.StartInternalServer()
+	gimlet.StartCabalServer()
+	gimlet.StartControlServer()
 	gimlet.ServiceDiscovery()
 }
 
