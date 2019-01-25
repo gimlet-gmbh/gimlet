@@ -82,6 +82,15 @@ service Cabal {
     rpc QueryStatus (QueryRequest) returns (QueryResponse) {}
 }
 
+service Ctl {
+    /* 
+     * QueryStatus
+     *
+     * Use this to query the status of all processes attached to CORE.
+     */
+    rpc QueryStatus (QueryRequest) returns (QueryResponse) {}
+}
+
 message RegServReq {
     // The service to register.
     NewService NewServ = 1;    
