@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -51,6 +52,7 @@ type Core struct {
 	serviceHandler *service.ServiceHandler
 	router         *grouter.Router
 	log            *os.File
+	logm           *sync.Mutex
 
 	// ServiceDir is the directory in which services live within a Gimlet project
 	ServiceDir string `yaml:"serviceDirectory"`
@@ -301,6 +303,7 @@ func (c *Core) logRuntimeData(path string) {
 	filename := ".gimlet"
 	var err error
 	c.log, err = notify.OpenLogFile(path, filename)
+	c.logm = &sync.Mutex{}
 	if err != nil {
 		notify.StdMsgErr("could not create log file: " + err.Error())
 		return
@@ -314,6 +317,8 @@ func (c *Core) logRuntimeData(path string) {
 }
 
 func (c *Core) takeInventory() {
+	c.logm.Lock()
+	defer c.logm.Unlock()
 	serviceString := "services=["
 	for _, serviceName := range c.serviceHandler.Names {
 		service := c.serviceHandler.Services[serviceName]
@@ -326,6 +331,8 @@ func (c *Core) takeInventory() {
 
 func (c *Core) shutdown() {
 	c.serviceHandler.KillAllServices()
+	c.logm.Lock()
 	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
+	c.logm.Unlock()
 	c.log.Close()
 }
