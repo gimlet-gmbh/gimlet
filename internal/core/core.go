@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/gimlet-gmbh/gimlet/cabal"
 	grouter "github.com/gimlet-gmbh/gimlet/grouter"
@@ -37,17 +38,31 @@ TODO: gproto to cabal
 // Not much of a way around this when using rpc
 var core *Core
 
-const addr = "localhost:59999"
+const (
+	addr = "localhost:59999"
+	sep  = "------------------------------------------------------------------------"
+)
 
-// Core - internal representation of CORE
+// Core - internal representation of the gimlet core
 type Core struct {
-	Version        string `yaml:"version"`
-	CodeName       string `yaml:"codeName"`
-	ServiceDir     string `yaml:"serviceDirectory"`
-	ProjectPath    string
+	Version        string
+	CodeName       string
 	ProjectConf    *ProjectConfig
 	serviceHandler *service.ServiceHandler
 	router         *grouter.Router
+	log            *os.File
+
+	// ServiceDir is the directory in which services live within a Gimlet project
+	ServiceDir string `yaml:"serviceDirectory"`
+
+	// CabalAddress is the address of the RPC server that sends data requests
+	CabalAddress string `yaml:"serviceAddress"`
+
+	// CtrlAddress is the address of the RPC server used by ctrl to manage processes
+	CtrlAddress string `yaml:"ctrlAddress"`
+
+	// ProjectPath is the path to the root folder of the gimlet project
+	ProjectPath string
 }
 
 // ProjectConfig is the configuration of the gimlet project located in the main directory
@@ -56,6 +71,7 @@ type ProjectConfig struct {
 	ServiceDirectory string `yaml:"ServiceDirectory"`
 }
 
+// tmpService is used during service discovery to hold tmp dat
 type tmpService struct {
 	path       string
 	configFile string
@@ -65,8 +81,8 @@ type tmpService struct {
 // needed to process requestes
 func StartCore(path string) *Core {
 	core = &Core{
-		Version:     "00.04.01",
-		CodeName:    "Convergence",
+		Version:     "00.07.01",
+		CodeName:    "Control",
 		ServiceDir:  "services",
 		ProjectPath: path,
 		serviceHandler: &service.ServiceHandler{
@@ -80,6 +96,7 @@ func StartCore(path string) *Core {
 		},
 	}
 	core.ProjectConf = core.parseProjectYamlConfig(path + "/gimlet.yaml")
+	core.logRuntimeData(path + "/gimlet/")
 	return core
 }
 
@@ -130,6 +147,9 @@ func (c *Core) ServiceDiscovery() {
 
 		notify.StdMsgGreen(fmt.Sprintf("Service running in ephemeral mode with pid=(%v)", pid), 1)
 	}
+
+	go c.takeInventory()
+
 	notify.StdMsgBlue("Startup complete")
 	notify.StdMsgGreen("Blocking main thread until SIGINT")
 
@@ -138,7 +158,7 @@ func (c *Core) ServiceDiscovery() {
 	_ = <-sig
 
 	notify.StdMsgMagenta("Recieved shutdown signal")
-	c.serviceHandler.KillAllServices()
+	c.shutdown()
 
 	os.Exit(0)
 }
@@ -274,4 +294,38 @@ func (c *Core) rpcConnect() {
 		}
 
 	}()
+
+}
+
+func (c *Core) logRuntimeData(path string) {
+	filename := ".gimlet"
+	var err error
+	c.log, err = notify.OpenLogFile(path, filename)
+	if err != nil {
+		notify.StdMsgErr("could not create log file: " + err.Error())
+		return
+	}
+
+	c.log.WriteString("\n" + sep + "\n")
+	c.log.WriteString("startTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
+	c.log.WriteString("cabalAddress=\"" + addr + "\"\n")
+	c.log.WriteString("ctrlAddress=\"" + "-" + "\"\n")
+
+}
+
+func (c *Core) takeInventory() {
+	serviceString := "services=["
+	for _, serviceName := range c.serviceHandler.Names {
+		service := c.serviceHandler.Services[serviceName]
+		serviceString += "\"" + service.Name + "-" + service.ConfigPath + "\", "
+	}
+	serviceString = serviceString[:len(serviceString)-2]
+	serviceString += "]"
+	c.log.WriteString(serviceString + "\n")
+}
+
+func (c *Core) shutdown() {
+	c.serviceHandler.KillAllServices()
+	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
+	c.log.Close()
 }

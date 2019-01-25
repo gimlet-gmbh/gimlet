@@ -7,10 +7,11 @@ GOGET=$(GOCMD) get
 
 GIMLET_BINARY=gimlet
 CLI_BINARY=gmbh
+CTRL_BINARY=gmbhctrl
 
-all: build-gimlet build-cli
+all: build-gimlet build-cli build-ctrl
 
-install: all install-gimlet install-cli
+install: all install-gimlet install-cli install-ctrl
 
 build-gimlet:
 	$(GOBUILD) -o ./bin/$(GIMLET_BINARY) ./cmd/gimlet/*.go
@@ -18,11 +19,17 @@ build-gimlet:
 build-cli:
 	$(GOBUILD) -o ./bin/$(CLI_BINARY) ./cmd/gmbh/*.go
 
+build-ctrl:
+	$(GOBUILD) -o ./bin/$(CTRL_BINARY) ./cmd/gmbhctrl/*.go
+
 install-gimlet:
 	cp bin/$(GIMLET_BINARY) /usr/local/bin/
 
 install-cli:
 	cp bin/$(CLI_BINARY) /usr/local/bin/
+
+install-ctrl:
+	cp bin/$(CTRL_BINARY) /usr/local/bin/
 
 # test: 
 # 	$(GOTEST) -v ./...
