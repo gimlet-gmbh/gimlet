@@ -83,10 +83,12 @@ type tmpService struct {
 // needed to process requestes
 func StartCore(path string) *Core {
 	core = &Core{
-		Version:     "00.07.01",
-		CodeName:    "Control",
-		ServiceDir:  "services",
-		ProjectPath: path,
+		Version:      "00.07.01",
+		CodeName:     "Control",
+		ServiceDir:   "services",
+		CabalAddress: "localhost:59999",
+		CtrlAddress:  "localhost:59997",
+		ProjectPath:  path,
 		serviceHandler: &service.ServiceHandler{
 			Services: make(map[string]*service.ServiceControl),
 			Names:    make([]string, 0),
@@ -100,12 +102,6 @@ func StartCore(path string) *Core {
 	core.ProjectConf = core.parseProjectYamlConfig(path + "/gimlet.yaml")
 	core.logRuntimeData(path + "/gimlet/")
 	return core
-}
-
-// StartInternalServer starts the gRPC server to run core on
-func (c *Core) StartInternalServer() {
-	notify.StdMsgBlue("Attempting to start internal server")
-	c.rpcConnect()
 }
 
 // ServiceDiscovery scans all directories in the ./services folder looking for gimlet configuration files
@@ -273,6 +269,12 @@ func (c *Core) parseProjectYamlConfig(path string) *ProjectConfig {
 	return &conf
 }
 
+// StartInternalServer starts the gRPC server to run core on
+func (c *Core) StartInternalServer() {
+	notify.StdMsgBlue("Attempting to start internal server")
+	c.rpcConnect()
+}
+
 // TODO:
 // this will orphan the gothread
 // still need to do signal hadnling
@@ -282,13 +284,13 @@ func (c *Core) rpcConnect() {
 	notify.StdMsgGreen("Starting gmbH Core Server at: "+addr, 1)
 
 	go func() {
-		list, err := net.Listen("tcp", addr)
+		list, err := net.Listen("tcp", c.CabalAddress)
 		if err != nil {
 			panic(err)
 		}
 
 		s := grpc.NewServer()
-		cabal.RegisterCabalServer(s, &_server{})
+		cabal.RegisterCabalServer(s, &cabalServer{})
 
 		reflection.Register(s)
 		if err := s.Serve(list); err != nil {
@@ -297,6 +299,12 @@ func (c *Core) rpcConnect() {
 
 	}()
 
+}
+
+// StartControlServer starts the gRPC server to run core on
+func (c *Core) StartControlServer() {
+	notify.StdMsgBlue("Attempting to start internal server")
+	c.rpcConnect()
 }
 
 func (c *Core) logRuntimeData(path string) {
@@ -311,14 +319,12 @@ func (c *Core) logRuntimeData(path string) {
 
 	c.log.WriteString("\n" + sep + "\n")
 	c.log.WriteString("startTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
-	c.log.WriteString("cabalAddress=\"" + addr + "\"\n")
-	c.log.WriteString("ctrlAddress=\"" + "-" + "\"\n")
+	c.log.WriteString("cabalAddress=\"" + c.CabalAddress + "\"\n")
+	c.log.WriteString("ctrlAddress=\"" + c.CtrlAddress + "\"\n")
 
 }
 
 func (c *Core) takeInventory() {
-	c.logm.Lock()
-	defer c.logm.Unlock()
 	serviceString := "services=["
 	for _, serviceName := range c.serviceHandler.Names {
 		service := c.serviceHandler.Services[serviceName]
@@ -326,6 +332,8 @@ func (c *Core) takeInventory() {
 	}
 	serviceString = serviceString[:len(serviceString)-2]
 	serviceString += "]"
+	c.logm.Lock()
+	defer c.logm.Unlock()
 	c.log.WriteString(serviceString + "\n")
 }
 
