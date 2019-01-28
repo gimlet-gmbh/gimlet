@@ -7,6 +7,7 @@ package core
  */
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -281,18 +282,7 @@ func (c *Core) parseProjectYamlConfig(path string) *ProjectConfig {
 
 // StartCabalServer starts the gRPC server to run core on
 func (c *Core) StartCabalServer() {
-	notify.StdMsgBlue("Attempting to start cabal server")
-	c.rpcConnect()
-}
-
-// TODO:
-// this will orphan the gothread
-// still need to do signal hadnling
-// see the coms package for how it was done there
-func (c *Core) rpcConnect() {
-
-	notify.StdMsgGreen("Starting gmbH Core Server at: "+c.CabalAddress, 1)
-
+	notify.StdMsgBlue("attempting to start cabal server")
 	go func() {
 		list, err := net.Listen("tcp", c.CabalAddress)
 		if err != nil {
@@ -308,14 +298,28 @@ func (c *Core) rpcConnect() {
 		}
 
 	}()
-
+	notify.StdMsgGreen("starting cabal server at "+c.CabalAddress, 1)
 }
 
 // StartControlServer starts the gRPC server to run core on
 func (c *Core) StartControlServer() {
 	notify.StdMsgBlue("Attempting to start control server")
-	notify.StdMsgErr("not implemented...", 1)
-	// c.rpcConnect()
+	go func() {
+		list, err := net.Listen("tcp", c.CtrlAddress)
+		if err != nil {
+			panic(err)
+		}
+
+		s := grpc.NewServer()
+		cabal.RegisterControlServer(s, &controlServer{})
+
+		reflection.Register(s)
+		if err := s.Serve(list); err != nil {
+			panic(err)
+		}
+
+	}()
+	notify.StdMsgGreen("starting control server at "+c.CtrlAddress, 1)
 }
 
 func (c *Core) logRuntimeData(path string) {
@@ -354,4 +358,11 @@ func (c *Core) shutdown() {
 	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
 	c.logm.Unlock()
 	c.log.Close()
+}
+
+func getCore() (*Core, error) {
+	if core == nil {
+		return nil, errors.New("could not find core instance")
+	}
+	return core, nil
 }

@@ -29,7 +29,8 @@ func main() {
 	printLogo()
 	notify.StdMsgBlue("Starting version: "+gmbhCore.Version+" ("+gmbhCore.CodeName+")", 0)
 
-	gmbhCore.StartInternalServer()
+	gmbhCore.StartCabalServer()
+	gmbhCore.StartControlServer()
 	gmbhCore.ServiceDiscovery()
 }
 

@@ -94,6 +94,8 @@ service Control {
 
     // StopSever kills all of the attached services and then calls shutdown procedure
     rpc StopServer (StopRequest) returns (StatusReply) {}
+    
+    rpc ServerStatus (StatusRequest) returns (StatusReply) {}
 }
 
 message AllRequest {
@@ -255,6 +257,10 @@ message StopRequest {
 }
 
 message StatusReply {
+    string status = 1;
+}
+
+message StatusRequest {
     string status = 1;
 }
 

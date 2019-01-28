@@ -103,7 +103,7 @@ func (g *GoProcess) HandleFailure(p *Process) {
 
 func (g *GoProcess) setRuntime(p *Process, pid int) {
 	p.Runtime.running = true
-	p.Runtime.startTime = time.Now()
+	p.Runtime.StartTime = time.Now()
 	p.Runtime.lastAliveTime = time.Now()
 	p.Runtime.Pid = pid
 }

@@ -44,7 +44,7 @@ type pInfo struct {
 type pRuntime struct {
 	running       bool
 	userKilled    bool
-	startTime     time.Time
+	StartTime     time.Time
 	lastAliveTime time.Time
 	Pid           int
 	numRestarts   int
