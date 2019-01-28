@@ -15,6 +15,9 @@ Run the install script in the scripts folder. Make sure that you have set your g
             * merits/ discussion?
             * How do we attach processes that are not local? i.e. in a Docker or on a different host?
                 * Array in ini file? merits/ discussion?
+    * get rich detail from each service
+    * Maybe have a web gui to do this with?
+        * Would make docker version easy to use
 * platform support
     * windows
         * unknown status
@@ -26,6 +29,11 @@ Run the install script in the scripts folder. Make sure that you have set your g
         * refactor install scripts
         * where can gmbhCtrl find the control address from gmbhCore?
             * should we allow gmbhCtrl to be run only in the directory in which the project is stored unless 
+* Docker support
+    * writing dockerfile
+    * publishing on dockerhub
+    * managing interaction w/ services connected to docker core
+        * gmbhControl integration
 * language support
     * go
         * needs refactored
@@ -37,10 +45,13 @@ Run the install script in the scripts folder. Make sure that you have set your g
 * standardization of config ini files
     * for individual services
     * for gmbhCore
+    * Do we require a makefile for compiled languages or do we use go tools, etc.
+        * Need to make sure that go tools are rock solid on process mgmt
 * Should we refactor gmbh to start Core with **only** a path to a config file if we are starting it in daemon mode?
     * Should this then allow 
 * Service permissions
     * how to enforce security? 
+        * security package to get environment variables?
 * custom data channels
     * enforcement at each end?
     * How to extend this into other languages?
@@ -56,6 +67,7 @@ Run the install script in the scripts folder. Make sure that you have set your g
 * building example toys
     * text messaging w/ web socket
     * backend real time data mining in python?
+    * blogging platform using standard plugins
 * Protocall buffers needs refactored
     * clean up names/ standardization
 * testing
