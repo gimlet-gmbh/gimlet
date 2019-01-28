@@ -5,25 +5,25 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 
-GIMLET_BINARY=gimlet
 CLI_BINARY=gmbh
-CTRL_BINARY=gmbhctrl
+CORE_BINARY=gmbhCore
+CTRL_BINARY=gmbhCtrl
 
-all: build-gimlet build-cli build-ctrl
+all: build-core build-cli build-ctrl
 
-install: all install-gimlet install-cli install-ctrl
+install: all install-core install-cli install-ctrl
 
-build-gimlet:
-	$(GOBUILD) -o ./bin/$(GIMLET_BINARY) ./cmd/gimlet/*.go
+build-core:
+	$(GOBUILD) -o ./bin/$(CORE_BINARY) ./cmd/gmbhCore/*.go
 
 build-cli:
 	$(GOBUILD) -o ./bin/$(CLI_BINARY) ./cmd/gmbh/*.go
 
 build-ctrl:
-	$(GOBUILD) -o ./bin/$(CTRL_BINARY) ./cmd/gmbhctrl/*.go
+	$(GOBUILD) -o ./bin/$(CTRL_BINARY) ./cmd/gmbhCtrl/*.go
 
-install-gimlet:
-	cp bin/$(GIMLET_BINARY) /usr/local/bin/
+install-core:
+	cp bin/$(CORE_BINARY) /usr/local/bin/
 
 install-cli:
 	cp bin/$(CLI_BINARY) /usr/local/bin/
@@ -48,4 +48,4 @@ run:
 	./bin/$(BINARY_NAME)
 
 .PONY:
-	install-gimlet install-cli
+	install-core install-cli install-ctrl

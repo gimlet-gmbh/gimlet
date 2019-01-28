@@ -16,21 +16,21 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/gimlet-gmbh/gimlet/cabal"
-	"github.com/gimlet-gmbh/gimlet/notify"
+	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/notify"
 	yaml "gopkg.in/yaml.v2"
 )
 
-const version = "00.05.01"
+const version = "00.07.01"
 const debug = true
 
 // HandlerFunc is the publically exposed function to register and use the callback functions
-// from within gimlet. Its behavior is modeled after the http handler that is baked into go
+// from within gmbhCore. Its behavior is modeled after the http handler that is baked into go
 // by default
 type HandlerFunc = func(req Request, resp *Responder)
 
-// Gimlet - the structure between a service and CORE
-type Gimlet struct {
+// Client - the structure between a service and CORE
+type Client struct {
 	ServiceName         string `yaml:"name"`
 	isServer            bool   `yaml:"isserver"`
 	isClient            bool   `yaml:"isclient"`
@@ -39,12 +39,12 @@ type Gimlet struct {
 	msgCounter          int
 }
 
-// g - the gimlet object that contains the parsed yaml config and other associated data
-var g *Gimlet
+// g - the gmbhCore object that contains the parsed yaml config and other associated data
+var g *Client
 
 // NewService should be called only once. It returns the object in which parameters, and
-// handler functions can be attached to Gimlet.
-func NewService(configPath string) (*Gimlet, error) {
+// handler functions can be attached to gmbh Client.
+func NewService(configPath string) (*Client, error) {
 	if g != nil {
 		return g, nil
 	}
@@ -62,14 +62,14 @@ func NewService(configPath string) (*Gimlet, error) {
 
 }
 
-// Start registers the service with gimlet.
+// Start registers the service with gmbh.
 //
 // Note that this blocks until receiving the signal to quit. If starting a webserver
 // run this in a go thread as to not block content from being delivered the desired
 // output.
 //
 // TODO: Find a better way to start
-func (g *Gimlet) Start() {
+func (g *Client) Start() {
 	addr, err := _ephemeralRegisterService(g.ServiceName, g.isClient, g.isServer)
 	if err != nil {
 		dlog("gmbh.Start: " + err.Error())
@@ -97,15 +97,15 @@ func (g *Gimlet) Start() {
 }
 
 // Route - Callback functions to be used when handling data
-// requests from gimlet or other services
+// requests from gmbh or other services
 //
 // TODO: Add a mechanism to safely add these and check for collisions, etc.
-func (g *Gimlet) Route(route string, handler HandlerFunc) {
+func (g *Client) Route(route string, handler HandlerFunc) {
 	g.registeredFunctions[route] = handler
 }
 
-// MakeRequest is the default method for making data requests through gimlet
-func (g *Gimlet) MakeRequest(target, method, data string) Responder {
+// MakeRequest is the default method for making data requests through gmbh
+func (g *Client) MakeRequest(target, method, data string) Responder {
 	resp, err := _makeDataRequest(target, method, data)
 	if err != nil {
 		panic(err)
@@ -113,7 +113,7 @@ func (g *Gimlet) MakeRequest(target, method, data string) Responder {
 	return resp
 }
 
-// Request is the publically exposed requester between services in gimlet
+// Request is the publically exposed requester between services in gmbh
 type Request struct {
 	// Sender is the name of the service that is sending the message
 	Sender string
@@ -142,7 +142,7 @@ func (r *Request) toProto() *cabal.Request {
 	}
 }
 
-// Responder is the publically exposed responder between services in gimlet
+// Responder is the publically exposed responder between services in gmbh
 type Responder struct {
 	// Result is the resulting datat from target
 	// TODO: remove this and more articulately handle data
@@ -203,12 +203,12 @@ func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
 	return responder.toProto(), nil
 }
 
-func parseYamlConfig(relativePath string) (*Gimlet, error) {
+func parseYamlConfig(relativePath string) (*Client, error) {
 	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
-	var conf Gimlet
+	var conf Client
 	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
 	if err != nil {
 		notify.StdMsgErr(path + relativePath)

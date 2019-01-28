@@ -20,12 +20,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gimlet-gmbh/gimlet/cabal"
-	"github.com/gimlet-gmbh/gimlet/grouter"
-	"github.com/gimlet-gmbh/gimlet/notify"
-	"github.com/gimlet-gmbh/gimlet/pmgmt"
-	"github.com/gimlet-gmbh/gimlet/service"
-
+	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/grouter"
+	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/pmgmt"
+	"github.com/gmbh-micro/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	yaml "gopkg.in/yaml.v2"
@@ -52,7 +51,7 @@ const (
 	Custom CabalMode = 1
 )
 
-// Core - internal representation of the gimlet core
+// Core - internal representation of the gmbhCore core
 type Core struct {
 	Version        string
 	CodeName       string
@@ -65,7 +64,7 @@ type Core struct {
 	// controlLock is the mutex used when doing operations in the control rpc service
 	controlLock *sync.Mutex
 
-	// ServiceDir is the directory in which services live within a Gimlet project
+	// ServiceDir is the directory in which services live within a gmbh project
 	ServiceDir string `yaml:"serviceDirectory"`
 
 	// CabalAddress is the address of the RPC server that sends data requests
@@ -74,11 +73,11 @@ type Core struct {
 	// CtrlAddress is the address of the RPC server used by ctrl to manage processes
 	CtrlAddress string `yaml:"ctrlAddress"`
 
-	// ProjectPath is the path to the root folder of the gimlet project
+	// ProjectPath is the path to the root folder of the gmbhCore project
 	ProjectPath string
 }
 
-// ProjectConfig is the configuration of the gimlet project located in the main directory
+// ProjectConfig is the configuration of the gmbhCore project located in the main directory
 type ProjectConfig struct {
 	Name             string `yaml:"Name"`
 	ServiceDirectory string `yaml:"ServiceDirectory"`
@@ -110,12 +109,12 @@ func StartCore(path string) *Core {
 			Localhost:      true,
 		},
 	}
-	core.ProjectConf = core.parseProjectYamlConfig(path + "/gimlet.yaml")
-	core.logRuntimeData(path + "/gimlet/")
+	core.ProjectConf = core.parseProjectYamlConfig(path + "/gmbh.yaml")
+	core.logRuntimeData(path + "/gmbh/")
 	return core
 }
 
-// ServiceDiscovery scans all directories in the ./services folder looking for gimlet configuration files
+// ServiceDiscovery scans all directories in the ./services folder looking for gmbhCore configuration files
 func (c *Core) ServiceDiscovery() {
 	path := c.getServicePath()
 
@@ -320,7 +319,7 @@ func (c *Core) StartControlServer() {
 }
 
 func (c *Core) logRuntimeData(path string) {
-	filename := ".gimlet"
+	filename := ".gmbhCore"
 	var err error
 	c.log, err = notify.OpenLogFile(path, filename)
 	c.logm = &sync.Mutex{}

@@ -17,14 +17,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gimlet-gmbh/gimlet/notify"
+	"github.com/gmbh-micro/notify"
 )
 
 const (
 	VERSION    = "00.02.00"
 	PROMPT     = "[cli] "
-	CONFIGNAME = "gimlet.yaml"
-	GIMLETPATH = "/usr/local/bin/gimlet"
+	CONFIGNAME = "gmbh.yaml"
+	COREPATH   = "/usr/local/bin/gmbhCore"
 )
 
 var cmd *exec.Cmd
@@ -34,12 +34,12 @@ func main() {
 	notify.SetTag("[cli] ")
 	notify.SetVerbose(true)
 
-	startGimlet()
+	startCore()
 }
 
-func startGimlet() {
+func startCore() {
 	println(fmt.Sprintf("cli version: %s", VERSION), 0)
-	println("Starting Gimlet...", 0)
+	println("Starting gmbhCore...", 0)
 
 	exists := checkConfig()
 	if !exists {
@@ -50,10 +50,10 @@ func startGimlet() {
 
 	exists = checkInstall()
 	if !exists {
-		printerr("could not find gimlet", 1)
+		printerr("could not find gmbhCore", 1)
 		return
 	}
-	println("found gimlet binary", 1)
+	println("found gmbhCore binary", 1)
 
 	// Monitor/ Force Core Shutdown
 	wg := new(sync.WaitGroup)
@@ -62,13 +62,13 @@ func startGimlet() {
 
 	go startListener(shutdownSignal, wg)
 
-	// Fork/Exec gimlet
-	forkExec(GIMLETPATH, []string{getCurrentDir()})
+	// Fork/Exec gmbhCore
+	forkExec(COREPATH, []string{getCurrentDir()})
 
 }
 
 func checkConfig() bool {
-	if _, err := os.Stat("gimlet.yaml"); os.IsNotExist(err) {
+	if _, err := os.Stat(CONFIGNAME); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -76,7 +76,7 @@ func checkConfig() bool {
 
 func checkInstall() bool {
 	if runtime.GOOS == "darwin" {
-		if _, err := os.Stat(GIMLETPATH); os.IsNotExist(err) {
+		if _, err := os.Stat(COREPATH); os.IsNotExist(err) {
 			return false
 		}
 		return true

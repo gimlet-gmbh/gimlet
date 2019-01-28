@@ -2,7 +2,7 @@ package core
 
 /*
  * cabal.go
- * Implements the gRPC server and client for the Gimlet Cabal Server
+ * Implements the gRPC server and client for the gmbhCore Cabal Server
  * Abe Dick
  * Nov 2018
  */
@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gimlet-gmbh/gimlet/cabal"
-	"github.com/gimlet-gmbh/gimlet/notify"
+	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/notify"
 	"github.com/rs/xid"
 	"google.golang.org/grpc"
 )
@@ -88,7 +88,7 @@ func requestQueryData(address string) (*cabal.QueryResponse, error) {
 // SERVER
 /////////////////////////////////////////////////////////////////////////
 
-// cabalServer is for gRPC interface for the Gimlet service coms server
+// cabalServer is for gRPC interface for the gmbhCore service coms server
 type cabalServer struct{}
 
 func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {

@@ -432,7 +432,6 @@ func (m *DataResp) GetResp() *Responder {
 	return nil
 }
 
-// see package gimlet/ipc for descriptions
 type Request struct {
 	Sender               string   `protobuf:"bytes,1,opt,name=Sender,proto3" json:"Sender,omitempty"`
 	Target               string   `protobuf:"bytes,2,opt,name=Target,proto3" json:"Target,omitempty"`
@@ -496,7 +495,6 @@ func (m *Request) GetData1() string {
 	return ""
 }
 
-// see package gimlet/ipc for descriptions
 type Responder struct {
 	Result               string   `protobuf:"bytes,50,opt,name=Result,proto3" json:"Result,omitempty"`
 	ErrorString          string   `protobuf:"bytes,98,opt,name=ErrorString,proto3" json:"ErrorString,omitempty"`

@@ -1,17 +1,17 @@
-# Gimlet CLI
-This tool starts a gimlet server. Right now it hangs onto the process and outputs debug info to stdOut.
+# gmbh CLI
+This tool starts a gmbh server. Right now it hangs onto the process and outputs debug info to stdOut.
 
 ### Usage
-In the main project directory run the `gmbh` command from terminal and a gimlet server will start.
+In the main project directory run the `gmbh` command from terminal and a gmbh server will start.
 
-### Expected file directory for Gimlet project
+### Expected file directory for gmbh project
 /
-&nbsp;&nbsp;gimlet/
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{gimlet_files}
+&nbsp;&nbsp;gmbh/
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{gmbh_files}
 &nbsp;&nbsp;services/
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{service folders w/ gmbh config file}
 
-gimlet_files will be where the CLI looks to start the gmbh process. The gmbh process will then scan through the services directory looking for all subdirectories that have a gmbh config YAML file with the correct instructions. 
+gmbh_files will be where the CLI looks to start the gmbh process. The gmbh process will then scan through the services directory looking for all subdirectories that have a gmbh config YAML file with the correct instructions. 
 
 ### Config file layout
 This is preliminary and will change frequently during development.
