@@ -75,7 +75,12 @@ func (c *controlServer) KillAll(ctx context.Context, in *cabal.AllRequest) (*cab
 }
 
 func (c *controlServer) StopServer(ctx context.Context, in *cabal.StopRequest) (*cabal.StatusReply, error) {
-	return nil, nil
+	cc, err := getCore()
+	if err != nil {
+		return nil, errors.New("gmbh system error, could not locate instance of core")
+	}
+	go cc.shutdown(true)
+	return &cabal.StatusReply{Status: "shutdown procedure started"}, nil
 }
 
 func (c *controlServer) ServerStatus(ctx context.Context, in *cabal.StatusRequest) (*cabal.StatusReply, error) {

@@ -25,3 +25,17 @@ func listAll() {
 	}
 	pprintListAll(reply.Services)
 }
+func shutdown() {
+	client, ctx, can, err := getClient(CTRLSERVER)
+	if err != nil {
+		notify.StdMsgErr("error: " + err.Error())
+	}
+	defer can()
+
+	request := cabal.StopRequest{}
+	reply, err := client.StopServer(ctx, &request)
+	if err != nil {
+		notify.StdMsgErr("error: " + err.Error())
+	}
+	notify.StdMsgBlue(reply.Status)
+}

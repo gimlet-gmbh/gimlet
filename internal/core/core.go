@@ -167,9 +167,7 @@ func (c *Core) ServiceDiscovery() {
 	_ = <-sig
 
 	notify.StdMsgMagenta("Recieved shutdown signal")
-	c.shutdown()
-
-	os.Exit(0)
+	c.shutdown(false)
 }
 
 func (c *Core) getServicePath() string {
@@ -352,7 +350,12 @@ func (c *Core) takeInventory() {
 	c.log.WriteString(serviceString + "\n")
 }
 
-func (c *Core) shutdown() {
+func (c *Core) shutdown(remote bool) {
+	defer os.Exit(0)
+	if remote {
+		notify.StdMsgGreen("Recieved remote shutdown notification")
+		time.Sleep(time.Second * 2)
+	}
 	c.serviceHandler.KillAllServices()
 	c.logm.Lock()
 	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
