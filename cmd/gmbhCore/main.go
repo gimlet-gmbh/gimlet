@@ -9,9 +9,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/fatih/color"
-	"github.com/gmbh-micro/core"
 	"github.com/gmbh-micro/notify"
 )
 
@@ -23,11 +23,18 @@ func init() {
 }
 
 func main() {
+	daemon := false
+	if len(os.Args) == 3 {
+		if os.Args[2] == "-d" {
+			daemon = true
+		}
+	}
 
-	gmbhCore := core.StartCore(os.Args[1])
+	gmbhCore := StartCore(os.Args[1], true, daemon)
 
 	printLogo()
 	notify.StdMsgBlue("Starting version: "+gmbhCore.Version+" ("+gmbhCore.CodeName+")", 0)
+	notify.StdMsgBlue("verbose: true,  daemon: " + strconv.FormatBool(daemon))
 
 	gmbhCore.StartCabalServer()
 	gmbhCore.StartControlServer()

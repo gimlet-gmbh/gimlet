@@ -1,4 +1,4 @@
-package core
+package main
 
 /**
  * gcore.go
@@ -61,6 +61,8 @@ type Core struct {
 	router         *grouter.Router
 	log            *os.File
 	logm           *sync.Mutex
+	verbose        bool
+	daemon         bool
 
 	// controlLock is the mutex used when doing operations in the control rpc service
 	controlLock *sync.Mutex
@@ -92,11 +94,13 @@ type tmpService struct {
 
 // StartCore initializes settings of the core and creates the service handler and router
 // needed to process requestes
-func StartCore(path string) *Core {
+func StartCore(path string, verbose bool, daemon bool) *Core {
 	core = &Core{
 		Version:      "00.07.01",
 		CodeName:     "Control",
 		ServiceDir:   "services",
+		verbose:      verbose,
+		daemon:       daemon,
 		CabalAddress: "localhost:59999",
 		CtrlAddress:  "localhost:59997",
 		ProjectPath:  path,
@@ -110,6 +114,7 @@ func StartCore(path string) *Core {
 			Localhost:      true,
 		},
 	}
+	notify.SetVerbose(verbose)
 	core.ProjectConf = core.parseProjectYamlConfig(path + "/gmbh.yaml")
 	core.logRuntimeData(path + "/gmbh/")
 	return core

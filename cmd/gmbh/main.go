@@ -7,6 +7,7 @@ package main
  */
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -33,11 +34,12 @@ func main() {
 
 	notify.SetTag("[cli] ")
 	notify.SetVerbose(true)
-
-	startCore()
+	daemon := flag.Bool("d", false, "daemon mode")
+	flag.Parse()
+	startCore(*daemon)
 }
 
-func startCore() {
+func startCore(daemon bool) {
 	println(fmt.Sprintf("cli version: %s", VERSION), 0)
 	println("Starting gmbhCore...", 0)
 
@@ -63,7 +65,11 @@ func startCore() {
 	go startListener(shutdownSignal, wg)
 
 	// Fork/Exec gmbhCore
-	forkExec(COREPATH, []string{getCurrentDir()})
+	args := []string{getCurrentDir()}
+	if daemon {
+		args = append(args, "-d")
+	}
+	forkExec(COREPATH, args, daemon)
 
 }
 
@@ -101,12 +107,19 @@ func startListener(sig chan os.Signal, wg *sync.WaitGroup) {
 	os.Exit(0)
 }
 
-func forkExec(path string, args []string) {
+func forkExec(path string, args []string, daemon bool) {
 	cmd = setCmd(path, args)
 
-	err := cmd.Run()
-	if err != nil {
-		printerr(fmt.Sprintf("Error reported in Core: %s", err.Error()), 0)
+	if daemon {
+		err := cmd.Start()
+		if err != nil {
+			printerr(fmt.Sprintf("Error reported in Core: %s", err.Error()), 0)
+		}
+	} else {
+		err := cmd.Run()
+		if err != nil {
+			printerr(fmt.Sprintf("Error reported in Core: %s", err.Error()), 0)
+		}
 	}
 }
 
