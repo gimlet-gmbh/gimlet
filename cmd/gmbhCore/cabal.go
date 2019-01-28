@@ -93,16 +93,18 @@ type cabalServer struct{}
 
 func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
 
-	notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.Name))
 	service, err := core.serviceHandler.GetService(in.NewServ.Name)
 	if err != nil {
 		panic(err)
 	}
 
-	if service.Static.IsServer {
-		notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.Name, service.Address))
-	} else {
-		notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.Name))
+	if !core.daemon && core.verbose {
+		notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.Name))
+		if service.Static.IsServer {
+			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.Name, service.Address))
+		} else {
+			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.Name))
+		}
 	}
 
 	reply := &cabal.RegServRep{
@@ -116,12 +118,14 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 }
 
 func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
-
-	notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.Sender, in.Req.Target, in.Req.Method))
-
+	if !core.daemon && core.verbose {
+		notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.Sender, in.Req.Target, in.Req.Method))
+	}
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
-		notify.StdMsgLog(fmt.Sprintf("Could not contact: %s", in.Req.Target), 1)
+		if !core.daemon && core.verbose {
+			notify.StdMsgLog(fmt.Sprintf("Could not contact: %s", in.Req.Target), 1)
+		}
 		responder.HadError = true
 		responder.ErrorString = "Could not contact target"
 	}

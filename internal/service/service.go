@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/pmgmt"
 )
 
@@ -119,7 +118,7 @@ func (s *ServiceHandler) KillAllServices() {
 		err := raise(s.Services[n].Process.Runtime.Pid, syscall.SIGINT)
 		if err == nil {
 			// gprint.Ln("Successfully signaled shutdown: "+n, 0)
-			notify.StdMsgMagenta("Successfully signaled shutdown: " + n)
+			// notify.StdMsgMagenta("Successfully signaled shutdown: " + n)
 		}
 	}
 }

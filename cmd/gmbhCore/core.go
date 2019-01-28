@@ -26,6 +26,7 @@ import (
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/pmgmt"
 	"github.com/gmbh-micro/service"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	yaml "gopkg.in/yaml.v2"
@@ -124,17 +125,23 @@ func StartCore(path string, verbose bool, daemon bool) *Core {
 func (c *Core) ServiceDiscovery() {
 	path := c.getServicePath()
 
-	notify.StdMsgBlue("service discovery started in")
-	notify.StdMsgBlue(path)
+	if !c.daemon {
+		notify.StdMsgBlue("service discovery started in")
+		notify.StdMsgBlue(path)
+	} else {
+		notify.StdMsgBlue("(3/3) service discovery in " + path)
+	}
 
 	tmpService := c.findAllServices(path)
 	for i, nservice := range tmpService {
 
 		staticData := c.parseYamlConfig(nservice.path + nservice.configFile)
 
-		notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(tmpService)))
-		notify.StdMsgBlue(staticData.Name, 1)
-		notify.StdMsgBlue(path+"/"+staticData.Path, 1)
+		if !c.daemon {
+			notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(tmpService)))
+			notify.StdMsgBlue(staticData.Name, 1)
+			notify.StdMsgBlue(path+"/"+staticData.Path, 1)
+		}
 
 		newService := service.NewServiceControl(staticData)
 		err := c.serviceHandler.AddService(newService)
@@ -146,7 +153,9 @@ func (c *Core) ServiceDiscovery() {
 
 		if staticData.IsServer {
 			newService.Address = c.router.GetNextAddress()
-			notify.StdMsgBlue("Assigning address: "+newService.Address, 1)
+			if !c.daemon {
+				notify.StdMsgBlue("Assigning address: "+newService.Address, 1)
+			}
 		}
 
 		newService.BinPath = nservice.path + newService.Static.Path
@@ -158,20 +167,27 @@ func (c *Core) ServiceDiscovery() {
 			notify.StdMsgErr("reported error: "+err.Error(), 1)
 			continue
 		}
-
-		notify.StdMsgGreen(fmt.Sprintf("Service running in ephemeral mode with pid=(%v)", pid), 1)
+		if !c.daemon {
+			notify.StdMsgGreen(fmt.Sprintf("Service running in ephemeral mode with pid=(%v)", pid), 1)
+		} else {
+			notify.StdMsgBlue(fmt.Sprintf("(%d/%d) %v started in ephemeral mode with pid=(%v)", i+1, len(tmpService), newService.Name, pid), 0)
+		}
 	}
 
 	go c.takeInventory()
 
-	notify.StdMsgBlue("Startup complete")
-	notify.StdMsgGreen("Blocking main thread until SIGINT")
+	if !c.daemon {
+		notify.StdMsgBlue("Startup complete")
+		notify.StdMsgGreen("Blocking main thread until SIGINT")
+	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT)
 	_ = <-sig
 
-	notify.StdMsgMagenta("Recieved shutdown signal")
+	if !c.daemon {
+		notify.StdMsgMagenta("Recieved shutdown signal")
+	}
 	c.shutdown(false)
 }
 
@@ -285,7 +301,6 @@ func (c *Core) parseProjectYamlConfig(path string) *ProjectConfig {
 
 // StartCabalServer starts the gRPC server to run core on
 func (c *Core) StartCabalServer() {
-	notify.StdMsgBlue("attempting to start cabal server")
 	go func() {
 		list, err := net.Listen("tcp", c.CabalAddress)
 		if err != nil {
@@ -301,12 +316,16 @@ func (c *Core) StartCabalServer() {
 		}
 
 	}()
-	notify.StdMsgGreen("starting cabal server at "+c.CabalAddress, 1)
+	if !c.daemon {
+		notify.StdMsgBlue("attempting to start cabal server")
+		notify.StdMsgGreen("starting cabal server at "+c.CabalAddress, 1)
+	} else {
+		notify.StdMsgBlue("(1/3) starting cabal server at " + c.CabalAddress)
+	}
 }
 
 // StartControlServer starts the gRPC server to run core on
 func (c *Core) StartControlServer() {
-	notify.StdMsgBlue("Attempting to start control server")
 	go func() {
 		list, err := net.Listen("tcp", c.CtrlAddress)
 		if err != nil {
@@ -322,7 +341,12 @@ func (c *Core) StartControlServer() {
 		}
 
 	}()
-	notify.StdMsgGreen("starting control server at "+c.CtrlAddress, 1)
+	if !c.daemon {
+		notify.StdMsgBlue("Attempting to start control server")
+		notify.StdMsgGreen("starting control server at "+c.CtrlAddress, 1)
+	} else {
+		notify.StdMsgBlue("(2/3) starting control server at " + c.CtrlAddress)
+	}
 }
 
 func (c *Core) logRuntimeData(path string) {
@@ -358,7 +382,9 @@ func (c *Core) takeInventory() {
 func (c *Core) shutdown(remote bool) {
 	defer os.Exit(0)
 	if remote {
-		notify.StdMsgGreen("Recieved remote shutdown notification")
+		if !c.daemon {
+			notify.StdMsgGreen("Recieved remote shutdown notification")
+		}
 		time.Sleep(time.Second * 2)
 	}
 	c.serviceHandler.KillAllServices()

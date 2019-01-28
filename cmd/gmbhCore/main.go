@@ -33,7 +33,7 @@ func main() {
 	gmbhCore := StartCore(os.Args[1], true, daemon)
 
 	printLogo()
-	notify.StdMsgBlue("Starting version: "+gmbhCore.Version+" ("+gmbhCore.CodeName+")", 0)
+	notify.StdMsgBlue("Starting version: " + gmbhCore.Version + " (" + gmbhCore.CodeName + ")")
 	notify.StdMsgBlue("verbose: true,  daemon: " + strconv.FormatBool(daemon))
 
 	gmbhCore.StartCabalServer()

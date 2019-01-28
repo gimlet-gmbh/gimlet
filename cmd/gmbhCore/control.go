@@ -23,14 +23,17 @@ import (
 type controlServer struct{}
 
 func (c *controlServer) StartService(ctx context.Context, in *cabal.StartRequest) (*cabal.StartReply, error) {
+	// TODO: Implement
 	return nil, nil
 }
 
 func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
+	// TODO: Implement
 	return nil, nil
 }
 
 func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
+	// TODO: Implement
 	return nil, nil
 }
 
@@ -67,10 +70,12 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 }
 
 func (c *controlServer) RestartAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
+	// TODO: Implement
 	return nil, nil
 }
 
 func (c *controlServer) KillAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
+	// TODO: Implement
 	return nil, nil
 }
 
