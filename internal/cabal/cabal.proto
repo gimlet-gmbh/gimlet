@@ -3,8 +3,6 @@ package cabal;
 
 /*
  * RPC Service Cabal
- * Version 0.0.3 (Draft 3)
- *
  * Abe Dick
  * Nov 2018
  */
@@ -170,7 +168,6 @@ message DataResp {
     Responder Resp = 1;
 }
 
-// see package gimlet/ipc for descriptions
 message Request{
     string Sender = 1;
     string Target = 2;
@@ -178,7 +175,6 @@ message Request{
     string Data1 = 50;
 }
 
-// see package gimlet/ipc for descriptions
 message Responder{
     string Result = 50;
     string ErrorString = 98;

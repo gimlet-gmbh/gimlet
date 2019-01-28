@@ -1,2 +1,2 @@
 # Cabal
-The proto3 protobuffer for gimlet and gmbh
+The proto3 protobuffer for gmbh

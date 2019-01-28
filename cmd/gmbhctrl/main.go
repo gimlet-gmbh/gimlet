@@ -1,9 +1,9 @@
 package main
 
-import "github.com/gimlet-gmbh/gimlet/notify"
+import "github.com/gmbh-micro/notify"
 
 const (
-	VERSION = "00.00.01"
+	VERSION = "00.07.00"
 )
 
 func main() {

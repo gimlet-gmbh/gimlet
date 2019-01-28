@@ -11,26 +11,26 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/gimlet-gmbh/gimlet/core"
-	"github.com/gimlet-gmbh/gimlet/notify"
+	"github.com/gmbh-micro/core"
+	"github.com/gmbh-micro/notify"
 )
 
 func init() {
 	if len(os.Args) < 2 {
-		notify.StdMsgErr("must start gimlet with argument containing path to project")
+		notify.StdMsgErr("must start gmbhCore with argument containing path to project")
 		os.Exit(1)
 	}
 }
 
 func main() {
 
-	gimlet := core.StartCore(os.Args[1])
+	gmbhCore := core.StartCore(os.Args[1])
 
 	printLogo()
-	notify.StdMsgBlue("Starting version: "+gimlet.Version+" ("+gimlet.CodeName+")", 0)
+	notify.StdMsgBlue("Starting version: "+gmbhCore.Version+" ("+gmbhCore.CodeName+")", 0)
 
-	gimlet.StartInternalServer()
-	gimlet.ServiceDiscovery()
+	gmbhCore.StartInternalServer()
+	gmbhCore.ServiceDiscovery()
 }
 
 func printLogo() {

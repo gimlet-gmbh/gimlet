@@ -83,7 +83,7 @@ func (g *GoProcess) GetCmd(p *Process) *exec.Cmd {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	// gprint.Err(p.Info.dir, 3)
-	file, err := createLogFile(p.Info.dir+"gimlet/", "."+p.Info.name+".txt")
+	file, err := createLogFile(p.Info.dir+"gmbhCore/", "."+p.Info.name+".txt")
 	if err != nil {
 		// gprint.Err("could not create log file for "+p.Info.name, 3)
 		// gprint.Err("using Stdout instead", 3)

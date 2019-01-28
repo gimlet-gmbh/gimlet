@@ -1,7 +1,7 @@
-# The name of the Gimlet project
+# The name of the gmbh project
 Name: ""
 
-# The host to run the Gimlet internal gRPC server
+# The host to run the gmbh internal gRPC server
 DefaultHost: "localhost"
 
 # The port to host the internal gRPC server on using DefaultHost

@@ -1,4 +1,4 @@
-# gimlet
+# gmbh
 
 * Integrations
 * Slack, etc.
@@ -9,7 +9,7 @@
     anything at all
 * Grafana, influx
 
-# Gimlet Metrics
+# gmbh Metrics
 
 # CLI 
     -> CTRL

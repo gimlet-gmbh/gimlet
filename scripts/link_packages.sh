@@ -5,34 +5,34 @@
 
 if [ $GOPATH != "" ]; then
 
-    # Link the packages to build gimlet and gmbh
-    gPATH=$GOPATH"/src/github.com/gimlet-gmbh/gimlet/"
-    PKGPATH=$GOPATH"/src/github.com/gimlet-gmbh"
-    echo "Linking with Gopath="$GOPATH
-    echo $gPATH
+    # Link packages needed to build gmbh server and Go package
+    GMBH_PATH=$GOPATH"/src/github.com/gmbh-micro"
+    mkdir -p $GMBH_PATH
 
-    mkdir -p $gPATH
+    echo "linking gmbh at $GMBH_PATH"
+
+    # Link the internal packages for building the core
     for dir in ../internal/*/
     do  
         dir=${dir%*/}
-        pkg=$gPATH${dir##*/}
-        if [ -d $pkg ]; then
+        PKG_PATH=$GMBH_PATH"/"${dir##*/}
+        if [ -d $PKG_PATH ]; then
             echo ${dir##*/}" is already linked"
         else
             echo "Linking: "${dir##*/}
             pdir=$(pwd)/$dir
-            ln -s ${pdir} $gPATH
+            ln -s ${pdir} $GMBH_PATH
         fi
     done
 
-    # Link the gmbh client package for use with services
-    if [ -d $PKGPATH/gmbh ]; then
+
+    # Link the go client package
+    if [ -d $GMBH_PATH/gmbh ]; then
         echo "gmbh is already linked"
     else 
-        ln -s $PWD/../pkg/gmbh $PKGPATH/gmbh
+        ln -s $PWD"/../pkg/gmbh" $GMBH_PATH"/gmbh"
         echo "linking gmbh to go path"
     fi
-    
 
 else 
     echo "Please set the GOPATH environment variable and rerun."

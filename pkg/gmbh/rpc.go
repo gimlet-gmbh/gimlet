@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gimlet-gmbh/gimlet/cabal"
+	"github.com/gmbh-micro/cabal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

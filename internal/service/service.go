@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/gimlet-gmbh/gimlet/notify"
-	"github.com/gimlet-gmbh/gimlet/pmgmt"
+	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/pmgmt"
 )
 
 /*
