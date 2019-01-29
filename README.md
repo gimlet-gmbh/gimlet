@@ -4,24 +4,6 @@
 ## Installation
 Run the install script in the scripts folder. Make sure that you have set your go path before doing this. For now be sure be be using Go version >= 1.10.
 
-
-## CPU Profiling
-• Download github.com/pkg/profile
-   • go get github.com/pkg/profile
-• Add profiling to main() function
-   • defer profile.Start().Stop()
-• Build and run program
-   - There will be a generated .pprof file in a temp folder that will be given
-   - "2017/08/03 14:26:28 profile: cpu profiling enabled, /var/...../cpu.pprof"
-• Install graphviz if haven't
-   • brew install graphviz
-• Run go tool pprof
-   • go tool pprof --pdf /Users/username/..../godirectory/bin/yourbinary /var/path/to/cpu.pprof > file.pdf
-   - This will create a pdf flow chart of the program
-* Memory profiling can be done by changing the main function
-   • defer profile.Start(profile.MemProfile).Stop()
-   
-
 ### Roadmap
 * control server needs finished
     * service and pmgmt need refactored first
