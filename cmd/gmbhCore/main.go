@@ -13,6 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gmbh-micro/notify"
+	"github.com/pkg/profile"
 )
 
 func init() {
@@ -29,6 +30,8 @@ func main() {
 			daemon = true
 		}
 	}
+
+	defer profile.Start().Stop()
 
 	gmbhCore := StartCore(os.Args[1], true, daemon)
 
