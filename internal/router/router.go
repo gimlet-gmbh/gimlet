@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"sync"
 	"syscall"
 
 	"github.com/gmbh-micro/defaults"
@@ -13,19 +14,16 @@ import (
 // Router represents the handling of services including their process
 type Router struct {
 	Services  map[string]*service.Service
+	smLock    *sync.Mutex
 	Names     []string
 	addresses *addressHandler
-}
-
-type addressHandler struct {
-	host string
-	port int
 }
 
 // NewRouter initializes and returns a new Router struct
 func NewRouter() *Router {
 	return &Router{
 		Services: make(map[string]*service.Service),
+		smLock:   &sync.Mutex{},
 		Names:    make([]string, 0),
 		addresses: &addressHandler{
 			host: defaults.BASE_ADDRESS,
@@ -113,6 +111,25 @@ func (r *Router) raise(pid int, sig os.Signal) error {
 		return err
 	}
 	return p.Signal(sig)
+}
+
+// TakeInventory returns a list of paths to services
+func (r *Router) TakeInventory() []string {
+	r.smLock.Lock()
+	defer r.smLock.Unlock()
+
+	paths := []string{}
+	for _, s := range r.Names {
+		paths = append(paths, r.Services[s].Path)
+	}
+	return paths
+}
+
+// addressHandler is in charge of assigning addressses to services
+type addressHandler struct {
+	table map[string]string
+	host  string
+	port  int
 }
 
 func (a *addressHandler) assignAddress() string {
