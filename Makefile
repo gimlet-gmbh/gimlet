@@ -43,9 +43,7 @@ deps:
 
 clean: 
 	rm -f ./bin/$(BINARY_NAME)
-run:
-	$(GOBUILD) -o ./bin/$(BINARY_NAME)  ./src
-	./bin/$(BINARY_NAME)
+
 
 .PONY:
 	install-core install-cli install-ctrl

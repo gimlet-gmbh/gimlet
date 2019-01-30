@@ -93,18 +93,17 @@ type cabalServer struct{}
 
 func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
 
-	// service, err := core.serviceHandler.GetService(in.NewServ.Name)
-	service, err := core.Router.LookupService(in.GetNewServ().GetName())
+	service, err := core.Router.LookupService(in.NewServ.GetName())
 	if err != nil {
 		panic(err)
 	}
 
 	if !core.Config.Daemon && core.Config.Verbose {
-		notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.Name))
+		notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.GetName()))
 		if service.Static.IsServer {
-			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.Name, service.Address))
+			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.GetName(), service.Address))
 		} else {
-			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.Name))
+			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.GetName()))
 		}
 	}
 
@@ -120,7 +119,7 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 
 func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
 	if !core.Config.Daemon && core.Config.Verbose {
-		notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.Sender, in.Req.Target, in.Req.Method))
+		notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.GetSender(), in.Req.GetTarget(), in.Req.GetMethod()))
 	}
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
@@ -149,7 +148,6 @@ func (s *cabalServer) UnregisterService(ctx context.Context, in *cabal.Unregiste
 }
 
 func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
-	// address, err := core.serviceHandler.GetAddress(req.Target)
 	address, err := core.Router.LookupAddress(req.GetTarget())
 	if err != nil {
 		return &cabal.Responder{}, err

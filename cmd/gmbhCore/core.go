@@ -69,6 +69,13 @@ func StartCore(path string, verbose bool, daemon bool) *Core {
 	return core
 }
 
+func getCore() (*Core, error) {
+	if core == nil {
+		return nil, errors.New("could not find core instance")
+	}
+	return core, nil
+}
+
 // ServiceDiscovery scans all directories in the ./services folder looking for gmbhCore configuration files
 func (c *Core) ServiceDiscovery() {
 	path := c.getServicePath()
@@ -283,11 +290,4 @@ func (c *Core) shutdown(remote bool) {
 	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
 	c.logm.Unlock()
 	c.log.Close()
-}
-
-func getCore() (*Core, error) {
-	if core == nil {
-		return nil, errors.New("could not find core instance")
-	}
-	return core, nil
 }

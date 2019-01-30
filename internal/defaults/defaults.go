@@ -1,19 +1,24 @@
 package defaults
 
 const (
-	VERSION = "00.08.00"
-	CODE    = "ctrl"
+	VERSION           = "00.08.00"
+	CODE              = "ctrl"
+	CORE_PATH_MAC     = "/usr/local/bin/gmbhCore"
+	CORE_PATH_LINUX   = ""
+	CORE_PATH_WINDOWS = ""
+	CLI_PROMPT        = "[cli] "
 )
 
 // For use with UserConfig
 const (
-	PROJECT_NAME = "default"
-	DAEMON       = false
-	VERBOSE      = true
-	DEFAULT_HOST = "localhost"
-	DEFAULT_PORT = ":59999"
-	CONTROL_HOST = "localhost"
-	CONTROL_PORT = ":59997"
+	PROJECT_NAME        = "default"
+	PROJECT_CONFIG_FILE = "gmbh.yaml"
+	DAEMON              = false
+	VERBOSE             = true
+	DEFAULT_HOST        = "localhost"
+	DEFAULT_PORT        = ":59999"
+	CONTROL_HOST        = "localhost"
+	CONTROL_PORT        = ":59997"
 )
 
 // For use with ServiceConfig
