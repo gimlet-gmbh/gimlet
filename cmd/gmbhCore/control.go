@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"strconv"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
@@ -44,20 +43,22 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 		return nil, errors.New("gmbh system error, could not locate instance of core")
 	}
 
-	serviceNames := cc.serviceHandler.Names
+	// serviceNames := cc.serviceHandler.Names
+	serviceNames := cc.Router.Names
 
 	reply := cabal.ListReply{
-		Length:   int32(len(cc.serviceHandler.Names)),
+		// Length:   int32(len(cc.serviceHandler.Names)),
+		Length:   int32(len(serviceNames)),
 		Services: []*cabal.Service{},
 	}
 
 	for _, s := range serviceNames {
 
-		service := cc.serviceHandler.Services[s]
+		service := cc.Router.Services[s]
 		rpcService := &cabal.Service{
-			Id:        strconv.Itoa(service.Process.ID),
-			Name:      service.Name,
-			Path:      service.ConfigPath,
+			Id:        service.ID,
+			Name:      service.Static.Name,
+			Path:      service.Path,
 			Pid:       int32(service.Process.Runtime.Pid),
 			StartTime: service.Process.Runtime.StartTime.Format(time.RFC3339),
 			Status:    "running",

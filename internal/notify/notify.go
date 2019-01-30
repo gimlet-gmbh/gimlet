@@ -39,52 +39,37 @@ func SetTag(tag string) {
 
 // StdMsg logs a message to stdOut if in verbose mode
 func StdMsg(msg string, tab ...int) {
-	if verbose {
-		toStdOutWithTag(checkIndent(tab...) + msg)
-	}
+	toStdOutWithTag(checkIndent(tab...) + msg)
 }
 
 // StdMsgBlue logs a blue message to stdOut if in verbose mode
 func StdMsgBlue(msg string, tab ...int) {
-	if verbose {
-		toStdOutWithColorTag(color.FgBlue, checkIndent(tab...)+msg)
-	}
+	toStdOutWithColorTag(color.FgBlue, checkIndent(tab...)+msg)
 }
 
 // StdMsgGreen logs a green message to stdOut if in verbose mode
 func StdMsgGreen(msg string, tab ...int) {
-	if verbose {
-		toStdOutWithColorTag(color.FgGreen, checkIndent(tab...)+msg)
-	}
+	toStdOutWithColorTag(color.FgGreen, checkIndent(tab...)+msg)
 }
 
 // StdMsgMagenta logs a magenta message to stdOut if in verbose mode
 func StdMsgMagenta(msg string, tab ...int) {
-	if verbose {
-		toStdOutWithColorTag(color.FgMagenta, checkIndent(tab...)+msg)
-	}
+	toStdOutWithColorTag(color.FgMagenta, checkIndent(tab...)+msg)
 }
 
 // StdMsgErr logs a red error message to stdOut if in verbose mode
 func StdMsgErr(msg string, tab ...int) {
-	if verbose {
-		toStdOutWithColorTag(color.FgRed, checkIndent(tab...)+msg)
-	}
+	toStdOutWithColorTag(color.FgRed, checkIndent(tab...)+msg)
 }
 
 // StdMsgDebug logs a highlighted message to stdOut if in verbose mode
 func StdMsgDebug(msg string, tab ...int) {
-	if verbose {
-		// outMsg := checkIndent(tab...)+msg
-		toStdOutWithColorTag(color.BgCyan, checkIndent(tab...)+msg)
-	}
+	toStdOutWithColorTag(color.FgYellow, checkIndent(tab...)+msg)
 }
 
 // StdMsgLog logs a yellow message to stdOut if in verbose mode
 func StdMsgLog(msg string, tab ...int) {
-	if verbose {
-		toStdOutWithColorTag(color.FgYellow, checkIndent(tab...)+msg)
-	}
+	toStdOutWithColorTag(color.FgYellow, checkIndent(tab...)+msg)
 }
 
 func checkIndent(tab ...int) string {
@@ -98,13 +83,17 @@ func checkIndent(tab ...int) string {
 }
 
 func toStdOutWithTag(msg string) {
-	fmt.Println(TAG + msg)
+	if verbose {
+		fmt.Println(TAG + msg)
+	}
 }
 
 func toStdOutWithColorTag(c color.Attribute, msg string) {
-	color.Set(c)
-	fmt.Printf(TAG + msg + "\n")
-	color.Unset()
+	if verbose {
+		color.Set(c)
+		defer color.Unset()
+		fmt.Printf(TAG + msg + "\n")
+	}
 }
 
 // OpenLogFile at path with filename; will create the path if it does not exists
