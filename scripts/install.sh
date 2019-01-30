@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ $GOPATH != "" ]; then
+if [ "$(GOPATH)" != "" ]; then
     ./link_packages.sh
     cd ../
     make deps
