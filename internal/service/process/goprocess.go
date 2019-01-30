@@ -15,11 +15,11 @@ import (
 type GoProcess struct{}
 
 // NewGoProcess returns a new golang process
-func NewGoProcess(name, path, dir string) *Process {
+func NewGoProcess(path, dir string) *Process {
 	p := Process{
 		Control: &GoProcess{},
 		Info: info{
-			name: name,
+			// name: name,
 			args: []string{},
 			path: path,
 			dir:  dir,

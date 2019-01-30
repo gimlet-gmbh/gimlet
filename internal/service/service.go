@@ -2,7 +2,9 @@ package service
 
 import (
 	"errors"
+	"strconv"
 
+	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service/process"
 	"github.com/gmbh-micro/service/static"
 	"github.com/rs/xid"
@@ -27,9 +29,12 @@ func NewService(path string) (*Service, error) {
 	if !ok {
 		return nil, errors.New("invalid config file")
 	}
+
+	dir := path[:len(path)-len(defaults.CONFIG_FILE)]
+
 	service := Service{
 		ID:     xid.New().String(),
-		Path:   path,
+		Path:   dir,
 		Static: staticData,
 	}
 	return &service, nil
@@ -38,5 +43,25 @@ func NewService(path string) (*Service, error) {
 // StartService attempts to fork/exec service and returns the pid, else error
 func (s *Service) StartService() (pid string, err error) {
 
-	return "-1", nil
+	if s.Static.Language == "go" {
+
+		// fmt.Println(s.createAbsPathToBin(s.Path, s.Static.BinPath))
+		s.Process = process.NewGoProcess(s.createAbsPathToBin(s.Path, s.Static.BinPath), "")
+		pid, err := s.Process.Control.Start(s.Process)
+		if err != nil {
+			return "-1", errors.New("could not start service")
+		}
+		return strconv.Itoa(pid), nil
+	}
+
+	return "-1", errors.New("service.StartService not implemented for languages other than go")
+}
+
+// createAbsPathToBin attempts to resolve an absolute path to the binary file to start
+func (s *Service) createAbsPathToBin(path, binPath string) string {
+	absPath := ""
+	if binPath[0] == '.' {
+		absPath = path + binPath[1:]
+	}
+	return absPath
 }

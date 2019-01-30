@@ -11,6 +11,10 @@ name: ""
 aliases: 
   - ""
 #
+# Any arguments to pass to the service at runtime
+args:
+  - ""
+#
 # language of the service
 language: ""
 #

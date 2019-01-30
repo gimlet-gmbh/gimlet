@@ -155,6 +155,11 @@ func (c *Core) ServiceDiscovery() {
 		}
 
 		// Start service
+		pid, err := newService.StartService()
+		if err != nil {
+			notify.StdMsgErr(err.Error(), 1)
+		}
+		notify.StdMsgDebug(pid)
 
 	}
 
