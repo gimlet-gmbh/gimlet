@@ -93,6 +93,8 @@ func (c *Core) ServiceDiscovery() {
 		notify.StdMsgErr(err.Error(), 1)
 	}
 
+	notify.StdMsgDebug(strings.Join(servicePaths, ","))
+
 	for i, servicePath := range servicePaths {
 
 		// Add service to router
@@ -159,6 +161,8 @@ func (c *Core) scanForServices(baseDir string) ([]string, error) {
 
 	for _, file := range baseDirFiles {
 
+		notify.StdMsgDebug("file found: " + file.Name())
+
 		// eval symbolic links
 		fpath := baseDir + "/" + file.Name()
 		potentialSymbolic, err := filepath.EvalSymlinks(fpath)
@@ -194,6 +198,7 @@ func (c *Core) scanForServices(baseDir string) ([]string, error) {
 		for _, sfile := range serviceFiles {
 			match, err := regexp.MatchString(defaults.CONFIG_FILE_EXT, sfile.Name())
 			if err == nil && match {
+				notify.StdMsgDebug("service found: "+file.Name(), 1)
 				servicePaths = append(servicePaths, baseDir+file.Name())
 			}
 		}
