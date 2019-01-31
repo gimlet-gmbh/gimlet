@@ -120,6 +120,7 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
 	if !core.Config.Daemon && core.Config.Verbose {
 		notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.GetSender(), in.Req.GetTarget(), in.Req.GetMethod()))
+
 	}
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
@@ -151,6 +152,9 @@ func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
 	address, err := core.Router.LookupAddress(req.GetTarget())
 	if err != nil {
 		return &cabal.Responder{}, err
+	}
+	if !core.Config.Daemon && core.Config.Verbose {
+		notify.StdMsgLog(fmt.Sprintf("   Target address on file: %v", address))
 	}
 	return _makeDataRequest(req, address)
 }
