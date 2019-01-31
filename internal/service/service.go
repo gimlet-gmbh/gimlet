@@ -65,7 +65,7 @@ func (s *Service) StartService() (pid string, err error) {
 		s.Process = process.NewGoProcess(s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path)
 		pid, err := s.Process.Control.Start(s.Process)
 		if err != nil {
-			return "-1", errors.New("could not start service")
+			return "-1", errors.New("service.StartService - could not start service: " + err.Error())
 		}
 		return strconv.Itoa(pid), nil
 	}
