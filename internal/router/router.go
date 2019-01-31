@@ -102,6 +102,15 @@ func (r *Router) addToMap(newService *service.Service) error {
 	return nil
 }
 
+// GetAllServices in the service map
+func (r *Router) GetAllServices() []*service.Service {
+	ret := []*service.Service{}
+	for _, s := range r.Names {
+		ret = append(ret, r.Services[s])
+	}
+	return ret
+}
+
 // KillAllServices sends sigint to all services attached in the service map that
 // have a PID
 func (r *Router) KillAllServices() {

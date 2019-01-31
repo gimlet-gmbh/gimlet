@@ -25,6 +25,7 @@ func listAll() {
 	}
 	pprintListAll(reply.Services)
 }
+
 func shutdown() {
 	client, ctx, can, err := getClient(CTRLSERVER)
 	if err != nil {

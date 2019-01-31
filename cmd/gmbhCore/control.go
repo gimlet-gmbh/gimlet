@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/rpcconv"
 )
 
 /**
@@ -43,28 +43,10 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 		return nil, errors.New("gmbh system error, could not locate instance of core")
 	}
 
-	// serviceNames := cc.serviceHandler.Names
 	serviceNames := cc.Router.Names
-
 	reply := cabal.ListReply{
-		// Length:   int32(len(cc.serviceHandler.Names)),
 		Length:   int32(len(serviceNames)),
-		Services: []*cabal.Service{},
-	}
-
-	for _, s := range serviceNames {
-
-		service := cc.Router.Services[s]
-		rpcService := &cabal.Service{
-			Id:        service.ID,
-			Name:      service.Static.Name,
-			Path:      service.Path,
-			Pid:       int32(service.Process.GetRuntime().Pid),
-			StartTime: service.Process.GetRuntime().StartTime.Format(time.RFC3339),
-			Status:    "running",
-		}
-		reply.Services = append(reply.Services, rpcService)
-
+		Services: rpcconv.ServicesToRPCs(cc.Router.GetAllServices()),
 	}
 
 	return &reply, nil

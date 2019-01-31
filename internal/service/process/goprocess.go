@@ -141,6 +141,7 @@ func (g *GoProc) handleFailure() {
 
 			g.Run.numRestarts++
 			g.Update.Unlock()
+			time.Sleep(time.Second * 2)
 			g.Restart(true)
 			return
 		}

@@ -45,5 +45,6 @@ const (
 
 // For use with process manager
 const (
+	STARTING_ID = 100
 	NUM_RETRIES = 3
 )
