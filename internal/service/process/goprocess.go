@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/defaults"
+	"github.com/gmbh-micro/notify"
 )
 
 // GoProcess represents the controller for a Golang process
@@ -115,7 +116,7 @@ func (g *GoProcess) GetCmd(p *Process) *exec.Cmd {
 
 // HandleFailure -
 func (g *GoProcess) HandleFailure(p *Process) {
-
+	notify.StdMsgErr("fuck")
 }
 
 func (g *GoProcess) setRuntime(p *Process, pid int) {

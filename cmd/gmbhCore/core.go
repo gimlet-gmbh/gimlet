@@ -98,7 +98,11 @@ func (c *Core) ServiceDiscovery() {
 		// Add service to router
 		newService, err := c.Router.AddService(servicePath + defaults.CONFIG_FILE)
 		if err != nil {
+			// report the error and skip the rest for now
+			// TODO: Better process error handling
+			notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(servicePaths)))
 			notify.StdMsgErr(err.Error(), 1)
+			continue
 		}
 
 		if !c.Config.Daemon {

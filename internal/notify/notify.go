@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/gmbh-micro/defaults"
 )
 
 // TAB is the amount of indent to set
@@ -17,7 +18,7 @@ var lvl int
 var verbose bool
 
 func init() {
-	TAG = "[gmbh] "
+	TAG = defaults.DEFAULT_PROMPT
 	lvl = 0
 	verbose = true
 }

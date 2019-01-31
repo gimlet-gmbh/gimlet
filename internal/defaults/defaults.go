@@ -7,6 +7,7 @@ const (
 	CORE_PATH_LINUX   = ""
 	CORE_PATH_WINDOWS = ""
 	CLI_PROMPT        = "[cli] "
+	DEFAULT_PROMPT    = "[gmbh] "
 )
 
 // For use with UserConfig
