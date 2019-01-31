@@ -42,3 +42,8 @@ const (
 	BASE_ADDRESS = "localhost"
 	BASE_PORT    = 49999
 )
+
+// For use with process manager
+const (
+	NUM_RETRIES = 3
+)

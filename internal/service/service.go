@@ -34,7 +34,7 @@ type Service struct {
 	Address string
 	Mode    Mode
 	Static  *static.Static
-	Process *process.Process
+	Process process.Process
 }
 
 // NewService tries to parse the required info from a config file located at path
@@ -62,8 +62,8 @@ func NewService(path string) (*Service, error) {
 func (s *Service) StartService() (pid string, err error) {
 
 	if s.Static.Language == "go" {
-		s.Process = process.NewGoProcess(s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path)
-		pid, err := s.Process.Control.Start(s.Process)
+		s.Process = process.NewGoProc(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path)
+		pid, err := s.Process.Start()
 		if err != nil {
 			return "-1", errors.New("service.StartService - could not start service: " + err.Error())
 		}

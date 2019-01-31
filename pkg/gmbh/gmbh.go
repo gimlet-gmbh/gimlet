@@ -70,6 +70,9 @@ func NewService(configPath string) (*Client, error) {
 //
 // TODO: Find a better way to start
 func (g *Client) Start() {
+	rlog("-----------------------------------")
+	dlog("gmbh started")
+
 	addr, err := _ephemeralRegisterService(g.ServiceName, g.isClient, g.isServer)
 	if err != nil {
 		dlog("gmbh.Start: " + err.Error())
@@ -88,12 +91,10 @@ func (g *Client) Start() {
 		go rpcConnect(addr)
 	}
 
-	dlog("gmbh started")
-
 	<-done
 	_makeUnregisterRequest(g.ServiceName)
+	dlog("exit(0)")
 	os.Exit(0)
-	// return nil
 }
 
 // Route - Callback functions to be used when handling data
@@ -224,5 +225,11 @@ func parseYamlConfig(relativePath string) (*Client, error) {
 func dlog(msg string) {
 	if debug {
 		notify.StdMsgMagenta(msg)
+	}
+}
+
+func rlog(msg string) {
+	if debug {
+		fmt.Println(msg)
 	}
 }

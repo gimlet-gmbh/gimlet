@@ -36,19 +36,25 @@ func NewRouter() *Router {
 func (r *Router) LookupService(name string) (*service.Service, error) {
 	service := r.Services[name]
 	if service == nil {
-		return nil, errors.New("router.lookupservice: could not find service with name  = " + name)
+		return nil, errors.New("router.LookupService: could not find service with name  = " + name)
 	}
-	return service, nil
+	if service.Process.GetStatus() {
+		return service, nil
+	}
+	return nil, errors.New("router.LookupService: process reported as not running from process management")
 }
 
 // LookupAddress looks through the servuce and returns the service address if it could be
 // found
 func (r *Router) LookupAddress(name string) (string, error) {
-	s, err := r.LookupService(name)
+	service, err := r.LookupService(name)
 	if err != nil {
 		return "", err
 	}
-	return s.Address, nil
+	if service.Process.GetStatus() {
+		return service.Address, nil
+	}
+	return "", errors.New("router.LookupAddress: process reported as not running from process management")
 }
 
 // AddService attaches a service to gmbH
@@ -100,7 +106,7 @@ func (r *Router) addToMap(newService *service.Service) error {
 // have a PID
 func (r *Router) KillAllServices() {
 	for _, name := range r.Names {
-		r.raise(r.Services[name].Process.Runtime.Pid, syscall.SIGINT)
+		r.raise(r.Services[name].Process.GetRuntime().Pid, syscall.SIGINT)
 	}
 }
 

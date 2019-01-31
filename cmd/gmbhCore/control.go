@@ -59,8 +59,8 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 			Id:        service.ID,
 			Name:      service.Static.Name,
 			Path:      service.Path,
-			Pid:       int32(service.Process.Runtime.Pid),
-			StartTime: service.Process.Runtime.StartTime.Format(time.RFC3339),
+			Pid:       int32(service.Process.GetRuntime().Pid),
+			StartTime: service.Process.GetRuntime().StartTime.Format(time.RFC3339),
 			Status:    "running",
 		}
 		reply.Services = append(reply.Services, rpcService)
