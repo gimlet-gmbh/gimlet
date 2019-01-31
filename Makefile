@@ -9,26 +9,17 @@ CLI_BINARY=gmbh
 CORE_BINARY=gmbhCore
 CTRL_BINARY=gmbhCtrl
 
-all: build-core build-cli build-ctrl
+all: build install
 
-install: all install-core install-cli install-ctrl
 
-build-core:
+build:
 	$(GOBUILD) -o ./bin/$(CORE_BINARY) ./cmd/gmbhCore/*.go
-
-build-cli:
 	$(GOBUILD) -o ./bin/$(CLI_BINARY) ./cmd/gmbh/*.go
-
-build-ctrl:
 	$(GOBUILD) -o ./bin/$(CTRL_BINARY) ./cmd/gmbhCtrl/*.go
 
-install-core:
+install:
 	cp bin/$(CORE_BINARY) /usr/local/bin/
-
-install-cli:
 	cp bin/$(CLI_BINARY) /usr/local/bin/
-
-install-ctrl:
 	cp bin/$(CTRL_BINARY) /usr/local/bin/
 
 # test: 
@@ -46,4 +37,4 @@ clean:
 
 
 .PONY:
-	install-core install-cli install-ctrl
+	osx

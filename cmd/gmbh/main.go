@@ -83,6 +83,12 @@ func checkInstall() bool {
 			return false
 		}
 		return true
+	} else if runtime.GOOS == "linux" {
+		notify.StdMsgBlue("Linux support is not complete")
+		if _, err := os.Stat(defaults.CORE_PATH_MAC); os.IsNotExist(err) {
+			return false
+		}
+		return true
 	}
 	notify.StdMsgErr(fmt.Sprintf("OS support not yet implemented for %s", runtime.GOOS))
 	return false
