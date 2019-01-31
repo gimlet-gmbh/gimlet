@@ -143,6 +143,7 @@ func (c *Core) ServiceDiscovery() {
 }
 
 func (c *Core) getServicePath() string {
+	notify.StdMsgDebug("Service path: " + c.ProjectPath + "/" + c.Config.ServicesDirectory)
 	return c.ProjectPath + "/" + c.Config.ServicesDirectory
 }
 
