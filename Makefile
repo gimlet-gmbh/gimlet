@@ -31,6 +31,7 @@ deps:
 	$(GOGET) gopkg.in/yaml.v2
 	$(GOGET) github.com/rs/xid
 	$(GOGET) github.com/golang/protobuf/proto
+	$(GOGET) github.com/golang/protobuf/protoc-gen-go 
 
 clean: 
 	rm -f ./bin/$(BINARY_NAME)
