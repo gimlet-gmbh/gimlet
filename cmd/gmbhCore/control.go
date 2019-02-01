@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/rpcconv"
@@ -27,8 +28,20 @@ func (c *controlServer) StartService(ctx context.Context, in *cabal.StartRequest
 }
 
 func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	// TODO: Implement
-	return nil, nil
+	cc, err := getCore()
+	if err != nil {
+		return nil, errors.New("gmbh system error, could not locate instance of core")
+	}
+
+	target, err := cc.Router.LookupByID(in.GetId())
+	if err != nil {
+		return &cabal.StatusReply{Status: "could not find service: " + err.Error()}, nil
+	}
+	pid, err := target.Process.Restart(false)
+	if err != nil {
+		return &cabal.StatusReply{Status: "could not restart service: " + err.Error()}, nil
+	}
+	return &cabal.StatusReply{Status: "pid=" + strconv.Itoa(pid)}, nil
 }
 
 func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
@@ -51,10 +64,33 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 
 	return &reply, nil
 }
+func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*cabal.ListReply, error) {
+
+	cc, err := getCore()
+	if err != nil {
+		return nil, errors.New("gmbh system error, could not locate instance of core")
+	}
+
+	target, err := cc.Router.LookupByID(in.GetId())
+	if err != nil {
+		return &cabal.ListReply{Length: 0}, nil
+	}
+
+	reply := cabal.ListReply{
+		Length:   1,
+		Services: []*cabal.Service{rpcconv.ServiceToRPC(*target)},
+	}
+
+	return &reply, nil
+}
 
 func (c *controlServer) RestartAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
-	// TODO: Implement
-	return nil, nil
+	cc, err := getCore()
+	if err != nil {
+		return nil, errors.New("gmbh system error, could not locate instance of core")
+	}
+	go cc.Router.RestartAllServices()
+	return &cabal.StatusReply{Status: "success"}, nil
 }
 
 func (c *controlServer) KillAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {

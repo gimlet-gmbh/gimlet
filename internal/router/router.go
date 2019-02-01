@@ -2,10 +2,8 @@ package router
 
 import (
 	"errors"
-	"os"
 	"strconv"
 	"sync"
-	"syscall"
 
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
@@ -36,16 +34,15 @@ func NewRouter() *Router {
 func (r *Router) LookupService(name string) (*service.Service, error) {
 	service := r.Services[name]
 	if service == nil {
-		return nil, errors.New("router.LookupService: could not find service with name  = " + name)
+		return nil, errors.New("router.LookupService.nameNotFound")
 	}
 	if service.Process.GetStatus() {
 		return service, nil
 	}
-	return nil, errors.New("router.LookupService: process reported as not running from process management")
+	return service, errors.New("router.LookupService.processNotRunning")
 }
 
-// LookupAddress looks through the servuce and returns the service address if it could be
-// found
+// LookupAddress looks through the service map and returns the service address if it could be found
 func (r *Router) LookupAddress(name string) (string, error) {
 	service, err := r.LookupService(name)
 	if err != nil {
@@ -57,10 +54,20 @@ func (r *Router) LookupAddress(name string) (string, error) {
 	return "", errors.New("router.LookupAddress: process reported as not running from process management")
 }
 
-// AddService attaches a service to gmbH
-func (r *Router) AddService(configFilePath string) (*service.Service, error) {
+// LookupByID looks through the service map and returns the service if the id matches the parameter
+func (r *Router) LookupByID(id string) (*service.Service, error) {
+	for _, name := range r.Names {
+		if r.Services[name].ID == id {
+			return r.Services[name], nil
+		}
+	}
+	return nil, errors.New("router.LookupByID: could not find service")
+}
 
-	newService, err := service.NewService(configFilePath)
+// AddService attaches a service to gmbH
+func (r *Router) AddService(configFilePath string, mode service.Mode) (*service.Service, error) {
+
+	newService, err := service.NewService(configFilePath, mode)
 	if err != nil {
 		return nil, errors.New("router.AddService.newService " + err.Error())
 	}
@@ -84,12 +91,12 @@ func (r *Router) AddService(configFilePath string) (*service.Service, error) {
 func (r *Router) addToMap(newService *service.Service) error {
 
 	if _, ok := r.Services[newService.Static.Name]; ok {
-		return errors.New("duplicate service with same name found")
+		return errors.New("router.addToMap: duplicate service with same name found")
 	}
 
 	for _, alias := range newService.Static.Aliases {
 		if _, ok := r.Services[alias]; ok {
-			return errors.New("duplicate service with same alias found")
+			return errors.New("router.addToMap: duplicate service with same alias found")
 		}
 	}
 
@@ -111,21 +118,22 @@ func (r *Router) GetAllServices() []*service.Service {
 	return ret
 }
 
-// KillAllServices sends sigint to all services attached in the service map that
-// have a PID
+// KillAllServices that are currently in managed mode
 func (r *Router) KillAllServices() {
 	for _, name := range r.Names {
-		r.raise(r.Services[name].Process.GetRuntime().Pid, syscall.SIGINT)
+		if r.Services[name].Mode == service.Managed {
+			r.Services[name].GetProcess().Kill(true)
+		}
 	}
 }
 
-// raise finds a process by pid and then sends sig to it
-func (r *Router) raise(pid int, sig os.Signal) error {
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return err
+// RestartAllServices that are currently in managed mode
+func (r *Router) RestartAllServices() {
+	for _, name := range r.Names {
+		if r.Services[name].Mode == service.Managed {
+			r.Services[name].GetProcess().Restart(false)
+		}
 	}
-	return p.Signal(sig)
 }
 
 // TakeInventory returns a list of paths to services
@@ -140,7 +148,7 @@ func (r *Router) TakeInventory() []string {
 	return paths
 }
 
-// addressHandler is in charge of assigning addressses to services
+// addressHandler is in charge of assigning addresses to services
 type addressHandler struct {
 	table map[string]string
 	host  string

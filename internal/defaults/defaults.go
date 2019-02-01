@@ -1,12 +1,13 @@
 package defaults
 
 const (
-	VERSION           = "00.08.00"
+	VERSION           = "0.8.0"
 	CODE              = "ctrl"
 	CORE_PATH_MAC     = "/usr/local/bin/gmbhCore"
 	CORE_PATH_LINUX   = ""
 	CORE_PATH_WINDOWS = ""
 	CLI_PROMPT        = "[cli] "
+	CTRL_PROMPT       = "[gmbh] "
 	DEFAULT_PROMPT    = "[gmbh] "
 )
 

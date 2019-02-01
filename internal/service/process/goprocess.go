@@ -31,11 +31,7 @@ func NewGoProc(name, path, dir string) *GoProc {
 			dir:  dir,
 		},
 		Run: &Runtime{
-			// running:       false,
-			// userKilled:    false,
-			// userRestarted: false,
 			Pid: -1,
-			// numRestarts:   0,
 		},
 		Err: &Perr{
 			errors: []error{},
@@ -46,33 +42,46 @@ func NewGoProc(name, path, dir string) *GoProc {
 
 // Start a go process
 func (g *GoProc) Start() (int, error) {
+
+	g.Run.userKilled = false
+
 	getPidChan := make(chan int, 1)
 	go g.ForkExec(getPidChan)
 	pid := <-getPidChan
 
 	if pid != -1 {
-		// p.log(fmt.Sprintf("proccess started pid=(%d)", pid))
 		return pid, nil
 	}
-	return -1, errors.New("could not start process")
+	return -1, errors.New("GoProc.Start.unableToStartProcess")
 }
 
 // Restart a go process
 func (g *GoProc) Restart(fromFailed bool) (int, error) {
 	if !fromFailed {
 		g.Update.Lock()
-		g.Run.numRestarts = 0
+		g.Run.restartCounter = 0
+		g.Run.Restarts++
+		g.Run.userKilled = true
 		g.Update.Unlock()
+		if g.Run.running {
+			g.Kill(fromFailed)
+			time.Sleep(time.Second * 2)
+		}
 	}
 	return g.Start()
 }
 
 // Kill a go process
-func (g *GoProc) Kill() {
+func (g *GoProc) Kill(withoutRestart bool) {
+
 	g.Update.Lock()
-	defer g.Update.Unlock()
 	g.Run.running = false
-	g.Run.userKilled = false
+	if withoutRestart {
+		g.Run.userKilled = false
+	}
+	g.Update.Unlock()
+
+	g.raise(g.Run.Pid, syscall.SIGINT)
 }
 
 // ForkExec a go process
@@ -97,9 +106,7 @@ func (g *GoProc) ForkExec(pid chan int) {
 	select {
 	case error := <-listener:
 		if err != nil {
-			// l.Message("proc error", "err: "+error.Error())
 			g.Err.errors = append(g.Err.errors, error)
-			// gprint.Err(fmt.Sprintf("Process Failed: %d", p.Runtime.Pid), 0)
 		}
 
 		if g.Run.userKilled {
@@ -126,31 +133,35 @@ func (g *GoProc) getCmd() *exec.Cmd {
 	return cmd
 }
 func (g *GoProc) handleFailure() {
+	// notify.StdMsgErr("Failure reported:" + strconv.Itoa(g.Run.Pid) + " " + g.Inf.name)
 	g.Update.Lock()
 	g.Run.DeathTime = time.Now()
 	g.Run.running = false
+
 	if g.Run.userKilled {
 		notify.StdMsgErr("user killed")
 	} else {
 		// Should we restart?
-		if g.Run.numRestarts < defaults.NUM_RETRIES {
+		if g.Run.restartCounter < defaults.NUM_RETRIES {
 
-			msg := fmt.Sprintf("restart attempt %d/%d at %v", g.Run.numRestarts+1, defaults.NUM_RETRIES, time.Now().Format(time.RFC3339))
-			notify.StdMsgErr(g.Inf.name + " " + msg)
+			msg := fmt.Sprintf("restart attempt %d/%d at %v with pid=(%d)", g.Run.restartCounter+1, defaults.NUM_RETRIES, time.Now().Format(time.RFC3339), g.Run.Pid)
+			// notify.StdMsgErr(g.Inf.name + " " + msg)
 			g.Err.errors = append(g.Err.errors, errors.New(msg))
 
-			g.Run.numRestarts++
+			g.Run.Fails++
+			g.Run.restartCounter++
 			g.Update.Unlock()
 			time.Sleep(time.Second * 2)
 			g.Restart(true)
 			return
 		}
 
-		msg := fmt.Sprintf("must restart manually: %v", time.Now().Format(time.RFC3339))
-		notify.StdMsgErr(g.Inf.name + " " + msg)
+		msg := fmt.Sprintf("must restart manually: %v, last known pid=(%d)", time.Now().Format(time.RFC3339), g.Run.Pid)
+		// notify.StdMsgErr(g.Inf.name + " " + msg)
 		g.Err.errors = append(g.Err.errors, errors.New(msg))
 
 	}
+	g.Run.Pid = -1
 	g.Update.Unlock()
 }
 
@@ -184,4 +195,13 @@ func (g *GoProc) setRuntime(pid int) {
 	g.Run.running = true
 	g.Run.StartTime = time.Now()
 	g.Run.Pid = pid
+}
+
+// raise finds a process by pid and then sends sig to it
+func (g *GoProc) raise(pid int, sig os.Signal) error {
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+	return p.Signal(sig)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/router"
+	"github.com/gmbh-micro/service"
 	"github.com/gmbh-micro/setting"
 
 	"google.golang.org/grpc"
@@ -55,7 +56,7 @@ func StartCore(path string, verbose bool, daemon bool) *Core {
 	if err != nil {
 		panic(err)
 	}
-
+	userConfig.Daemon = daemon
 	core = &Core{
 		Version:     defaults.VERSION,
 		CodeName:    defaults.CODE,
@@ -93,10 +94,11 @@ func (c *Core) ServiceDiscovery() {
 		notify.StdMsgErr(err.Error(), 1)
 	}
 
+	// Create and attach all services that run in Managed mode
 	for i, servicePath := range servicePaths {
 
-		// Add service to router
-		newService, err := c.Router.AddService(servicePath + defaults.CONFIG_FILE)
+		// Add a new managed service to router
+		newService, err := c.Router.AddService(servicePath+defaults.CONFIG_FILE, service.Managed)
 		if err != nil {
 			// report the error and skip the rest for now
 			// TODO: Better process error handling
@@ -285,7 +287,7 @@ func (c *Core) shutdown(remote bool) {
 	defer os.Exit(0)
 	if remote {
 		if !c.Config.Daemon {
-			notify.StdMsgGreen("Recieved remote shutdown notification")
+			notify.StdMsgGreen("n Recieved remote shutdown notification")
 		}
 		time.Sleep(time.Second * 2)
 	}

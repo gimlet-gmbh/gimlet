@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
 )
 
@@ -18,16 +19,23 @@ func ServicesToRPCs(ss []*service.Service) []*cabal.Service {
 
 // ServiceToRPC translates one service to cabal form
 func ServiceToRPC(s service.Service) *cabal.Service {
+
+	procRuntime := s.GetProcess().GetRuntime()
+
 	rpcService := &cabal.Service{
 		Id:        s.ID,
 		Name:      s.Static.Name,
 		Path:      s.Path,
-		Pid:       int32(s.Process.GetRuntime().Pid),
-		StartTime: s.Process.GetRuntime().StartTime.Format(time.RFC3339),
+		LogPath:   s.Path + defaults.SERVICE_LOG_PATH + defaults.SERVICE_LOG_FILE,
+		Pid:       int32(procRuntime.Pid),
+		Fails:     int32(procRuntime.Fails),
+		Restarts:  int32(procRuntime.Restarts),
+		StartTime: procRuntime.StartTime.Format(time.RFC3339),
+		FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
+		Errors:    s.GetProcess().ReportErrors(),
 	}
-	if !s.ActiveProcess {
-		rpcService.Status = "uninit"
-	} else {
+	if s.Mode == service.Managed {
+		rpcService.Mode = "managed"
 		if s.Process.GetStatus() {
 			errs := s.Process.ReportErrors()
 			if len(errs) == 0 {
@@ -38,6 +46,9 @@ func ServiceToRPC(s service.Service) *cabal.Service {
 		} else {
 			rpcService.Status = "failed"
 		}
+	} else {
+		rpcService.Mode = "serviceToRPC.nonmanagedServiceError"
+		rpcService.Status = "non-managed"
 	}
 	return rpcService
 }

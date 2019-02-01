@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -95,7 +96,9 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 
 	service, err := core.Router.LookupService(in.NewServ.GetName())
 	if err != nil {
-		panic(err)
+		if err.Error() == "router.LookupService.nameNotFound" {
+			panic(err)
+		}
 	}
 
 	if !core.Config.Daemon && core.Config.Verbose {
@@ -118,13 +121,17 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 }
 
 func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
-	if !core.Config.Daemon && core.Config.Verbose {
+	cc, err := getCore()
+	if err != nil {
+		return nil, errors.New("gmbh system error, could not locate instance of core")
+	}
+	if !cc.Config.Daemon {
 		notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.GetSender(), in.Req.GetTarget(), in.Req.GetMethod()))
 
 	}
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
-		if !core.Config.Daemon && core.Config.Verbose {
+		if !cc.Config.Daemon {
 			notify.StdMsgLog(fmt.Sprintf("Could not contact: %s", in.Req.Target), 1)
 		}
 		responder.HadError = true

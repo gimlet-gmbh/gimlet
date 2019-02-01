@@ -13,7 +13,7 @@ import (
 // Process represents the runtime process of a service
 type Process interface {
 	Start() (int, error)
-	Kill()
+	Kill(withoutRestart bool)
 	Restart(fromFailed bool) (int, error)
 	ForkExec(pid chan int)
 	getCmd() *exec.Cmd
@@ -36,13 +36,15 @@ type Info struct {
 
 // Runtime stores runtime info about processes
 type Runtime struct {
-	running       bool
-	userKilled    bool
-	userRestarted bool
-	StartTime     time.Time
-	DeathTime     time.Time
-	Pid           int
-	numRestarts   int
+	running        bool
+	userKilled     bool
+	userRestarted  bool
+	StartTime      time.Time
+	DeathTime      time.Time
+	Pid            int
+	Restarts       int
+	restartCounter int
+	Fails          int
 }
 
 // Perr stores error information about processes
@@ -77,34 +79,60 @@ func checkDir(path string) {
 	}
 }
 
-// Quick Implement
-// type GoProc struct {
-// 	Inf Info
-// 	Run Runtime
-// 	Err Perr
-// }
-// func NewGoProc() *GoProc {
-// 	return &GoProc{}
-// }
-// func (g *GoProc) Start() (int, error) {
-// 	return -1, nil
-// }
-// func (g *GoProc) Restart() (int, error) {
-// 	return -1, nil
-// }
-// func (g *GoProc) ForkExec(pid chan int) {
-// }
-// func (g *GoProc) GetCmd() *exec.Cmd {
-// 	return nil
-// }
-// func (g *GoProc) HandleFailure() {
-// }
-// func (g *GoProc) GetInfo() Info {
-// 	return g.Inf
-// }
-// func (g *GoProc) GetRuntime() Runtime {
-// 	return g.Run
-// }
-// func (g *GoProc) GetError() Perr {
-// 	return g.Err
-// }
+// EmptyProc fulfills process interface without holding any data. This is used
+// for processes that are not in managed mode
+type EmptyProc struct {
+	Inf *Info
+	Run *Runtime
+	Err Perr
+}
+
+// NewEmptyProc returns emptyProc
+func NewEmptyProc() *EmptyProc {
+	return &EmptyProc{}
+}
+
+// Start placeholder
+func (e *EmptyProc) Start() (int, error) {
+	return -1, errors.New("emptyProcess.notImplemented")
+}
+
+// Kill placeholder
+func (e *EmptyProc) Kill(withoutRestart bool) {
+}
+
+// Restart placeholder
+func (e *EmptyProc) Restart(fromFailed bool) (int, error) {
+	return -1, errors.New("emptyProcess.notImplemented")
+}
+
+// ForkExec placeholder
+func (e *EmptyProc) ForkExec(pid chan int) {
+}
+
+func (e *EmptyProc) getCmd() *exec.Cmd {
+	return nil
+}
+
+func (e *EmptyProc) handleFailure() {
+}
+
+// GetStatus placeholder
+func (e *EmptyProc) GetStatus() bool {
+	return false
+}
+
+// GetInfo placeholder
+func (e *EmptyProc) GetInfo() *Info {
+	return nil
+}
+
+// GetRuntime placeholder
+func (e *EmptyProc) GetRuntime() *Runtime {
+	return nil
+}
+
+// ReportErrors placeholder
+func (e *EmptyProc) ReportErrors() []string {
+	return []string{"emptyProcess.notImplemented"}
+}

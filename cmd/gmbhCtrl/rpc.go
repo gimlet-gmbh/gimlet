@@ -25,6 +25,6 @@ func getClient(address string) (cabal.ControlClient, context.Context, context.Ca
 		return nil, nil, nil, err
 	}
 
-	ctx, can := context.WithTimeout(context.Background(), time.Second)
+	ctx, can := context.WithTimeout(context.Background(), time.Second*2)
 	return client, ctx, can, nil
 }

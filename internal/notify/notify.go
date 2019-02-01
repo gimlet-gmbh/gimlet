@@ -43,14 +43,29 @@ func StdMsg(msg string, tab ...int) {
 	toStdOutWithTag(checkIndent(tab...) + msg)
 }
 
+// StdMsgNoPrompt logs a message to stdOut if in verbose mode
+func StdMsgNoPrompt(msg string, tab ...int) {
+	toStdOut(checkIndent(tab...) + msg)
+}
+
 // StdMsgBlue logs a blue message to stdOut if in verbose mode
 func StdMsgBlue(msg string, tab ...int) {
 	toStdOutWithColorTag(color.FgBlue, checkIndent(tab...)+msg)
 }
 
+// StdMsgBlueNoPrompt logs a blue message to stdOut if in verbose mode
+func StdMsgBlueNoPrompt(msg string, tab ...int) {
+	toStdOutWithColor(color.FgBlue, checkIndent(tab...)+msg)
+}
+
 // StdMsgGreen logs a green message to stdOut if in verbose mode
 func StdMsgGreen(msg string, tab ...int) {
 	toStdOutWithColorTag(color.FgGreen, checkIndent(tab...)+msg)
+}
+
+// StdMsgGreenNoPrompt logs a green message to stdOut if in verbose mode
+func StdMsgGreenNoPrompt(msg string, tab ...int) {
+	toStdOutWithColor(color.FgGreen, checkIndent(tab...)+msg)
 }
 
 // StdMsgMagenta logs a magenta message to stdOut if in verbose mode
@@ -61,6 +76,11 @@ func StdMsgMagenta(msg string, tab ...int) {
 // StdMsgErr logs a red error message to stdOut if in verbose mode
 func StdMsgErr(msg string, tab ...int) {
 	toStdOutWithColorTag(color.FgRed, checkIndent(tab...)+msg)
+}
+
+// StdMsgErrNoPrompt logs a red error message to stdOut if in verbose mode
+func StdMsgErrNoPrompt(msg string, tab ...int) {
+	toStdOutWithColor(color.FgRed, checkIndent(tab...)+msg)
 }
 
 // StdMsgDebug logs a highlighted message to stdOut if in verbose mode
@@ -89,11 +109,25 @@ func toStdOutWithTag(msg string) {
 	}
 }
 
+func toStdOut(msg string) {
+	if verbose {
+		fmt.Println(msg)
+	}
+}
+
 func toStdOutWithColorTag(c color.Attribute, msg string) {
 	if verbose {
 		color.Set(c)
 		defer color.Unset()
 		fmt.Printf(TAG + msg + "\n")
+	}
+}
+
+func toStdOutWithColor(c color.Attribute, msg string) {
+	if verbose {
+		color.Set(c)
+		defer color.Unset()
+		fmt.Printf(msg + "\n")
 	}
 }
 

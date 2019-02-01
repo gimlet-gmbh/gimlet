@@ -85,6 +85,7 @@ service Cabal {
 service Control {
 
     rpc StartService (StartRequest) returns (StartReply) {}    
+    rpc ListOne (SearchRequest) returns (ListReply) {}
     rpc RestartService (SearchRequest) returns (StatusReply) {}
     rpc KillService (SearchRequest) returns (StatusReply) {}
 
@@ -278,9 +279,16 @@ message ListReply {
 message Service {
     string Id = 10;
     string Name = 11;
+    bool Registered = 22;
+    string Mode = 23;
+    string Address = 21;
     string Path = 12;
+    string LogPath = 20;
     string Status = 14;
     int32 Restarts = 15;
+    int32 Fails = 24;
     int32 Pid = 16;
     string StartTime = 17;
+    string FailTime = 18;
+    repeated string Errors = 19;
 }
