@@ -9,43 +9,11 @@ package main
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/gmbh-micro/cabal"
-	"github.com/gmbh-micro/notify"
 )
-
-func pprintListOne(service cabal.Service) {
-	notify.StdMsg("Displaying service information")
-	notify.StdMsgNoPrompt(" ID:\t"+service.GetId(), 2)
-	notify.StdMsgNoPrompt(" Name:\t"+service.GetName(), 2)
-	notify.StdMsgNoPrompt(" PID:\t"+strconv.Itoa(int(service.GetPid())), 2)
-	notify.StdMsgNoPrompt(" Start:\t"+service.GetStartTime(), 2)
-	if service.GetStatus() == "failed" {
-		notify.StdMsgErrNoPrompt(" Status:\t"+service.GetStatus(), 2)
-		notify.StdMsgErrNoPrompt(" Failed:\t"+service.GetFailTime(), 2)
-	} else if service.GetStatus() == "degraded" {
-		notify.StdMsgErrNoPrompt(" Status:\t"+service.GetStatus(), 2)
-	} else {
-		notify.StdMsgGreenNoPrompt(" Status:\t"+service.GetStatus(), 2)
-	}
-	notify.StdMsgNoPrompt(" Fails:\t"+strconv.Itoa(int(service.GetFails())), 2)
-	notify.StdMsgNoPrompt(" Restarts:"+strconv.Itoa(int(service.GetRestarts())), 2)
-	notify.StdMsgNoPrompt(" Path:\t"+service.GetPath(), 2)
-	notify.StdMsgNoPrompt(" Logs:\t"+service.GetLogPath(), 2)
-	errs := service.GetErrors()
-	if len(errs) <= 1 {
-		notify.StdMsgNoPrompt(" Errors:\t"+strings.Join(errs, ","), 2)
-	} else {
-		notify.StdMsgNoPrompt(" Errors:\t"+errs[0], 2)
-		errs = errs[1:]
-		for _, e := range errs {
-			notify.StdMsgNoPrompt("        \t"+e, 2)
-		}
-	}
-}
 
 // Don't look too hard at this...
 func pprintListAll(processes []*cabal.Service) {

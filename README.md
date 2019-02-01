@@ -17,6 +17,9 @@ Run the install script in the scripts folder. Make sure that you have set your g
     * get rich detail from each service
     * Maybe have a web gui to do this with?
         * Would make docker version easy to use
+* Core
+    * Service discovery
+        * make sure that services are not being duplicated when added
 * platform support
     * windows
         * unknown status
@@ -36,6 +39,7 @@ Run the install script in the scripts folder. Make sure that you have set your g
 * language support
     * go
         * needs refactored
+            * remove is_client, all attached services should be able to make client requests
     * python
     * node
     * other options w/ time permitting

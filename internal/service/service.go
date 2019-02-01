@@ -2,154 +2,112 @@ package service
 
 import (
 	"errors"
-	"os"
 	"strconv"
-	"syscall"
 
-	"github.com/gmbh-micro/pmgmt"
+	"github.com/gmbh-micro/defaults"
+	"github.com/gmbh-micro/service/process"
+	"github.com/gmbh-micro/service/static"
 )
 
-/*
- * serviceHandler.go
- * Abe Dick
- * Jan 2019
- */
+// Mode represents how gmbh interacts with the process of the service
+type Mode int
 
-/*
- * Things that still need to be addressed (in no order)
- *
- * Name collisions
- * Ex post facto service registration
- * -> For hotswap, upgrades without restarting CORE
- * Failed process handshake
- * -> Removing failed processes?
- * -> Restarting failed processes?
- * Permissions
- * -> Sending updates
- * -> Mechanism to control updates
- * Querying status of all connected services
- */
+const (
+	// Managed mode is for services whose underlying process is managed by gmbh
+	Managed Mode = 2
+)
 
-// ServiceHandler has methods attached to control adding, removing and
-// other service control type things (searching)
-type ServiceHandler struct {
-	Services map[string]*ServiceControl
-	Names    []string
+var idtag int
+
+func init() {
+	idtag = defaults.STARTING_ID
 }
 
-// ServiceControl for new method of service discovery.
-// The goal is to consolidate the data structure holding both services
-// as they are discovered and services as they come online via
-// the new service discovery method
-type ServiceControl struct {
-	Name    string
-	Aliases []string
-	Config  string
-
-	// ConfigPath is the absolute path to the main directory of the service
-	ConfigPath string
-
-	// BinPath is the absolute path to the binary of the service
-	BinPath string
-	Static  *StaticControl
-	Process *pmgmt.Process
-	Address string
+// Service represents a service including all static and runtime data
+type Service struct {
+	ID            string
+	Path          string
+	Address       string
+	Mode          Mode
+	Static        *static.Static
+	Process       process.Process
+	ActiveProcess bool
 }
 
-// StaticControl things at service discovery
-// (Stored in YAML config file)
-type StaticControl struct {
-	Name     string   `yaml:"name"`
-	Aliases  []string `yaml:"aliases"`
-	Language string   `yaml:"language"`
-	Makefile bool     `yaml:"makefile"`
-	Path     string   `yaml:"pathtobin"`
-	IsClient bool     `yaml:"isClient"`
-	IsServer bool     `yaml:"isServer"`
-}
-
-func NewServiceControl(stat *StaticControl) *ServiceControl {
-	return &ServiceControl{
-		Name: stat.Name,
-		// ConfigPath: stat.Path,
-		Aliases: stat.Aliases,
-		Static:  stat,
+// GetProcess returns the process or empty process and error of a service
+func (s *Service) GetProcess() process.Process {
+	if s.Mode != Managed {
+		return process.NewEmptyProc()
+		// return process.NewEmptyProc(), errors.New("service.getProcess.unmanagedServiceProcessRequest")
 	}
+	if !s.ActiveProcess {
+		return process.NewEmptyProc()
+		// return process.NewEmptyProc(), errors.New("service.getProcess.inactiveProcess")
+	}
+	return s.Process
+	// return s.Process, nil
 }
 
-func (s *ServiceHandler) AddService(newService *ServiceControl) error {
-
-	if _, ok := s.Services[newService.Name]; ok {
-		if ok {
-			return errors.New("duplicate service with same name found")
-		}
+// NewService tries to parse the required info from a config file located at path
+func NewService(path string, mode Mode) (*Service, error) {
+	staticData, err := static.ParseData(path)
+	if err != nil {
+		return nil, err
+	}
+	ok := static.DataIsValid(staticData)
+	if !ok {
+		return nil, errors.New("invalid config file")
 	}
 
-	for _, alias := range newService.Aliases {
-		if _, ok := s.Services[alias]; ok {
-			if ok {
-				return errors.New("duplicate service with same alias found")
-			}
-		}
-	}
+	dir := path[:len(path)-len(defaults.CONFIG_FILE)]
 
-	s.Names = append(s.Names, newService.Name)
-	s.Services[newService.Name] = newService
-	for _, alias := range newService.Aliases {
-		s.Services[alias] = newService
+	service := Service{
+		ID:     assignNextID(),
+		Mode:   mode,
+		Path:   dir,
+		Static: staticData,
 	}
-	return nil
+	return &service, nil
 }
 
-func (s *ServiceHandler) RemoveService() {
+// StartService attempts to fork/exec service and returns the pid, else error
+// service must be in managed mode
+func (s *Service) StartService() (pid string, err error) {
 
-}
-
-func (s *ServiceHandler) GetAddress(name string) (string, error) {
-	rv := s.Services[name]
-	if rv == nil {
-		return "", errors.New("could not find service with requested name")
+	if s.Mode != Managed {
+		return "-1", errors.New("service.StartService.invalidService Mode")
 	}
-	return rv.Address, nil
-}
 
-func (s *ServiceHandler) KillAllServices() {
-	for _, n := range s.Names {
-		err := raise(s.Services[n].Process.Runtime.Pid, syscall.SIGINT)
-		if err == nil {
-			// gprint.Ln("Successfully signaled shutdown: "+n, 0)
-			// notify.StdMsgMagenta("Successfully signaled shutdown: " + n)
-		}
-	}
-}
-
-func (s *ServiceHandler) GetService(name string) (*ServiceControl, error) {
-	service := s.Services[name]
-	if service == nil {
-		return nil, errors.New("could not find service with name = " + name)
-	}
-	return service, nil
-}
-
-func StartService(service *ServiceControl) (string, error) {
-
-	if service.Static.Language == "go" {
-		// fmt.Println(service.ConfigPath)
-		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath, service.ConfigPath)
-		pid, err := service.Process.Controller.Start(service.Process)
+	if s.Static.Language == "go" {
+		s.Process = process.NewGoProc(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path)
+		s.ActiveProcess = true // have to include this because cannot have pointer to interface type in Go
+		pid, err := s.Process.Start()
 		if err != nil {
-			return "", err
+			return "-1", errors.New("service.StartService.couldNotStartService")
 		}
 		return strconv.Itoa(pid), nil
+	} else if s.Static.Language == "node" {
+		s.Process = process.NewNodeProc()
+		return "-1", errors.New("service.StartService.nodeNotYetSupported")
+	} else if s.Static.Language == "python" {
+		s.Process = process.NewPyProc()
+		return "-1", errors.New("service.StartService.pythonNotYetSupported")
 	}
 
-	return "", nil
+	return "-1", errors.New("service.StartService.invalidLanguage")
 }
 
-func raise(pid int, sig os.Signal) error {
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return err
+// createAbsPathToBin attempts to resolve an absolute path to the binary file to start
+func (s *Service) createAbsPathToBin(path, binPath string) string {
+	absPath := ""
+	if binPath[0] == '.' {
+		absPath = path + binPath[1:]
 	}
-	return p.Signal(sig)
+	return absPath
+}
+
+// assignNextID increments idtag and returns it as a string
+func assignNextID() string {
+	idtag++
+	return strconv.Itoa(idtag)
 }

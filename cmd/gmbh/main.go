@@ -18,29 +18,26 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 )
 
-const (
-	VERSION    = "00.02.00"
-	PROMPT     = "[cli] "
-	CONFIGNAME = "gmbh.yaml"
-	COREPATH   = "/usr/local/bin/gmbhCore"
-)
+///////////////////////////////////
+// This is garbage. Use the actual process manager...
 
 var cmd *exec.Cmd
 
 func main() {
 
-	notify.SetTag("[cli] ")
-	notify.SetVerbose(true)
-	daemon := flag.Bool("d", false, "daemon mode")
+	notify.SetTag(defaults.CLI_PROMPT)
+	notify.SetVerbose(defaults.VERBOSE)
+	daemon := flag.Bool("d", defaults.DAEMON, "daemon mode")
 	flag.Parse()
 	startCore(*daemon)
 }
 
 func startCore(daemon bool) {
-	println(fmt.Sprintf("cli version: %s", VERSION), 0)
+	println(fmt.Sprintf("cli version: %s", defaults.VERSION), 0)
 	println("Starting gmbhCore...", 0)
 
 	exists := checkConfig()
@@ -69,12 +66,12 @@ func startCore(daemon bool) {
 	if daemon {
 		args = append(args, "-d")
 	}
-	forkExec(COREPATH, args, daemon)
+	forkExec(defaults.CORE_PATH_MAC, args, daemon)
 
 }
 
 func checkConfig() bool {
-	if _, err := os.Stat(CONFIGNAME); os.IsNotExist(err) {
+	if _, err := os.Stat(defaults.PROJECT_CONFIG_FILE); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -82,12 +79,18 @@ func checkConfig() bool {
 
 func checkInstall() bool {
 	if runtime.GOOS == "darwin" {
-		if _, err := os.Stat(COREPATH); os.IsNotExist(err) {
+		if _, err := os.Stat(defaults.CORE_PATH_MAC); os.IsNotExist(err) {
+			return false
+		}
+		return true
+	} else if runtime.GOOS == "linux" {
+		notify.StdMsgErr("Linux support is incomplete")
+		if _, err := os.Stat(defaults.CORE_PATH_MAC); os.IsNotExist(err) {
 			return false
 		}
 		return true
 	}
-	println(fmt.Sprintf("OS support not yet implemented for %s", runtime.GOOS), 0)
+	notify.StdMsgErr(fmt.Sprintf("OS support not yet implemented for %s", runtime.GOOS))
 	return false
 }
 
@@ -113,12 +116,12 @@ func forkExec(path string, args []string, daemon bool) {
 	if daemon {
 		err := cmd.Start()
 		if err != nil {
-			printerr(fmt.Sprintf("Error reported in Core: %s", err.Error()), 0)
+			notify.StdMsgErr(fmt.Sprintf("Error reported in Core: %s", err.Error()))
 		}
 	} else {
 		err := cmd.Run()
 		if err != nil {
-			printerr(fmt.Sprintf("Error reported in Core: %s", err.Error()), 0)
+			notify.StdMsgErr(fmt.Sprintf("Error reported in Core: %s", err.Error()))
 		}
 	}
 }

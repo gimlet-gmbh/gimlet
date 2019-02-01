@@ -39,6 +39,7 @@ func main() {
 	gmbhCore.StartCabalServer()
 	gmbhCore.StartControlServer()
 	gmbhCore.ServiceDiscovery()
+	notify.StdMsgBlue("verbose: true,  daemon: " + strconv.FormatBool(daemon))
 }
 
 func printLogo() {

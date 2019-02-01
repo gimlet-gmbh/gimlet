@@ -16,217 +16,156 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
-	"github.com/gmbh-micro/grouter"
+	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
-	"github.com/gmbh-micro/pmgmt"
+	"github.com/gmbh-micro/router"
 	"github.com/gmbh-micro/service"
+	"github.com/gmbh-micro/setting"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // The global config and controller for the core
 // Not much of a way around this when using rpc
 var core *Core
 
-// CabalMode is the parameter that controls how data is sent between processes
-type CabalMode int
-
-const (
-	// Ephemeral mode assumes that no enforcement of data types will be made at either
-	// end of the gRPC calls between the gimlet-gmbh package while services exchange
-	// data.
-	//
-	// Ephemeral mode works much like http handlers work in the http package of go.
-	Ephemeral CabalMode = 0
-
-	// Custom mode assumes that a shared structure will be used between both services.
-	//
-	// TODO: Semantics of how to enforce data modes
-	Custom CabalMode = 1
-)
-
 // Core - internal representation of the gmbhCore core
 type Core struct {
-	Version        string
-	CodeName       string
-	ProjectConf    *ProjectConfig
-	serviceHandler *service.ServiceHandler
-	router         *grouter.Router
-	log            *os.File
-	logm           *sync.Mutex
-	verbose        bool
-	daemon         bool
-
-	// controlLock is the mutex used when doing operations in the control rpc service
-	controlLock *sync.Mutex
-
-	// ServiceDir is the directory in which services live within a gmbh project
-	ServiceDir string `yaml:"serviceDirectory"`
-
-	// CabalAddress is the address of the RPC server that sends data requests
-	CabalAddress string `yaml:"serviceAddress"`
-
-	// CtrlAddress is the address of the RPC server used by ctrl to manage processes
-	CtrlAddress string `yaml:"ctrlAddress"`
-
-	// ProjectPath is the path to the root folder of the gmbhCore project
-	ProjectPath string
-}
-
-// ProjectConfig is the configuration of the gmbhCore project located in the main directory
-type ProjectConfig struct {
-	Name             string `yaml:"Name"`
-	ServiceDirectory string `yaml:"ServiceDirectory"`
-}
-
-// tmpService is used during service discovery to hold tmp dat
-type tmpService struct {
-	path       string
-	configFile string
+	Version           string
+	CodeName          string
+	ProjectPath       string
+	Config            *setting.UserConfig
+	Router            *router.Router
+	log               *os.File
+	logm              *sync.Mutex
+	controlServerLock *sync.Mutex
 }
 
 // StartCore initializes settings of the core and creates the service handler and router
 // needed to process requestes
 func StartCore(path string, verbose bool, daemon bool) *Core {
-	core = &Core{
-		Version:      "00.07.01",
-		CodeName:     "Control",
-		ServiceDir:   "services",
-		verbose:      verbose,
-		daemon:       daemon,
-		CabalAddress: "localhost:59999",
-		CtrlAddress:  "localhost:59997",
-		ProjectPath:  path,
-		serviceHandler: &service.ServiceHandler{
-			Services: make(map[string]*service.ServiceControl),
-			Names:    make([]string, 0),
-		},
-		router: &grouter.Router{
-			BaseAddress:    "localhost:",
-			NextPortNumber: 40010,
-			Localhost:      true,
-		},
+
+	userConfig, err := setting.ParseUserConfig(path + defaults.CONFIG_FILE)
+	if err != nil {
+		panic(err)
 	}
+	userConfig.Daemon = daemon
+	core = &Core{
+		Version:     defaults.VERSION,
+		CodeName:    defaults.CODE,
+		Config:      userConfig,
+		Router:      router.NewRouter(),
+		ProjectPath: path,
+	}
+
 	notify.SetVerbose(verbose)
-	core.ProjectConf = core.parseProjectYamlConfig(path + "/gmbh.yaml")
-	core.logRuntimeData(path + "/gmbh/")
+	core.logRuntimeData(path + defaults.SERVICE_LOG_PATH)
 	return core
+}
+
+func getCore() (*Core, error) {
+	if core == nil {
+		return nil, errors.New("could not find core instance")
+	}
+	return core, nil
 }
 
 // ServiceDiscovery scans all directories in the ./services folder looking for gmbhCore configuration files
 func (c *Core) ServiceDiscovery() {
 	path := c.getServicePath()
 
-	if !c.daemon {
+	if !c.Config.Daemon {
 		notify.StdMsgBlue("service discovery started in")
 		notify.StdMsgBlue(path)
 	} else {
 		notify.StdMsgBlue("(3/3) service discovery in " + path)
 	}
 
-	tmpService := c.findAllServices(path)
-	for i, nservice := range tmpService {
+	// scan the services directory and find all services
+	servicePaths, err := c.scanForServices(path)
+	if err != nil {
+		notify.StdMsgErr(err.Error(), 1)
+	}
 
-		staticData := c.parseYamlConfig(nservice.path + nservice.configFile)
+	// Create and attach all services that run in Managed mode
+	for i, servicePath := range servicePaths {
 
-		if !c.daemon {
-			notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(tmpService)))
-			notify.StdMsgBlue(staticData.Name, 1)
-			notify.StdMsgBlue(path+"/"+staticData.Path, 1)
-		}
-
-		newService := service.NewServiceControl(staticData)
-		err := c.serviceHandler.AddService(newService)
+		// Add a new managed service to router
+		newService, err := c.Router.AddService(servicePath+defaults.CONFIG_FILE, service.Managed)
 		if err != nil {
-			notify.StdMsgErr("Could not add service")
-			notify.StdMsgErr("reported error: " + err.Error())
+			// report the error and skip the rest for now
+			// TODO: Better process error handling
+			notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(servicePaths)))
+			notify.StdMsgErr(err.Error(), 1)
 			continue
 		}
 
-		if staticData.IsServer {
-			newService.Address = c.router.GetNextAddress()
-			if !c.daemon {
-				notify.StdMsgBlue("Assigning address: "+newService.Address, 1)
+		if !c.Config.Daemon {
+			notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(servicePaths)))
+			notify.StdMsgBlue(newService.Static.Name, 1)
+			notify.StdMsgBlue(servicePath, 1)
+			if newService.Static.IsServer {
+				notify.StdMsgBlue("assigning address: "+newService.Address, 1)
 			}
 		}
 
-		newService.BinPath = nservice.path + newService.Static.Path
-		newService.ConfigPath = nservice.path
-
-		pid, err := c.startService(newService)
+		// Start service
+		pid, err := newService.StartService()
 		if err != nil {
-			notify.StdMsgErr("Could not add service", 1)
-			notify.StdMsgErr("reported error: "+err.Error(), 1)
-			continue
+			notify.StdMsgErr(err.Error(), 1)
 		}
-		if !c.daemon {
+		if !c.Config.Daemon {
 			notify.StdMsgGreen(fmt.Sprintf("Service running in ephemeral mode with pid=(%v)", pid), 1)
 		} else {
-			notify.StdMsgBlue(fmt.Sprintf("(%d/%d) %v started in ephemeral mode with pid=(%v)", i+1, len(tmpService), newService.Name, pid), 0)
+			notify.StdMsgBlue(fmt.Sprintf("(%d/%d) %v started in ephemeral mode with pid=(%v)", i+1, len(servicePaths), newService.Static.Name, pid), 0)
 		}
+
 	}
 
-	go c.takeInventory()
-
-	if !c.daemon {
+	if !c.Config.Daemon {
 		notify.StdMsgBlue("Startup complete")
 		notify.StdMsgGreen("Blocking main thread until SIGINT")
 	}
+
+	go c.takeInventory()
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT)
 	_ = <-sig
 
-	if !c.daemon {
+	if !c.Config.Daemon {
 		notify.StdMsgMagenta("Recieved shutdown signal")
 	}
 	c.shutdown(false)
 }
 
 func (c *Core) getServicePath() string {
-	return c.ProjectPath + "/" + c.ProjectConf.ServiceDirectory
+	return c.ProjectPath + "/" + c.Config.ServicesDirectory
 }
 
-func (c *Core) startService(service *service.ServiceControl) (string, error) {
-
-	if service.Static.Language == "go" {
-		// fmt.Println("service config path: " + service.ConfigPath)
-		service.Process = pmgmt.NewGoProcess(service.Name, service.BinPath, service.ConfigPath)
-		pid, err := service.Process.Controller.Start(service.Process)
-		if err != nil {
-			return "", err
-		}
-		return strconv.Itoa(pid), nil
-	}
-
-	return "", nil
-}
-
-// findAllServices looks for .yaml files in subdirectories of baseDir
-// baseDir/dir/*.yaml
+// scanForServices scans for directories (or symbolic links to directories)
+// that containa gmbh config file and returns an array of absolute paths
+// to any found directories that contain the config file
 // TODO: Need to verify that we are getting the correct yaml file
 // if there are several yaml files and if there are no yaml
-// ALL ERRORS NEED TO BE HANDLED BETTER THAN WITH LOG.FATAL()
-func (c *Core) findAllServices(baseDir string) []tmpService {
-	services := []tmpService{}
+func (c *Core) scanForServices(baseDir string) ([]string, error) {
+	servicePaths := []string{}
 
 	baseDirFiles, err := ioutil.ReadDir(baseDir)
 	if err != nil {
-		log.Fatal(err)
+		return servicePaths, errors.New("could not scan base directory: " + err.Error())
 	}
 
-	// For every file in the baseDirectory
 	for _, file := range baseDirFiles {
 
-		// eval symbolicLinks first
+		// eval symbolic links
 		fpath := baseDir + "/" + file.Name()
 		potentialSymbolic, err := filepath.EvalSymlinks(fpath)
 		if err != nil {
@@ -259,50 +198,20 @@ func (c *Core) findAllServices(baseDir string) []tmpService {
 		}
 
 		for _, sfile := range serviceFiles {
-			match, err := regexp.MatchString(".yaml", sfile.Name())
+			match, err := regexp.MatchString(defaults.CONFIG_FILE_EXT, sfile.Name())
 			if err == nil && match {
-				newService := tmpService{
-					path:       baseDir + "/" + file.Name() + "/",
-					configFile: sfile.Name(),
-				}
-				services = append(services, newService)
+				servicePaths = append(servicePaths, baseDir+file.Name())
 			}
 		}
 	}
 
-	return services
-}
-
-func (c *Core) parseYamlConfig(path string) *service.StaticControl {
-	var static service.StaticControl
-	yamlFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Printf("yamlFile.Get err   #%v ", err)
-	}
-	err = yaml.Unmarshal(yamlFile, &static)
-	if err != nil {
-		log.Fatalf("Unmarshal: %v", err)
-	}
-	return &static
-}
-
-func (c *Core) parseProjectYamlConfig(path string) *ProjectConfig {
-	var conf ProjectConfig
-	yamlFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Printf("yamlFile.Get err   #%v ", err)
-	}
-	err = yaml.Unmarshal(yamlFile, &conf)
-	if err != nil {
-		log.Fatalf("Unmarshal: %v", err)
-	}
-	return &conf
+	return servicePaths, nil
 }
 
 // StartCabalServer starts the gRPC server to run core on
 func (c *Core) StartCabalServer() {
 	go func() {
-		list, err := net.Listen("tcp", c.CabalAddress)
+		list, err := net.Listen("tcp", c.Config.DefaultHost+c.Config.DefaultPort)
 		if err != nil {
 			panic(err)
 		}
@@ -316,18 +225,18 @@ func (c *Core) StartCabalServer() {
 		}
 
 	}()
-	if !c.daemon {
+	if !c.Config.Daemon {
 		notify.StdMsgBlue("attempting to start cabal server")
-		notify.StdMsgGreen("starting cabal server at "+c.CabalAddress, 1)
+		notify.StdMsgGreen("starting cabal server at "+c.Config.DefaultHost+c.Config.DefaultPort, 1)
 	} else {
-		notify.StdMsgBlue("(1/3) starting cabal server at " + c.CabalAddress)
+		notify.StdMsgBlue("(1/3) starting cabal server at " + c.Config.DefaultHost + c.Config.DefaultPort)
 	}
 }
 
 // StartControlServer starts the gRPC server to run core on
 func (c *Core) StartControlServer() {
 	go func() {
-		list, err := net.Listen("tcp", c.CtrlAddress)
+		list, err := net.Listen("tcp", c.Config.ControlHost+c.Config.ControlPort)
 		if err != nil {
 			panic(err)
 		}
@@ -341,11 +250,11 @@ func (c *Core) StartControlServer() {
 		}
 
 	}()
-	if !c.daemon {
+	if !c.Config.Daemon {
 		notify.StdMsgBlue("Attempting to start control server")
-		notify.StdMsgGreen("starting control server at "+c.CtrlAddress, 1)
+		notify.StdMsgGreen("starting control server at "+c.Config.ControlHost+c.Config.ControlPort, 1)
 	} else {
-		notify.StdMsgBlue("(2/3) starting control server at " + c.CtrlAddress)
+		notify.StdMsgBlue("(2/3) starting control server at " + c.Config.ControlHost + c.Config.ControlPort)
 	}
 }
 
@@ -361,42 +270,30 @@ func (c *Core) logRuntimeData(path string) {
 	sep := "------------------------------------------------------------------------"
 	c.log.WriteString("\n" + sep + "\n")
 	c.log.WriteString("startTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
-	c.log.WriteString("cabalAddress=\"" + c.CabalAddress + "\"\n")
-	c.log.WriteString("ctrlAddress=\"" + c.CtrlAddress + "\"\n")
+	c.log.WriteString("cabalAddress=\"" + c.Config.DefaultHost + c.Config.DefaultPort + "\"\n")
+	c.log.WriteString("ctrlAddress=\"" + c.Config.ControlHost + c.Config.ControlPort + "\"\n")
 
 }
 
 func (c *Core) takeInventory() {
-	serviceString := "services=["
-	for _, serviceName := range c.serviceHandler.Names {
-		service := c.serviceHandler.Services[serviceName]
-		serviceString += "\"" + service.Name + "-" + service.ConfigPath + "\", "
-	}
-	serviceString = serviceString[:len(serviceString)-2]
-	serviceString += "]"
+	paths := c.Router.TakeInventory()
+	result := "services=[" + strings.Join(paths, ", ") + "]\n"
 	c.logm.Lock()
 	defer c.logm.Unlock()
-	c.log.WriteString(serviceString + "\n")
+	c.log.WriteString(result)
 }
 
 func (c *Core) shutdown(remote bool) {
 	defer os.Exit(0)
 	if remote {
-		if !c.daemon {
-			notify.StdMsgGreen("Recieved remote shutdown notification")
+		if !c.Config.Daemon {
+			notify.StdMsgGreen("n Recieved remote shutdown notification")
 		}
 		time.Sleep(time.Second * 2)
 	}
-	c.serviceHandler.KillAllServices()
+	c.Router.KillAllServices()
 	c.logm.Lock()
 	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
 	c.logm.Unlock()
 	c.log.Close()
-}
-
-func getCore() (*Core, error) {
-	if core == nil {
-		return nil, errors.New("could not find core instance")
-	}
-	return core, nil
 }
