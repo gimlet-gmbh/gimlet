@@ -129,8 +129,8 @@ func (c *Core) ServiceDiscovery() {
 
 	}
 
+	notify.StdMsgBlue("startup complete")
 	if !c.Config.Daemon {
-		notify.StdMsgBlue("Startup complete")
 		notify.StdMsgGreen("Blocking main thread until SIGINT")
 	}
 
