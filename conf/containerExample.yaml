@@ -1,5 +1,5 @@
 ##################################################################################
-## Service Settings
+## gmbH Settings
 ##################################################################################
 
 ## INFORMATION ###################################################################
@@ -18,9 +18,6 @@ args:
 # language of the service
 language: ""
 #
-# mode - managed, remote, planetary
-mode: ""
-#
 # Does the project have a makefile?
 path_to_makefile: ""
 #
@@ -31,7 +28,6 @@ path_to_bin: "./bin/_cabal-a"
 path_to_src: ""
 #
 
-
 ## COMMUNICATIONS SETTINGS ########################################################
 #
 # Can this service contact other services?
@@ -40,9 +36,8 @@ is_client: True
 # Can other services contact this service?
 is_server: True
 #
-#
-# gmbhCore address
-core_address: "localhost:59999"
 
 ## Dependencies ##################################################################
 #
+dependencies:
+  - ""

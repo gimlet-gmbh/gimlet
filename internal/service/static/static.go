@@ -12,6 +12,7 @@ import (
 type Static struct {
 	Name         string   `yaml:"name"`
 	Aliases      []string `yaml:"aliases"`
+	Mode         string   `yaml:"mode"`
 	Language     string   `yaml:"language"`
 	MakefilePath string   `yaml:"path_to_makefile"`
 	BinPath      string   `yaml:"path_to_bin"`

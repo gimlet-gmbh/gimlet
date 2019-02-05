@@ -13,8 +13,14 @@ import (
 type Mode int
 
 const (
-	// Managed mode is for services whose underlying process is managed by gmbh
+	// Managed mode is for services whose underlying process is managed by gmbhCore
 	Managed Mode = 2
+
+	// Remote mode is for services whose underlying process is mangaged by gmbhContainer
+	Remote Mode = 3
+
+	// Planetary mode is for services whose underlying process is not mangaged by any gmbh tooling
+	Planetary Mode = 4
 )
 
 var idtag int

@@ -9,7 +9,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/gmbh-micro/notify"
@@ -34,12 +33,10 @@ func main() {
 
 	printLogo()
 	notify.StdMsgBlue("Starting version: " + gmbhCore.Version + " (" + gmbhCore.CodeName + ")")
-	notify.StdMsgBlue("verbose: true,  daemon: " + strconv.FormatBool(daemon))
 
 	gmbhCore.StartCabalServer()
 	gmbhCore.StartControlServer()
 	gmbhCore.ServiceDiscovery()
-	notify.StdMsgBlue("verbose: true,  daemon: " + strconv.FormatBool(daemon))
 }
 
 func printLogo() {

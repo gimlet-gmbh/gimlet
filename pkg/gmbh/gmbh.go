@@ -8,21 +8,18 @@ package gmbh
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
 	yaml "gopkg.in/yaml.v2"
 )
-
-const version = "00.07.01"
-const debug = true
 
 // HandlerFunc is the publically exposed function to register and use the callback functions
 // from within gmbhCore. Its behavior is modeled after the http handler that is baked into go
@@ -31,12 +28,21 @@ type HandlerFunc = func(req Request, resp *Responder)
 
 // Client - the structure between a service and CORE
 type Client struct {
-	ServiceName         string `yaml:"name"`
-	isServer            bool   `yaml:"isserver"`
-	isClient            bool   `yaml:"isclient"`
+	conf                *config
+	configured          bool
+	blocking            bool
 	address             string
 	registeredFunctions map[string]HandlerFunc
 	msgCounter          int
+}
+
+// config is the data structure to hold the user config settings for a service
+type config struct {
+	ServiceName string   `yaml:"name"`
+	Aliases     []string `yaml:"aliases"`
+	IsServer    bool     `yaml:"isserver"`
+	IsClient    bool     `yaml:"isclient"`
+	CoreAddress string   `yaml:"core_address"`
 }
 
 // g - the gmbhCore object that contains the parsed yaml config and other associated data
@@ -44,38 +50,82 @@ var g *Client
 
 // NewService should be called only once. It returns the object in which parameters, and
 // handler functions can be attached to gmbh Client.
-func NewService(configPath string) (*Client, error) {
+func NewService() *Client {
+
+	// Make sure you can't reset the service
 	if g != nil {
-		return g, nil
+		return g
 	}
 
-	var err error
-	g, err = parseYamlConfig(configPath)
-	if err != nil {
-		notify.StdMsgErr(err.Error())
-		return nil, errors.New("could not parse config")
+	notify.SetVerbose(false)
+
+	g := &Client{
+		registeredFunctions: make(map[string]HandlerFunc),
+		configured:          false,
+		blocking:            true,
 	}
-
-	g.registeredFunctions = make(map[string]HandlerFunc)
-
-	return g, nil
+	return g
 
 }
 
-// Start registers the service with gmbh.
-//
-// Note that this blocks until receiving the signal to quit. If starting a webserver
-// run this in a go thread as to not block content from being delivered the desired
-// output.
-//
-// TODO: Find a better way to start
-func (g *Client) Start() {
-	rlog("-----------------------------------")
-	dlog("gmbh started")
-
-	addr, err := _ephemeralRegisterService(g.ServiceName, g.isClient, g.isServer)
+// Config specifies a config file to use with gmbh client
+func (g *Client) Config(path string) (*Client, error) {
+	var err error
+	g.conf, err = parseYamlConfig(path)
 	if err != nil {
-		dlog("gmbh.Start: " + err.Error())
+		notify.StdMsgErr("could not parse config=" + path)
+		return nil, errors.New("could not parse config=" + path)
+	}
+	g.configured = true
+	return g, nil
+}
+
+// Verbose runs the client in verbose mode
+func (g *Client) Verbose() *Client {
+	notify.SetTag("[gmbh-client-debug] ")
+	notify.SetVerbose(true)
+	return g
+}
+
+// Nonblocking runs the client in blocking mode, in otherwords it keeps the service running
+// untill a shutdown signal is received. Otherwise the process will exit.
+//
+// This mode should be used if you are implementing a backend-only service
+func (g *Client) Nonblocking() *Client {
+	g.blocking = false
+	return g
+}
+
+// Start registers the service with gmbh in a new goroutine if blocking, else sets the listener and blocks the
+// main thread awaiting calls from gRPC.
+func (g *Client) Start() {
+	if g.blocking {
+		g.start()
+	} else {
+		go g.start()
+	}
+}
+
+func (g *Client) start() {
+	notify.StdMsgNoPrompt("------------------------------------------------------------")
+	notify.StdMsg("started, time=" + time.Now().Format(time.RFC3339))
+	if g.configured {
+		notify.StdMsg("gmbh configuration valid")
+	} else {
+		notify.StdMsgErr("gmbh configuration invalid")
+	}
+	addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
+	if err != nil {
+		for err.Error() == "registration.gmbhUnavailable" {
+			notify.StdMsgErr("Could not reach gmbhCore, trying again in 5 seconds")
+			time.Sleep(time.Second * 5)
+			addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
+		}
+		notify.StdMsg("gmbh.Start.error: " + err.Error())
+	}
+	notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
+	if addr != "" {
+		notify.StdMsgGreen("assigned address=" + addr)
 	}
 
 	sigs := make(chan os.Signal, 1)
@@ -83,8 +133,7 @@ func (g *Client) Start() {
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		sig := <-sigs
-		fmt.Println(sig)
+		_ = <-sigs
 		done <- true
 	}()
 	if addr != "" {
@@ -92,8 +141,8 @@ func (g *Client) Start() {
 	}
 
 	<-done
-	_makeUnregisterRequest(g.ServiceName)
-	dlog("exit(0)")
+	makeUnregisterRequest(g.conf.ServiceName)
+	notify.StdMsg("shutdown, time=" + time.Now().Format(time.RFC3339))
 	os.Exit(0)
 }
 
@@ -106,12 +155,47 @@ func (g *Client) Route(route string, handler HandlerFunc) {
 }
 
 // MakeRequest is the default method for making data requests through gmbh
-func (g *Client) MakeRequest(target, method, data string) Responder {
-	resp, err := _makeDataRequest(target, method, data)
+func (g *Client) MakeRequest(target, method, data string) (Responder, error) {
+	resp, err := makeDataRequest(target, method, data)
 	if err != nil {
-		panic(err)
+		return Responder{}, errors.New("could not complete request: " + err.Error())
 	}
-	return resp
+	return resp, nil
+}
+
+func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
+
+	var request Request
+	request = requestFromProto(req)
+	responder := Responder{}
+
+	handler, ok := g.registeredFunctions[request.Method]
+	if !ok {
+		responder.HadError = true
+		responder.ErrorString = "Could not locate method in registered process map"
+	} else {
+		handler(request, &responder)
+	}
+
+	return responder.toProto(), nil
+}
+
+func parseYamlConfig(relativePath string) (*config, error) {
+	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	var conf config
+	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
+	if err != nil {
+		notify.StdMsgErr(path + relativePath)
+		return nil, errors.New("could not find yaml file")
+	}
+	err = yaml.Unmarshal(yamlFile, &conf)
+	if err != nil {
+		return nil, errors.New("could not unmarshal config")
+	}
+	return &conf, nil
 }
 
 // Request is the publically exposed requester between services in gmbh
@@ -184,52 +268,5 @@ func responderFromProto(r cabal.Responder) Responder {
 		Result:      r.Result,
 		ErrorString: r.ErrorString,
 		HadError:    r.HadError,
-	}
-}
-
-func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
-
-	var request Request
-	request = requestFromProto(req)
-	responder := Responder{}
-
-	handler, ok := g.registeredFunctions[request.Method]
-	if !ok {
-		responder.HadError = true
-		responder.ErrorString = "Could not locate method in registered process map"
-	} else {
-		handler(request, &responder)
-	}
-
-	return responder.toProto(), nil
-}
-
-func parseYamlConfig(relativePath string) (*Client, error) {
-	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
-	}
-	var conf Client
-	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
-	if err != nil {
-		notify.StdMsgErr(path + relativePath)
-		return nil, errors.New("could not find yaml file")
-	}
-	err = yaml.Unmarshal(yamlFile, &conf)
-	if err != nil {
-		return nil, errors.New("could not unmarshal config")
-	}
-	return &conf, nil
-}
-
-func dlog(msg string) {
-	if debug {
-		notify.StdMsgMagenta(msg)
-	}
-}
-
-func rlog(msg string) {
-	if debug {
-		fmt.Println(msg)
 	}
 }

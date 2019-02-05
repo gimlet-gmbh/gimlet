@@ -1,8 +1,8 @@
 package defaults
 
 const (
-	VERSION           = "0.8.0"
-	CODE              = "ctrl"
+	VERSION           = "0.8.1"
+	CODE              = "handshake"
 	CORE_PATH_MAC     = "/usr/local/bin/gmbhCore"
 	CORE_PATH_LINUX   = ""
 	CORE_PATH_WINDOWS = ""

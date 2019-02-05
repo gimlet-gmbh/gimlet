@@ -8,12 +8,16 @@ package gmbh
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/notify"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -46,7 +50,7 @@ func makeRequest() (cabal.CabalClient, context.Context, context.CancelFunc, erro
 	return client, ctx, can, nil
 }
 
-func _ephemeralRegisterService(name string, isClient bool, isServer bool) (string, error) {
+func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool) (string, error) {
 
 	client, ctx, can, err := makeRequest()
 	if err != nil {
@@ -65,15 +69,15 @@ func _ephemeralRegisterService(name string, isClient bool, isServer bool) (strin
 
 	reply, err := client.EphemeralRegisterService(ctx, &request)
 	if err != nil {
+		if grpc.Code(err) == codes.Unavailable {
+			return "", errors.New("registration.gmbhUnavailable")
+		}
 		panic(err)
 	}
-
-	fmt.Println(reply.Status + "@" + reply.Address + "@" + reply.CorePath)
-
 	return reply.Address, nil
 }
 
-func _makeDataRequest(target string, method string, data string) (Responder, error) {
+func makeDataRequest(target string, method string, data string) (Responder, error) {
 
 	client, ctx, can, err := makeRequest()
 	if err != nil {
@@ -92,7 +96,7 @@ func _makeDataRequest(target string, method string, data string) (Responder, err
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	dlog("<==" + mcs + "== target: " + target + ", method: " + method)
+	notify.StdMsgNoPrompt("<==" + mcs + "== target: " + target + ", method: " + method)
 
 	reply, err := client.MakeDataRequest(ctx, &request)
 	if err != nil {
@@ -106,12 +110,12 @@ func _makeDataRequest(target string, method string, data string) (Responder, err
 		return r, err
 
 	}
-	dlog(" ==" + mcs + "==> result: " + reply.Resp.Result + ", errors?: " + reply.Resp.ErrorString)
+	notify.StdMsgNoPrompt(" ==" + mcs + "==> result: " + reply.Resp.Result + ", errors?: " + reply.Resp.ErrorString)
 
 	return responderFromProto(*reply.Resp), nil
 }
 
-func _makeUnregisterRequest(name string) {
+func makeUnregisterRequest(name string) {
 	client, ctx, can, err := makeRequest()
 	if err != nil {
 		panic(err)
@@ -155,7 +159,7 @@ func (s *_server) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*caba
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	dlog("==" + mcs + "==> from: " + in.Req.Sender + ", method: " + in.Req.Method)
+	notify.StdMsgNoPrompt("==" + mcs + "==> from: " + in.Req.Sender + ", method: " + in.Req.Method)
 
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
