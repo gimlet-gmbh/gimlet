@@ -23,7 +23,7 @@ func pprintListOne(service cabal.Service) {
 	notify.StdMsgNoPrompt(" Name:\t"+service.GetName(), 2)
 	notify.StdMsgNoPrompt(" PID:\t"+strconv.Itoa(int(service.GetPid())), 2)
 	notify.StdMsgNoPrompt(" Start:\t"+service.GetStartTime(), 2)
-	if service.GetStatus() == "failed" {
+	if service.GetStatus() == "Failed" {
 		notify.StdMsgErrNoPrompt(" Status:\t"+service.GetStatus(), 2)
 		notify.StdMsgErrNoPrompt(" Failed:\t"+service.GetFailTime(), 2)
 	} else if service.GetStatus() == "degraded" {
@@ -87,7 +87,7 @@ func pprintListAll(processes []*cabal.Service) {
 
 		extraSpace := false
 		sColor := color.FgGreen
-		if p.Status != "running" {
+		if p.Status != "Running" {
 			sColor = color.FgRed
 			extraSpace = true
 		}

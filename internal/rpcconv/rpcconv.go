@@ -6,6 +6,7 @@ import (
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
+	"github.com/gmbh-micro/service/process"
 )
 
 // ServicesToRPCs translates an array of service pointers to an array of cabal service pointers
@@ -36,15 +37,20 @@ func ServiceToRPC(s service.Service) *cabal.Service {
 	}
 	if s.Mode == service.Managed {
 		rpcService.Mode = "managed"
-		if s.Process.GetStatus() {
-			errs := s.Process.ReportErrors()
-			if len(errs) == 0 {
-				rpcService.Status = "running"
-			} else {
-				rpcService.Status = "degraded"
-			}
-		} else {
-			rpcService.Status = "failed"
+
+		switch s.Process.GetStatus() {
+		case process.Stable:
+			rpcService.Status = "Stable"
+		case process.Running:
+			rpcService.Status = "Running"
+		case process.Degraded:
+			rpcService.Status = "Degraded"
+		case process.Failed:
+			rpcService.Status = "Failed"
+		case process.Killed:
+			rpcService.Status = "Killed"
+		case process.Initialized:
+			rpcService.Status = "Initialized"
 		}
 	} else {
 		rpcService.Mode = "serviceToRPC.nonmanagedServiceError"

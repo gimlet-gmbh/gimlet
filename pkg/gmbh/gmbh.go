@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -76,6 +77,9 @@ func (g *Client) Config(path string) (*Client, error) {
 		notify.StdMsgErr("could not parse config=" + path)
 		return nil, errors.New("could not parse config=" + path)
 	}
+	if g.conf.CoreAddress == "" {
+		g.conf.CoreAddress = defaults.DEFAULT_HOST + defaults.DEFAULT_PORT
+	}
 	g.configured = true
 	return g, nil
 }
@@ -107,27 +111,6 @@ func (g *Client) Start() {
 }
 
 func (g *Client) start() {
-	notify.StdMsgNoPrompt("------------------------------------------------------------")
-	notify.StdMsg("started, time=" + time.Now().Format(time.RFC3339))
-	if g.configured {
-		notify.StdMsg("gmbh configuration valid")
-	} else {
-		notify.StdMsgErr("gmbh configuration invalid")
-	}
-	addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
-	if err != nil {
-		for err.Error() == "registration.gmbhUnavailable" {
-			notify.StdMsgErr("Could not reach gmbhCore, trying again in 5 seconds")
-			time.Sleep(time.Second * 5)
-			addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
-		}
-		notify.StdMsg("gmbh.Start.error: " + err.Error())
-	}
-	notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
-	if addr != "" {
-		notify.StdMsgGreen("assigned address=" + addr)
-	}
-
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
 
@@ -136,9 +119,33 @@ func (g *Client) start() {
 		_ = <-sigs
 		done <- true
 	}()
-	if addr != "" {
-		go rpcConnect(addr)
+
+	notify.StdMsgNoPrompt("------------------------------------------------------------")
+	notify.StdMsg("started, time=" + time.Now().Format(time.RFC3339))
+	if g.configured {
+		notify.StdMsg("gmbh configuration valid")
+	} else {
+		notify.StdMsgErr("gmbh configuration invalid")
 	}
+	go func() {
+		addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
+		if err != nil {
+			for err.Error() == "registration.gmbhUnavailable" {
+				notify.StdMsgErr("Could not reach gmbhCore, trying again in 5 seconds")
+				time.Sleep(time.Second * 5)
+				addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
+			}
+			notify.StdMsg("gmbh.Start.error: " + err.Error())
+		}
+		notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
+		if addr != "" {
+			notify.StdMsgGreen("assigned address=" + addr)
+		}
+
+		if addr != "" {
+			go rpcConnect(addr)
+		}
+	}()
 
 	<-done
 	makeUnregisterRequest(g.conf.ServiceName)

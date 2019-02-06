@@ -43,6 +43,28 @@ func listAll() {
 	pprintListAll(reply.Services)
 }
 
+func report() {
+	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
+	if err != nil {
+		notify.StdMsgErr("error: " + err.Error())
+	}
+	defer can()
+
+	request := cabal.AllRequest{}
+	reply, err := client.ListAll(ctx, &request)
+	if err != nil {
+		notify.StdMsgBlue("Could not contact gmbhServer")
+		notify.StdMsgErr("error: "+err.Error(), 1)
+		return
+	}
+	if reply.Length == 0 {
+		notify.StdMsgBlue("no services to list")
+	}
+	for _, s := range reply.GetServices() {
+		pprintListOne(*s)
+	}
+}
+
 func restartAll() {
 	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 // GoProc is a fulfilment of the Process interface for GoProcesses
 type GoProc struct {
 	Inf    *Info
+	status Status
 	Run    *Runtime
 	Err    *Perr
 	Update *sync.Mutex
@@ -30,6 +31,7 @@ func NewGoProc(name, path, dir string) *GoProc {
 			path: path,
 			dir:  dir,
 		},
+		status: Initialized,
 		Run: &Runtime{
 			Pid: -1,
 		},
@@ -50,8 +52,10 @@ func (g *GoProc) Start() (int, error) {
 	pid := <-getPidChan
 
 	if pid != -1 {
+		g.status = Running
 		return pid, nil
 	}
+	g.status = Failed
 	return -1, errors.New("GoProc.Start.unableToStartProcess")
 }
 
@@ -79,6 +83,7 @@ func (g *GoProc) Kill(withoutRestart bool) {
 	if withoutRestart {
 		g.Run.userKilled = false
 	}
+	g.status = Killed
 	g.Update.Unlock()
 
 	g.raise(g.Run.Pid, syscall.SIGINT)
@@ -137,6 +142,7 @@ func (g *GoProc) handleFailure() {
 	g.Update.Lock()
 	g.Run.DeathTime = time.Now()
 	g.Run.running = false
+	g.status = Failed
 
 	if g.Run.userKilled {
 		notify.StdMsgErr("user killed")
@@ -166,8 +172,8 @@ func (g *GoProc) handleFailure() {
 }
 
 // GetStatus of the process
-func (g *GoProc) GetStatus() bool {
-	return g.Run.running
+func (g *GoProc) GetStatus() Status {
+	return g.status
 }
 
 // GetInfo about a go process

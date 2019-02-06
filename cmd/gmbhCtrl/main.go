@@ -23,10 +23,10 @@ func main() {
 		notify.StdMsgBlue("gmbhCtrl Tool")
 		notify.StdMsgBlue("starting version " + defaults.VERSION)
 		notify.StdMsgBlue("running in debug mode")
-
 	}
 
 	listAllFlag := flag.Bool("list", false, "list all processes")
+	reportFlag := flag.Bool("report", false, "list all processes in report format")
 	restartAllFlag := flag.Bool("restart", false, "restart all processes")
 	listOneFlag := flag.String("list-one", "", "list all processes")
 	restartOneFlag := flag.String("restart-one", "", "list all processes")
@@ -35,6 +35,8 @@ func main() {
 
 	if *listAllFlag {
 		listAll()
+	} else if *reportFlag {
+		report()
 	} else if *restartAllFlag {
 		restartAll()
 	} else if *listOneFlag != "" {

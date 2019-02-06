@@ -7,6 +7,7 @@ import (
 
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
+	"github.com/gmbh-micro/service/process"
 )
 
 // Router represents the handling of services including their process
@@ -36,7 +37,7 @@ func (r *Router) LookupService(name string) (*service.Service, error) {
 	if service == nil {
 		return nil, errors.New("router.LookupService.nameNotFound")
 	}
-	if service.Process.GetStatus() {
+	if service.GetProcess().GetStatus() == process.Running || service.GetProcess().GetStatus() == process.Stable {
 		return service, nil
 	}
 	return service, errors.New("router.LookupService.processNotRunning")
@@ -48,7 +49,7 @@ func (r *Router) LookupAddress(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if service.Process.GetStatus() {
+	if service.GetProcess().GetStatus() == process.Running || service.GetProcess().GetStatus() == process.Stable {
 		return service.Address, nil
 	}
 	return "", errors.New("router.LookupAddress: process reported as not running from process management")
@@ -122,7 +123,7 @@ func (r *Router) GetAllServices() []*service.Service {
 func (r *Router) KillAllServices() {
 	for _, name := range r.Names {
 		if r.Services[name].Mode == service.Managed {
-			r.Services[name].GetProcess().Kill(true)
+			r.Services[name].KillProcess()
 		}
 	}
 }
@@ -131,7 +132,7 @@ func (r *Router) KillAllServices() {
 func (r *Router) RestartAllServices() {
 	for _, name := range r.Names {
 		if r.Services[name].Mode == service.Managed {
-			r.Services[name].GetProcess().Restart(false)
+			r.Services[name].RestartProcess()
 		}
 	}
 }

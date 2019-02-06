@@ -10,6 +10,32 @@ import (
 // Things to think about
 // How will untimely process death be notifed
 
+// Status is the enumerated stated of the current status of the service
+type Status int
+
+const (
+	// Stable ; the process is running and without error for x amunt of time
+	Stable Status = 1
+
+	// Running ; the process is running but not yet stable
+	Running Status = 2
+
+	// Degraded ; the process is running but with error
+	Degraded Status = 3
+
+	// Failed ; the process has ran and failed
+	Failed Status = 4
+
+	// Killed ; the process has been killed
+	Killed Status = 5
+
+	// Initialized ; the process object has been instantiated but not started
+	Initialized Status = 6
+
+	// Invalid ; the service is running in planetary mode
+	Invalid Status = 7
+)
+
 // Process represents the runtime process of a service
 type Process interface {
 	Start() (int, error)
@@ -18,7 +44,7 @@ type Process interface {
 	ForkExec(pid chan int)
 	getCmd() *exec.Cmd
 	handleFailure()
-	GetStatus() bool
+	GetStatus() Status
 	GetInfo() *Info
 	GetRuntime() *Runtime
 	ReportErrors() []string
@@ -82,9 +108,10 @@ func checkDir(path string) {
 // EmptyProc fulfills process interface without holding any data. This is used
 // for processes that are not in managed mode
 type EmptyProc struct {
-	Inf *Info
-	Run *Runtime
-	Err Perr
+	Inf    *Info
+	status Status
+	Run    *Runtime
+	Err    Perr
 }
 
 // NewEmptyProc returns emptyProc
@@ -118,8 +145,8 @@ func (e *EmptyProc) handleFailure() {
 }
 
 // GetStatus placeholder
-func (e *EmptyProc) GetStatus() bool {
-	return false
+func (e *EmptyProc) GetStatus() Status {
+	return Invalid
 }
 
 // GetInfo placeholder

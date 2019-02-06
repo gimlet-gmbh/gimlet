@@ -8,9 +8,10 @@ import (
 // NodeProc fulfills process interface without holding any data. This is used
 // for processes that are not in managed mode
 type NodeProc struct {
-	Inf *Info
-	Run *Runtime
-	Err Perr
+	Inf    *Info
+	status Status
+	Run    *Runtime
+	Err    Perr
 }
 
 // NewNodeProc returns NodeProc
@@ -44,8 +45,8 @@ func (e *NodeProc) handleFailure() {
 }
 
 // GetStatus placeholder
-func (e *NodeProc) GetStatus() bool {
-	return false
+func (e *NodeProc) GetStatus() Status {
+	return e.status
 }
 
 // GetInfo placeholder

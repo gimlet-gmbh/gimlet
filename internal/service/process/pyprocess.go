@@ -8,9 +8,10 @@ import (
 // PyProc fulfills process interface without holding any data. This is used
 // for processes that are not in managed mode
 type PyProc struct {
-	Inf *Info
-	Run *Runtime
-	Err Perr
+	Inf    *Info
+	status Status
+	Run    *Runtime
+	Err    Perr
 }
 
 // NewPyProc returns PyProc
@@ -44,8 +45,8 @@ func (e *PyProc) handleFailure() {
 }
 
 // GetStatus placeholder
-func (e *PyProc) GetStatus() bool {
-	return false
+func (e *PyProc) GetStatus() Status {
+	return e.status
 }
 
 // GetInfo placeholder

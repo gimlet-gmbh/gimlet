@@ -35,7 +35,7 @@ const (
 	CONFIG_FILE      = "/gmbh.yaml"
 	CONFIG_FILE_EXT  = ".yaml"
 	SERVICE_LOG_PATH = "/gmbh/"
-	SERVICE_LOG_FILE = ".gmbh"
+	SERVICE_LOG_FILE = "gmbh.log"
 )
 
 // For use with router

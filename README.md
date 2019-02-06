@@ -5,8 +5,7 @@
 Run the install script in the scripts folder. Make sure that you have set your go path before doing this. For now be sure be be using Go version >= 1.10.
 
 ### Roadmap
-* control server needs finished
-    * service and pmgmt need refactored first
+* control server needs finished **in-progress**
     * how to attach services on the fly
         * Do we enforce where they can and can't be?
         * do they have to be specified in the ini file? (yes)
@@ -14,9 +13,11 @@ Run the install script in the scripts folder. Make sure that you have set your g
             * merits/ discussion?
             * How do we attach processes that are not local? i.e. in a Docker or on a different host?
                 * Array in ini file? merits/ discussion?
-    * get rich detail from each service
+    * get rich detail from each service **in-progress**
     * Maybe have a web gui to do this with?
         * Would make docker version easy to use
+* Refactor process manager **in-progress**
+    * Report status stable mechanism
 * Core
     * Service discovery
         * make sure that services are not being duplicated when added
@@ -28,7 +29,6 @@ Run the install script in the scripts folder. Make sure that you have set your g
         * should be close
         * install scripts
     * macOS
-        * refactor install scripts
         * where can gmbhCtrl find the control address from gmbhCore?
             * should we allow gmbhCtrl to be run only in the directory in which the project is stored unless 
 * Docker support
@@ -46,8 +46,8 @@ Run the install script in the scripts folder. Make sure that you have set your g
         * java
         * c#
 * standardization of config ini files
-    * for individual services
-    * for gmbhCore
+    * for individual services **in-progress**
+    * for gmbhCore **in-progress**
     * Do we require a makefile for compiled languages or do we use go tools, etc.
         * Need to make sure that go tools are rock solid on process mgmt
 * Should we refactor gmbh to start Core with **only** a path to a config file if we are starting it in daemon mode?
