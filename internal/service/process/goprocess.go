@@ -96,7 +96,7 @@ func (g *GoProc) ForkExec(pid chan int) {
 	listener := make(chan error)
 	err := cmd.Start()
 	if err != nil {
-		fmt.Println(fmt.Sprintf("Could not start process (error=%v)", err))
+		// fmt.Println(fmt.Sprintf("Could not start process (error=%v)", err))
 		pid <- -1
 		return
 	}
@@ -138,7 +138,7 @@ func (g *GoProc) getCmd() *exec.Cmd {
 	return cmd
 }
 func (g *GoProc) handleFailure() {
-	// notify.StdMsgErr("Failure reported:" + strconv.Itoa(g.Run.Pid) + " " + g.Inf.name)
+
 	g.Update.Lock()
 	g.Run.DeathTime = time.Now()
 	g.Run.running = false
@@ -148,10 +148,22 @@ func (g *GoProc) handleFailure() {
 		notify.StdMsgErr("user killed")
 	} else {
 		// Should we restart?
-		if g.Run.restartCounter < defaults.NUM_RETRIES {
+		reset := false
+		// if it has been more than defaults.TIMEOUT seconds since it has last failed
+		// restart the counter because it was previously stable
+		if time.Since(g.Run.StartTime) > (time.Second * defaults.TIMEOUT) {
+			g.Err.errors = append(g.Err.errors, errors.New("process no longer stable"))
+			reset = true
+			g.Run.restartCounter = 0
+		}
 
-			msg := fmt.Sprintf("restart attempt %d/%d at %v with pid=(%d)", g.Run.restartCounter+1, defaults.NUM_RETRIES, time.Now().Format(time.RFC3339), g.Run.Pid)
-			// notify.StdMsgErr(g.Inf.name + " " + msg)
+		if g.Run.restartCounter < defaults.NUM_RETRIES {
+			msg := ""
+			if reset {
+				msg = fmt.Sprintf("restart attempt at %v with pid=(%d)", time.Now().Format(time.RFC3339), g.Run.Pid)
+			} else {
+				msg = fmt.Sprintf("restart attempt %d/%d at %v with pid=(%d)", g.Run.restartCounter+1, defaults.NUM_RETRIES, time.Now().Format(time.RFC3339), g.Run.Pid)
+			}
 			g.Err.errors = append(g.Err.errors, errors.New(msg))
 
 			g.Run.Fails++
@@ -163,7 +175,6 @@ func (g *GoProc) handleFailure() {
 		}
 
 		msg := fmt.Sprintf("must restart manually: %v, last known pid=(%d)", time.Now().Format(time.RFC3339), g.Run.Pid)
-		// notify.StdMsgErr(g.Inf.name + " " + msg)
 		g.Err.errors = append(g.Err.errors, errors.New(msg))
 
 	}

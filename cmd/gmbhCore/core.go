@@ -26,6 +26,7 @@ import (
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/router"
 	"github.com/gmbh-micro/service"
+	"github.com/gmbh-micro/service/static"
 	"github.com/gmbh-micro/setting"
 
 	"google.golang.org/grpc"
@@ -43,6 +44,7 @@ type Core struct {
 	ProjectPath       string
 	Config            *setting.UserConfig
 	Router            *router.Router
+	MsgCounter        int
 	log               *os.File
 	logm              *sync.Mutex
 	controlServerLock *sync.Mutex
@@ -63,6 +65,7 @@ func StartCore(path string, verbose bool, daemon bool) *Core {
 		Config:      userConfig,
 		Router:      router.NewRouter(),
 		ProjectPath: path,
+		MsgCounter:  1,
 	}
 
 	notify.SetVerbose(verbose)
@@ -98,7 +101,7 @@ func (c *Core) ServiceDiscovery() {
 	for i, servicePath := range servicePaths {
 
 		// Add a new managed service to router
-		newService, err := c.Router.AddService(servicePath+defaults.CONFIG_FILE, service.Managed)
+		newService, err := c.Router.AddManagedService(servicePath + defaults.CONFIG_FILE)
 		if err != nil {
 			// report the error and skip the rest for now
 			// TODO: Better process error handling
@@ -296,4 +299,131 @@ func (c *Core) shutdown(remote bool) {
 	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
 	c.logm.Unlock()
 	c.log.Close()
+}
+
+func (c *Core) registerRemoteService(name string, aliases []string, isclient bool, isserver bool) (*service.Service, error) {
+	static := &static.Static{
+		Name:     name,
+		Aliases:  aliases,
+		Mode:     "remote",
+		IsClient: isclient,
+		IsServer: isserver,
+	}
+	return c.Router.AddRemoteService(static)
+}
+
+// GetMsgCount of the current msg counter and increment the count
+func (c *Core) GetMsgCount() int {
+	defer func() { c.MsgCounter++ }()
+	return c.MsgCounter
+}
+
+// RequestHandler ; handle making requests between services in the raw protobuffer objects
+type RequestHandler struct {
+	Request   *cabal.Request
+	Responder *cabal.Responder
+	Errors    []error
+	startTime time.Time
+	success   bool
+	count     int
+}
+
+func newRequestHandler(request *cabal.Request) RequestHandler {
+	return RequestHandler{
+		Request:   request,
+		startTime: time.Now(),
+	}
+}
+
+// Fulfill 's the request
+func (r *RequestHandler) Fulfill() {
+
+	// Get the core instance
+	c, err := getCore()
+	if err != nil {
+		r.Errors = append(r.Errors, err)
+		r.reportRequest(c.Config.Daemon)
+		return
+	}
+
+	r.count = c.GetMsgCount()
+
+	// Get the address of the target from the router
+	address, err := c.Router.LookupAddress(r.Request.Target)
+	if err != nil {
+		r.Errors = append(r.Errors, err)
+		r.processErrors()
+		r.reportRequest(c.Config.Daemon)
+		return
+	}
+
+	// make sure that the address exists
+	if address == "" {
+		r.Errors = append(r.Errors, errors.New("requestHandler.Fulfill.addressStringEmpty"))
+		r.processErrors()
+		r.reportRequest(c.Config.Daemon)
+		return
+	}
+
+	r.success = true
+
+	// forward the message and get the responder
+	r.forewardRequest(address)
+
+	// process the errors to make sure that there is always a responder and it always
+	// is reporting the correct error data
+	r.processErrors()
+
+	// Notify stdOut or logger of request
+	r.reportRequest(c.Config.Daemon)
+}
+
+func (r *RequestHandler) processErrors() {
+
+	if r.Responder == nil {
+		r.Responder = &cabal.Responder{}
+	}
+
+	if len(r.Errors) > 0 {
+		r.Responder.HadError = true
+		errStrs := []string{}
+		for _, e := range r.Errors {
+			errStrs = append(errStrs, e.Error())
+		}
+		r.Responder.ErrorString = strings.Join(errStrs, ",")
+	}
+}
+
+func (r *RequestHandler) forewardRequest(address string) {
+	client, ctx, can, err := makeRequest(address)
+	if err != nil {
+		panic(err)
+	}
+	defer can()
+
+	request := cabal.DataReq{Req: r.Request}
+
+	response, err := client.MakeDataRequest(ctx, &request)
+	if err != nil {
+		r.Errors = append(r.Errors, err)
+		return
+	}
+	r.Responder = response.GetResp()
+}
+
+// GetResponder to fulfil transaction between services
+func (r *RequestHandler) GetResponder() *cabal.Responder {
+	return r.Responder
+}
+
+func (r *RequestHandler) reportRequest(silently bool) {
+	if !silently {
+		notify.StdMsgBlue(fmt.Sprintf("<(%d)- Processing data request; sender=(%s); target=(%s); method=(%s)", r.count, r.Request.Sender, r.Request.Target, r.Request.Method))
+		if r.success == true {
+			notify.StdMsgGreen(fmt.Sprintf("-(%d)> Success; duration=(%s); errorString=(%s)", r.count, time.Since(r.startTime), r.Responder.ErrorString))
+			return
+		}
+		notify.StdMsgErr(fmt.Sprintf("-(%d)> Failed; duration=(%s); errorString=(%s)", r.count, time.Since(r.startTime), r.Responder.ErrorString))
+		return
+	}
 }

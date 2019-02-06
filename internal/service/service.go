@@ -69,8 +69,8 @@ func (s *Service) GetProcess() process.Process {
 	return s.Process
 }
 
-// NewService tries to parse the required info from a config file located at path
-func NewService(path string, mode Mode) (*Service, error) {
+// NewManagedService tries to parse the required info from a config file located at path
+func NewManagedService(path string) (*Service, error) {
 	staticData, err := static.ParseData(path)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func NewService(path string, mode Mode) (*Service, error) {
 
 	service := Service{
 		ID:     assignNextID(),
-		Mode:   mode,
+		Mode:   Managed,
 		Path:   dir,
 		Static: staticData,
 	}
@@ -90,6 +90,19 @@ func NewService(path string, mode Mode) (*Service, error) {
 		service.Status = Unconfigured
 		return &service, errors.New("invalid config file")
 	}
+	service.Status = Configured
+	return &service, nil
+}
+
+// NewRemoteService returns a new service with static data that is passed in
+func NewRemoteService(staticData *static.Static) (*Service, error) {
+
+	service := Service{
+		ID:     assignNextID(),
+		Mode:   Remote,
+		Static: staticData,
+	}
+
 	service.Status = Configured
 	return &service, nil
 }

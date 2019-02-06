@@ -24,20 +24,22 @@ func ServiceToRPC(s service.Service) *cabal.Service {
 	procRuntime := s.GetProcess().GetRuntime()
 
 	rpcService := &cabal.Service{
-		Id:        s.ID,
-		Name:      s.Static.Name,
-		Path:      s.Path,
-		LogPath:   s.Path + defaults.SERVICE_LOG_PATH + defaults.SERVICE_LOG_FILE,
-		Pid:       int32(procRuntime.Pid),
-		Fails:     int32(procRuntime.Fails),
-		Restarts:  int32(procRuntime.Restarts),
-		StartTime: procRuntime.StartTime.Format(time.RFC3339),
-		FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
-		Errors:    s.GetProcess().ReportErrors(),
+		Id:      s.ID,
+		Name:    s.Static.Name,
+		Path:    s.Path,
+		LogPath: s.Path + defaults.SERVICE_LOG_PATH + defaults.SERVICE_LOG_FILE,
 	}
-	if s.Mode == service.Managed {
-		rpcService.Mode = "managed"
 
+	if s.Mode == service.Managed {
+
+		rpcService.Pid = int32(procRuntime.Pid)
+		rpcService.Fails = int32(procRuntime.Fails)
+		rpcService.Restarts = int32(procRuntime.Restarts)
+		rpcService.StartTime = procRuntime.StartTime.Format(time.RFC3339)
+		rpcService.FailTime = procRuntime.DeathTime.Format(time.RFC3339)
+		rpcService.Errors = s.GetProcess().ReportErrors()
+
+		rpcService.Mode = "managed"
 		switch s.Process.GetStatus() {
 		case process.Stable:
 			rpcService.Status = "Stable"
@@ -52,9 +54,9 @@ func ServiceToRPC(s service.Service) *cabal.Service {
 		case process.Initialized:
 			rpcService.Status = "Initialized"
 		}
-	} else {
-		rpcService.Mode = "serviceToRPC.nonmanagedServiceError"
-		rpcService.Status = "non-managed"
+	} else if s.Mode == service.Remote {
+		rpcService.Mode = "remote"
+		rpcService.Status = "-"
 	}
 	return rpcService
 }

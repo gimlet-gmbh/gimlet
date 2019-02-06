@@ -35,7 +35,7 @@ const (
 	CONFIG_FILE      = "/gmbh.yaml"
 	CONFIG_FILE_EXT  = ".yaml"
 	SERVICE_LOG_PATH = "/gmbh/"
-	SERVICE_LOG_FILE = "gmbh.log"
+	SERVICE_LOG_FILE = "core.log"
 )
 
 // For use with router
@@ -48,4 +48,5 @@ const (
 const (
 	STARTING_ID = 100
 	NUM_RETRIES = 3
+	TIMEOUT     = 30
 )

@@ -50,7 +50,7 @@ func makeRequest() (cabal.CabalClient, context.Context, context.CancelFunc, erro
 	return client, ctx, can, nil
 }
 
-func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool) (string, error) {
+func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool, mode string) (string, error) {
 
 	client, ctx, can, err := makeRequest()
 	if err != nil {
@@ -67,6 +67,11 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool)
 		},
 	}
 
+	if mode == "remote" {
+		notify.StdMsg("starting in remote mode")
+		request.NewServ.Mode = cabal.NewService_REMOTE
+	}
+
 	reply, err := client.EphemeralRegisterService(ctx, &request)
 	if err != nil {
 		if grpc.Code(err) == codes.Unavailable {
@@ -74,7 +79,10 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool)
 		}
 		panic(err)
 	}
-	return reply.Address, nil
+	if reply.Status == "awknowledged" {
+		return reply.GetAddress(), nil
+	}
+	return "", errors.New(reply.GetStatus())
 }
 
 func makeDataRequest(target string, method string, data string) (Responder, error) {

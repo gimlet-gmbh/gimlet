@@ -41,9 +41,10 @@ type Client struct {
 type config struct {
 	ServiceName string   `yaml:"name"`
 	Aliases     []string `yaml:"aliases"`
-	IsServer    bool     `yaml:"isserver"`
-	IsClient    bool     `yaml:"isclient"`
+	IsServer    bool     `yaml:"is_server"`
+	IsClient    bool     `yaml:"is_client"`
 	CoreAddress string   `yaml:"core_address"`
+	Mode        string   `yaml:"mode"`
 }
 
 // g - the gmbhCore object that contains the parsed yaml config and other associated data
@@ -60,10 +61,11 @@ func NewService() *Client {
 
 	notify.SetVerbose(false)
 
-	g := &Client{
+	g = &Client{
 		registeredFunctions: make(map[string]HandlerFunc),
 		configured:          false,
 		blocking:            true,
+		msgCounter:          0,
 	}
 	return g
 
@@ -128,14 +130,16 @@ func (g *Client) start() {
 		notify.StdMsgErr("gmbh configuration invalid")
 	}
 	go func() {
-		addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
-		if err != nil {
-			for err.Error() == "registration.gmbhUnavailable" {
+		addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
+		for err != nil {
+			for err != nil && err.Error() == "registration.gmbhUnavailable" {
 				notify.StdMsgErr("Could not reach gmbhCore, trying again in 5 seconds")
 				time.Sleep(time.Second * 5)
-				addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer)
+				addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
 			}
-			notify.StdMsg("gmbh.Start.error: " + err.Error())
+			if err != nil {
+				notify.StdMsg("gmbh.Start.error: " + err.Error())
+			}
 		}
 		notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
 		if addr != "" {

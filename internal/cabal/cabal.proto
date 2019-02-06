@@ -145,6 +145,13 @@ message NewService {
     // Any aliases to recognize the service
     repeated string Aliases = 2;
 
+    enum MMode {
+        MANAGED = 0;
+        REMOTE = 1;
+        PLANETARY = 2;
+    }
+    MMode Mode = 5;
+
     // True if service can make data requests
     bool IsClient = 3;
 

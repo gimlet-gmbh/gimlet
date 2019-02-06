@@ -21,6 +21,7 @@ func pprintListOne(service cabal.Service) {
 	notify.StdMsg("Displaying service information")
 	notify.StdMsgNoPrompt(" ID:\t"+service.GetId(), 2)
 	notify.StdMsgNoPrompt(" Name:\t"+service.GetName(), 2)
+	notify.StdMsgNoPrompt(" Mode:\t"+service.GetMode(), 2)
 	notify.StdMsgNoPrompt(" PID:\t"+strconv.Itoa(int(service.GetPid())), 2)
 	notify.StdMsgNoPrompt(" Start:\t"+service.GetStartTime(), 2)
 	if service.GetStatus() == "Failed" {

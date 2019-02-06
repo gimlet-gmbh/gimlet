@@ -39,8 +39,8 @@ func main() {
 	}
 	notify.StdMsgBlue("Path: " + path)
 
-	s, err := service.NewService(path, service.Remote)
-	s.StartLog(dir, "process-manager.log")
+	s, err := service.NewManagedService(path)
+	s.StartLog(dir+"/gmbh", "process-manager.log")
 	if err != nil {
 		notify.StdMsgErr("could not create service: " + err.Error())
 		os.Exit(1)
@@ -67,7 +67,7 @@ func main() {
 	s.KillProcess()
 
 	fmt.Println("")
-	notify.StdMsgGreen("Shutdown signal received")
+	notify.StdMsgMagenta("Recieved shutdown signal")
 
 	os.Exit(0)
 }

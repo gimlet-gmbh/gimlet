@@ -8,6 +8,7 @@ import (
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
 	"github.com/gmbh-micro/service/process"
+	"github.com/gmbh-micro/service/static"
 )
 
 // Router represents the handling of services including their process
@@ -33,26 +34,32 @@ func NewRouter() *Router {
 
 // LookupService looks through the services map and returns the service if it exists
 func (r *Router) LookupService(name string) (*service.Service, error) {
-	service := r.Services[name]
-	if service == nil {
+	retrievedService := r.Services[name]
+	if retrievedService == nil {
 		return nil, errors.New("router.LookupService.nameNotFound")
 	}
-	if service.GetProcess().GetStatus() == process.Running || service.GetProcess().GetStatus() == process.Stable {
-		return service, nil
+	if retrievedService.Mode == service.Managed {
+		if retrievedService.GetProcess().GetStatus() == process.Running || retrievedService.GetProcess().GetStatus() == process.Stable {
+			return retrievedService, nil
+		}
+		return retrievedService, errors.New("router.LookupService.processNotRunning")
 	}
-	return service, errors.New("router.LookupService.processNotRunning")
+	return retrievedService, nil
 }
 
 // LookupAddress looks through the service map and returns the service address if it could be found
 func (r *Router) LookupAddress(name string) (string, error) {
-	service, err := r.LookupService(name)
-	if err != nil {
-		return "", err
+	retrievedService := r.Services[name]
+	if retrievedService == nil {
+		return "", errors.New("router.LookupService.nameNotFound")
 	}
-	if service.GetProcess().GetStatus() == process.Running || service.GetProcess().GetStatus() == process.Stable {
-		return service.Address, nil
+	if retrievedService.Mode == service.Managed {
+		if retrievedService.GetProcess().GetStatus() == process.Running || retrievedService.GetProcess().GetStatus() == process.Stable {
+			return retrievedService.Address, nil
+		}
+		return "", errors.New("router.LookupService.processNotRunning")
 	}
-	return "", errors.New("router.LookupAddress: process reported as not running from process management")
+	return retrievedService.Address, nil
 }
 
 // LookupByID looks through the service map and returns the service if the id matches the parameter
@@ -65,10 +72,10 @@ func (r *Router) LookupByID(id string) (*service.Service, error) {
 	return nil, errors.New("router.LookupByID: could not find service")
 }
 
-// AddService attaches a service to gmbH
-func (r *Router) AddService(configFilePath string, mode service.Mode) (*service.Service, error) {
+// AddManagedService attaches a service to gmbH
+func (r *Router) AddManagedService(configFilePath string) (*service.Service, error) {
 
-	newService, err := service.NewService(configFilePath, mode)
+	newService, err := service.NewManagedService(configFilePath)
 	if err != nil {
 		return nil, errors.New("router.AddService.newService " + err.Error())
 	}
@@ -83,6 +90,26 @@ func (r *Router) AddService(configFilePath string, mode service.Mode) (*service.
 		return nil, errors.New("router.AddService.addToMap " + err.Error())
 	}
 
+	return newService, nil
+}
+
+// AddRemoteService to the router
+func (r *Router) AddRemoteService(staticData *static.Static) (*service.Service, error) {
+
+	newService, err := service.NewRemoteService(staticData)
+	if err != nil {
+		return nil, errors.New("router.AddService.newService " + err.Error())
+	}
+
+	// if working with a server, give it an address
+	if newService.Static.IsServer {
+		newService.Address = r.addresses.assignAddress()
+	}
+
+	err = r.addToMap(newService)
+	if err != nil {
+		return nil, errors.New("router.AddService.addToMap " + err.Error())
+	}
 	return newService, nil
 }
 
