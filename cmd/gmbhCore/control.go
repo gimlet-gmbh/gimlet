@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gmbh-micro/cabal"
-	"github.com/gmbh-micro/rpcconv"
+	"github.com/gmbh-micro/rpc"
 )
 
 /**
@@ -59,7 +59,7 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 	serviceNames := cc.Router.Names
 	reply := cabal.ListReply{
 		Length:   int32(len(serviceNames)),
-		Services: rpcconv.ServicesToRPCs(cc.Router.GetAllServices()),
+		Services: rpc.ServicesToRPCs(cc.Router.GetAllServices()),
 	}
 
 	return &reply, nil
@@ -78,7 +78,7 @@ func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*
 
 	reply := cabal.ListReply{
 		Length:   1,
-		Services: []*cabal.Service{rpcconv.ServiceToRPC(*target)},
+		Services: []*cabal.Service{rpc.ServiceToRPC(*target)},
 	}
 
 	return &reply, nil

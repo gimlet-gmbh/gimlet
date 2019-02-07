@@ -8,6 +8,7 @@ package gmbh
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/rpc"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -31,6 +33,7 @@ type HandlerFunc = func(req Request, resp *Responder)
 type Client struct {
 	conf                *config
 	configured          bool
+	con                 *rpc.Connection
 	blocking            bool
 	address             string
 	registeredFunctions map[string]HandlerFunc
@@ -63,6 +66,7 @@ func NewService() *Client {
 
 	g = &Client{
 		registeredFunctions: make(map[string]HandlerFunc),
+		con:                 rpc.NewCabalConnection(),
 		configured:          false,
 		blocking:            true,
 		msgCounter:          0,
@@ -131,24 +135,29 @@ func (g *Client) start() {
 	}
 	go func() {
 		addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
-		for err != nil {
-			for err != nil && err.Error() == "registration.gmbhUnavailable" {
-				notify.StdMsgErr("Could not reach gmbhCore, trying again in 5 seconds")
-				time.Sleep(time.Second * 5)
-				addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
-			}
-			if err != nil {
-				notify.StdMsg("gmbh.Start.error: " + err.Error())
-			}
+		fmt.Println("addr here" + addr)
+		for err != nil && err.Error() == "registration.gmbhUnavailable" {
+			fmt.Println("q")
+			notify.StdMsgErr("Could not reach gmbhCore, trying again in 5 seconds")
+			time.Sleep(time.Second * 5)
+			addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
 		}
+		if err != nil && err.Error() != "registration.gmbhUnavailable" {
+			notify.StdMsgErr("error reported=" + err.Error())
+			panic(err)
+		}
+
 		notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
 		if addr != "" {
 			notify.StdMsgGreen("assigned address=" + addr)
 		}
 
 		if addr != "" {
-			go rpcConnect(addr)
+			g.con.Address = addr
+			g.con.Cabal = &_server{}
+			g.connect()
 		}
+
 	}()
 
 	<-done
@@ -172,6 +181,19 @@ func (g *Client) MakeRequest(target, method, data string) (Responder, error) {
 		return Responder{}, errors.New("could not complete request: " + err.Error())
 	}
 	return resp, nil
+}
+
+func (g *Client) disconnect() {
+	g.con.Disconnect()
+	g.con.Server = nil
+}
+
+func (g *Client) connect() error {
+	err := g.con.Connect()
+	if err != nil {
+		panic(err)
+	}
+	return err
 }
 
 func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {

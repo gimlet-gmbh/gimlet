@@ -79,7 +79,8 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool,
 		}
 		panic(err)
 	}
-	if reply.Status == "awknowledged" {
+
+	if reply.Status == "acknowledged" {
 		return reply.GetAddress(), nil
 	}
 	return "", errors.New(reply.GetStatus())
@@ -153,6 +154,7 @@ func rpcConnect(address string) {
 	if err := s.Serve(list); err != nil {
 		panic(err)
 	}
+
 }
 
 func (s *_server) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
@@ -187,4 +189,32 @@ func (s *_server) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cab
 	}
 
 	return &response, nil
+}
+
+func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+
+	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+
+	if !g.configured {
+		// reply := &cabal.ServiceUpdate{
+		// 	Action:  "error",
+		// 	Message: "invalid service name",
+		// }
+		// return reply, nil
+	}
+
+	if in.GetTarget() != g.conf.ServiceName {
+		reply := &cabal.ServiceUpdate{
+			Action:  "error",
+			Message: "invalid service name",
+		}
+		return reply, nil
+	}
+
+	if in.Action == "core.offline" {
+
+	}
+
+	reply := &cabal.ServiceUpdate{Action: "acknowledged"}
+	return reply, nil
 }

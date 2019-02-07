@@ -42,12 +42,12 @@ service Cabal {
     // rpc AttachProcess
 
     /*
-     * UpdateProcessRegistration 
+     * UpdateServiceRegistration 
      *
      * This should be used to make changes to any registration information.
      * *NOTE* This is a draft spec and this might not make the final cut.
      */
-    //  rpc UpdateProcessRegistration
+     rpc UpdateServiceRegistration (ServiceUpdate) returns (ServiceUpdate) {}
 
     /*
      * MakeDataRequest
@@ -242,7 +242,6 @@ message QueryResponse {
 
     // True if running without errors
     bool Status = 2;
-
     map<string, string> Details = 3;
     repeated string Errors = 4;
 }
@@ -298,4 +297,13 @@ message Service {
     string StartTime = 17;
     string FailTime = 18;
     repeated string Errors = 19;
+}
+
+message ServiceUpdate {
+    string Sender = 1;
+    string Target = 2;
+    string Message = 3;
+    string Status = 4;
+    string Action = 5;
+
 }

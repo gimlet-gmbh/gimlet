@@ -105,3 +105,7 @@ func (s *cabalServer) UnregisterService(ctx context.Context, in *cabal.Unregiste
 func (s *cabalServer) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
 	return nil, nil
 }
+
+func (s *cabalServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+	return &cabal.ServiceUpdate{Message: "unimp"}, nil
+}

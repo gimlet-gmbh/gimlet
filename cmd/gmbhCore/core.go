@@ -150,7 +150,7 @@ func (c *Core) ServiceDiscovery() {
 	_ = <-sig
 
 	if !c.Config.Daemon {
-		notify.StdMsgMagenta("Recieved shutdown signal")
+		notify.StdMsgMagenta(fmt.Sprintf("received shutdown signal; duration=(%v)", time.Since(c.Info.StartTime)))
 	}
 	c.shutdown(false)
 }

@@ -1,13 +1,89 @@
-package rpcconv
+package rpc
 
 import (
+	"errors"
+	"net"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
 	"github.com/gmbh-micro/service/process"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
+
+// Connection holds data related to a grpc connection
+type Connection struct {
+	Server    *grpc.Server
+	ctype     string
+	Address   string
+	Cabal     cabal.CabalServer
+	Control   cabal.ControlServer
+	Connected bool
+	Errors    []error
+}
+
+// NewCabalConnection returns a new connection object
+func NewCabalConnection() *Connection {
+	return &Connection{
+		Connected: false,
+		ctype:     "cabal",
+		Errors:    make([]error, 0),
+	}
+}
+
+// NewControlConnection returns a new connection object
+func NewControlConnection() Connection {
+	return Connection{
+		Connected: false,
+		ctype:     "control",
+		Errors:    make([]error, 0),
+	}
+}
+
+// Connect to grpc server
+func (c *Connection) Connect() error {
+
+	if c.Address == "" {
+		return errors.New("connection.connect.noAddress")
+	}
+
+	list, err := net.Listen("tcp", c.Address)
+	if err != nil {
+		return errors.New("connection.connect.listener=(" + err.Error() + ")")
+	}
+
+	go func() {
+		c.Server = grpc.NewServer()
+		if c.ctype == "cabal" {
+			cabal.RegisterCabalServer(c.Server, c.Cabal)
+		}
+
+		reflection.Register(c.Server)
+
+		if err := c.Server.Serve(list); err != nil {
+			c.Errors = append(c.Errors, err)
+			c.Connected = false
+		}
+
+	}()
+
+	c.Connected = true
+	return nil
+}
+
+// Disconnect from grpc server
+func (c *Connection) Disconnect() {
+	if c.Connected {
+		c.Server.GracefulStop()
+		c.Connected = false
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Converters
+//////////////////////////////////////////////////////////////////////////////////////////
 
 // ServicesToRPCs translates an array of service pointers to an array of cabal service pointers
 func ServicesToRPCs(ss []*service.Service) []*cabal.Service {
