@@ -8,7 +8,6 @@ package gmbh
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -134,32 +133,7 @@ func (g *Client) start() {
 	} else {
 		notify.StdMsgErr("gmbh configuration invalid")
 	}
-	go func() {
-		addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
-		fmt.Println("addr here" + addr)
-		for err != nil && err.Error() == "registration.gmbhUnavailable" {
-			fmt.Println("q")
-			notify.StdMsgErr("Could not reach gmbhCore, trying again in 5 seconds")
-			time.Sleep(time.Second * 5)
-			addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
-		}
-		if err != nil && err.Error() != "registration.gmbhUnavailable" {
-			notify.StdMsgErr("error reported=" + err.Error())
-			panic(err)
-		}
-
-		notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
-		if addr != "" {
-			notify.StdMsgGreen("assigned address=" + addr)
-		}
-
-		if addr != "" {
-			g.con.Address = addr
-			g.con.Cabal = &_server{}
-			g.connect()
-		}
-
-	}()
+	go g.connecting()
 
 	<-done
 	makeUnregisterRequest(g.conf.ServiceName)
@@ -189,13 +163,12 @@ func (g *Client) disconnect() {
 	notify.StdMsgBlue("disconnecting from gmbh-core")
 	g.con.Disconnect()
 	g.con.Server = nil
-	notify.StdMsgBlue("a")
 	g.connecting()
 }
 
 // connecting mode
 func (g *Client) connecting() {
-	notify.StdMsgBlue("attempting to reconnect to gmbh-core")
+	notify.StdMsgBlue("attempting to connect to gmbh-core")
 
 	addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
 	for err != nil && err.Error() == "registration.gmbhUnavailable" {
@@ -222,14 +195,6 @@ func (g *Client) connecting() {
 			panic(err)
 		}
 	}
-}
-
-func (g *Client) connect() error {
-	err := g.con.Connect()
-	if err != nil {
-		panic(err)
-	}
-	return err
 }
 
 func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
