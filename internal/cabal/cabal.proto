@@ -45,7 +45,6 @@ service Cabal {
      * UpdateServiceRegistration 
      *
      * This should be used to make changes to any registration information.
-     * *NOTE* This is a draft spec and this might not make the final cut.
      */
      rpc UpdateServiceRegistration (ServiceUpdate) returns (ServiceUpdate) {}
 
@@ -81,7 +80,7 @@ service Cabal {
 }
 
 
-// Control runs communications between the gimlet core and gmbhCtrl
+// Control runs communications between gmbh-core and gmbh-ctrl
 service Control {
 
     rpc StartService (StartRequest) returns (StartReply) {}    
@@ -95,8 +94,14 @@ service Control {
 
     // StopSever kills all of the attached services and then calls shutdown procedure
     rpc StopServer (StopRequest) returns (StatusReply) {}
-    
     rpc ServerStatus (StatusRequest) returns (StatusReply) {}
+
+    rpc UpdateServiceRegistration (ServiceUpdate) returns (ServiceUpdate) {}
+}
+
+service Remote {
+    rpc UpdateServiceRegistration (ServiceUpdate) returns (ServiceUpdate) {}
+    rpc RequestRemoteAction (Action) returns (Action) {}
 }
 
 message AllRequest {
@@ -306,4 +311,13 @@ message ServiceUpdate {
     string Status = 4;
     string Action = 5;
 
+}
+
+message Action {
+    string Sender = 1;
+    string Target = 2;
+    string Message = 3;
+    string Status = 4;
+    string Action = 5;
+    Service ServiceInfo = 6 ;
 }

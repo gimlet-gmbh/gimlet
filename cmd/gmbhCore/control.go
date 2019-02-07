@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/service"
 )
 
 /**
@@ -56,10 +60,40 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 		return nil, errors.New("gmbh system error, could not locate instance of core")
 	}
 
-	serviceNames := cc.Router.Names
+	rpcServices := []*cabal.Service{}
+
+	for _, s := range cc.Router.GetAllServices() {
+		if s.Mode == service.Managed {
+			rpcServices = append(rpcServices, rpc.ServiceToRPC(*s))
+		} else if s.Mode == service.Remote {
+
+			container, err := cc.Router.LookupContainer(s.Static.Name)
+			if err != nil {
+				rpcServices = append(rpcServices, &cabal.Service{Name: s.Static.Name, Mode: "Remote", Errors: []string{"could not contact"}})
+				continue
+			}
+
+			client, con, can, err := rpc.GetRemoteRequest(container.Address, time.Second)
+
+			request := &cabal.Action{
+				Action: "request.info",
+			}
+
+			reply, err := client.RequestRemoteAction(con, request)
+			if err != nil {
+				rpcServices = append(rpcServices, &cabal.Service{Name: s.Static.Name, Mode: "Remote", Errors: []string{"could not contact"}})
+				continue
+			}
+
+			rpcServices = append(rpcServices, reply.GetServiceInfo())
+
+			can()
+		}
+	}
+
 	reply := cabal.ListReply{
-		Length:   int32(len(serviceNames)),
-		Services: rpc.ServicesToRPCs(cc.Router.GetAllServices()),
+		Length:   int32(len(rpcServices)),
+		Services: rpcServices,
 	}
 
 	return &reply, nil
@@ -109,6 +143,35 @@ func (c *controlServer) StopServer(ctx context.Context, in *cabal.StopRequest) (
 
 func (c *controlServer) ServerStatus(ctx context.Context, in *cabal.StatusRequest) (*cabal.StatusReply, error) {
 	return &cabal.StatusReply{Status: "awk"}, nil
+}
+
+func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+
+	if in.GetSender() != "gmbh-container" {
+		return &cabal.ServiceUpdate{Message: "invalid sender"}, nil
+	}
+
+	cc, err := getCore()
+	if err != nil {
+		return nil, errors.New("gmbh system error, could not locate instance of core")
+	}
+
+	if in.GetAction() == "container.register" {
+		c, err := cc.Router.AddContainer(in.GetMessage())
+		if err != nil {
+			return &cabal.ServiceUpdate{Message: err.Error()}, nil
+		}
+		return &cabal.ServiceUpdate{
+			Target:  in.GetSender(),
+			Sender:  "core",
+			Message: "added container",
+			Action:  c.Address,
+			Status:  c.ID,
+		}, nil
+	}
+
+	return &cabal.ServiceUpdate{Message: "unimp"}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////

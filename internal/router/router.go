@@ -7,28 +7,38 @@ import (
 
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
+	"github.com/gmbh-micro/service/container"
 	"github.com/gmbh-micro/service/process"
 	"github.com/gmbh-micro/service/static"
 )
 
 // Router represents the handling of services including their process
 type Router struct {
-	Services  map[string]*service.Service
-	smLock    *sync.Mutex
-	Names     []string
-	addresses *addressHandler
+	Services      map[string]*service.Service
+	serviceLock   *sync.Mutex
+	containers    map[string]*container.Container
+	containerLock *sync.Mutex
+	smLock        *sync.Mutex
+	Names         []string
+	CNames        []string
+	addresses     *addressHandler
+	containerID   int
 }
 
 // NewRouter initializes and returns a new Router struct
 func NewRouter() *Router {
 	return &Router{
-		Services: make(map[string]*service.Service),
-		smLock:   &sync.Mutex{},
-		Names:    make([]string, 0),
+		Services:      make(map[string]*service.Service),
+		serviceLock:   &sync.Mutex{},
+		containers:    make(map[string]*container.Container),
+		containerLock: &sync.Mutex{},
+		smLock:        &sync.Mutex{},
+		Names:         make([]string, 0),
 		addresses: &addressHandler{
 			host: defaults.BASE_ADDRESS,
 			port: defaults.BASE_PORT,
 		},
+		containerID: 100,
 	}
 }
 
@@ -82,7 +92,7 @@ func (r *Router) AddManagedService(configFilePath string) (*service.Service, err
 
 	// if working with a server, give it an address
 	if newService.Static.IsServer {
-		newService.Address = r.addresses.assignAddress()
+		newService.Address = r.addresses.assignAddress(true)
 	}
 
 	err = r.addToMap(newService)
@@ -103,7 +113,7 @@ func (r *Router) AddRemoteService(staticData *static.Static) (*service.Service, 
 
 	// if working with a server, give it an address
 	if newService.Static.IsServer {
-		newService.Address = r.addresses.assignAddress()
+		newService.Address = r.addresses.assignAddress(true)
 	}
 
 	err = r.addToMap(newService)
@@ -187,6 +197,55 @@ func (r *Router) TakeInventory() []string {
 	return paths
 }
 
+// AddContainer to the router or return the container if it already exists
+func (r *Router) AddContainer(name string) (*container.Container, error) {
+
+	exists, _ := r.LookupContainer(name)
+	if exists != nil {
+		return exists, nil
+	}
+
+	c := container.New(name)
+	c.ID = r.assignNextContainerID()
+	c.Address = r.addresses.assignAddress(false)
+	err := r.addContainerToMap(c)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// LookupContainer from the router
+func (r *Router) LookupContainer(name string) (*container.Container, error) {
+	if r.containers[name] == nil {
+		return nil, errors.New("router.LookupContainer.notFound")
+	}
+	return r.containers[name], nil
+}
+
+// addContainerToMap after checking for collisions between names
+//
+// TODO: Before declaring a duplicate, find a way to actually check before.
+//		 This might involve a query to see if the expected answer comes back
+//		 from the container if we request it...
+func (r *Router) addContainerToMap(c *container.Container) error {
+	r.containerLock.Lock()
+	defer r.containerLock.Unlock()
+	if _, ok := r.containers[c.Name]; ok {
+		return nil
+		// return errors.New("router.addContainerToMap.duplicate")
+	}
+	r.containers[c.Name] = c
+	r.CNames = append(r.CNames, c.Name)
+	return nil
+}
+
+func (r *Router) assignNextContainerID() string {
+	r.containerID++
+	return "c" + strconv.Itoa(r.containerID)
+}
+
 // addressHandler is in charge of assigning addresses to services
 type addressHandler struct {
 	table map[string]string
@@ -194,7 +253,7 @@ type addressHandler struct {
 	port  int
 }
 
-func (a *addressHandler) assignAddress() string {
+func (a *addressHandler) assignAddress(service bool) string {
 	addr := a.host + ":" + strconv.Itoa(a.port)
 	a.setNextAddress()
 	return addr

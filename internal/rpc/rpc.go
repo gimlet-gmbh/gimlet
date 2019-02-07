@@ -21,6 +21,7 @@ type Connection struct {
 	Address   string
 	Cabal     cabal.CabalServer
 	Control   cabal.ControlServer
+	Remote    cabal.RemoteServer
 	Connected bool
 	Errors    []error
 }
@@ -43,6 +44,15 @@ func NewControlConnection() Connection {
 	}
 }
 
+// NewRemoteConnection returns a new connection object
+func NewRemoteConnection() Connection {
+	return Connection{
+		Connected: false,
+		ctype:     "remote",
+		Errors:    make([]error, 0),
+	}
+}
+
 // Connect to grpc server
 func (c *Connection) Connect() error {
 
@@ -57,8 +67,13 @@ func (c *Connection) Connect() error {
 
 	go func() {
 		c.Server = grpc.NewServer()
+
 		if c.ctype == "cabal" {
 			cabal.RegisterCabalServer(c.Server, c.Cabal)
+		} else if c.ctype == "control" {
+			cabal.RegisterControlServer(c.Server, c.Control)
+		} else if c.ctype == "remote" {
+			cabal.RegisterRemoteServer(c.Server, c.Remote)
 		}
 
 		reflection.Register(c.Server)
@@ -90,6 +105,26 @@ func GetCabalRequest(address string, timeout time.Duration) (cabal.CabalClient, 
 	}
 	ctx, can := context.WithTimeout(context.Background(), timeout)
 	return cabal.NewCabalClient(con), ctx, can, nil
+}
+
+// GetControlRequest returns a control client to make requests through at address and with timeout
+func GetControlRequest(address string, timeout time.Duration) (cabal.ControlClient, context.Context, context.CancelFunc, error) {
+	con, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ctx, can := context.WithTimeout(context.Background(), timeout)
+	return cabal.NewControlClient(con), ctx, can, nil
+}
+
+// GetRemoteRequest returns a remote client to make requests through at address and with timeout
+func GetRemoteRequest(address string, timeout time.Duration) (cabal.RemoteClient, context.Context, context.CancelFunc, error) {
+	con, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ctx, can := context.WithTimeout(context.Background(), timeout)
+	return cabal.NewRemoteClient(con), ctx, can, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
