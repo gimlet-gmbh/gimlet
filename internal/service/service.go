@@ -184,3 +184,19 @@ func (s *Service) LogMsg(msg string) {
 		s.Logs.Msg(msg)
 	}
 }
+
+// GetMode returns the mode as a string
+func (s *Service) GetMode() string {
+	if s.Mode == Managed {
+		return "managed"
+	}
+	if s.Mode == Remote {
+		return "remote"
+	}
+
+	if s.Mode == Planetary {
+		return "planetary"
+	}
+
+	return ""
+}

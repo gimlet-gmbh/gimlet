@@ -10,11 +10,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
-	"github.com/rs/xid"
 	"google.golang.org/grpc"
 )
 
@@ -22,31 +22,18 @@ import (
 // CLIENT
 /////////////////////////////////////////////////////////////////////////
 
-func getRPCClient(address string) (cabal.CabalClient, error) {
+func makeCabalRequest(address string) (cabal.CabalClient, context.Context, context.CancelFunc, error) {
 	con, err := grpc.Dial(address, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	return cabal.NewCabalClient(con), nil
-}
-
-func getContextCancel() (context.Context, context.CancelFunc) {
-	ctx, can := context.WithTimeout(context.Background(), time.Second)
-	return ctx, can
-}
-
-func makeRequest(address string) (cabal.CabalClient, context.Context, context.CancelFunc, error) {
-	client, err := getRPCClient(address)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	ctx, can := context.WithTimeout(context.Background(), time.Second)
-	return client, ctx, can, nil
+	return cabal.NewCabalClient(con), ctx, can, nil
 }
 
 func requestQueryData(address string) (*cabal.QueryResponse, error) {
-	client, ctx, can, err := makeRequest(address)
+	client, ctx, can, err := makeCabalRequest(address)
 	if err != nil {
 		panic(err)
 	}
@@ -55,8 +42,6 @@ func requestQueryData(address string) (*cabal.QueryResponse, error) {
 	req := cabal.QueryRequest{
 		Query: cabal.QueryRequest_STATUS,
 	}
-
-	// reply, err := client.QueryStatus(ctx, &req)
 	return client.QueryStatus(ctx, &req)
 }
 
@@ -85,20 +70,18 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 		}
 	}
 
-	if !core.Config.Daemon && core.Config.Verbose {
-		notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.GetName()))
+	if !core.Config.Daemon {
+		notify.StdMsgMagenta(fmt.Sprintf("<(%s)- processing ephem-reg request; name=(%s); aliases=(%s); mode=(%s)", lookupService.ID, in.NewServ.GetName(), strings.Join(in.NewServ.GetAliases(), ","), lookupService.GetMode()))
 		if lookupService.Static.IsServer {
-			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.GetName(), lookupService.Address))
+			notify.StdMsgMagenta(fmt.Sprintf("-(%s)> success; address=(%v)", lookupService.ID, lookupService.Address))
 		} else {
-			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.GetName()))
+			notify.StdMsgMagenta(fmt.Sprintf("-(%s)> success;", lookupService.ID))
 		}
-	} else {
-		// log this somewhere
 	}
 
 	reply := &cabal.RegServRep{
 		Status:   "acknowledged",
-		ID:       xid.New().String(),
+		ID:       lookupService.ID,
 		CorePath: core.ProjectPath,
 		Address:  lookupService.Address,
 	}

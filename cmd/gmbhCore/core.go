@@ -48,6 +48,12 @@ type Core struct {
 	log               *os.File
 	logm              *sync.Mutex
 	controlServerLock *sync.Mutex
+	Info              *Debug
+}
+
+// Debug contains various information about Core operations
+type Debug struct {
+	StartTime time.Time
 }
 
 // StartCore initializes settings of the core and creates the service handler and router
@@ -66,6 +72,9 @@ func StartCore(path string, verbose bool, daemon bool) *Core {
 		Router:      router.NewRouter(),
 		ProjectPath: path,
 		MsgCounter:  1,
+		Info: &Debug{
+			StartTime: time.Now(),
+		},
 	}
 
 	notify.SetVerbose(verbose)
@@ -132,10 +141,7 @@ func (c *Core) ServiceDiscovery() {
 
 	}
 
-	notify.StdMsgBlue("startup complete")
-	if !c.Config.Daemon {
-		notify.StdMsgGreen("Blocking main thread until SIGINT")
-	}
+	notify.StdMsgBlue(fmt.Sprintf("startup complete; duration=(%v)", time.Since(c.Info.StartTime)))
 
 	go c.takeInventory()
 
@@ -395,7 +401,7 @@ func (r *RequestHandler) processErrors() {
 }
 
 func (r *RequestHandler) forewardRequest(address string) {
-	client, ctx, can, err := makeRequest(address)
+	client, ctx, can, err := makeCabalRequest(address)
 	if err != nil {
 		panic(err)
 	}
