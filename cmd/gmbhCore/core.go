@@ -25,6 +25,7 @@ import (
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/router"
+	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/service"
 	"github.com/gmbh-micro/service/static"
 	"github.com/gmbh-micro/setting"
@@ -300,11 +301,34 @@ func (c *Core) shutdown(remote bool) {
 		}
 		time.Sleep(time.Second * 2)
 	}
+
 	c.Router.KillAllServices()
+
+	remoteServices := c.Router.GetAllRemoteServices()
+	for _, rs := range remoteServices {
+		c.sendShutdownNotice(rs.Static.Name)
+	}
+
 	c.logm.Lock()
 	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
 	c.logm.Unlock()
 	c.log.Close()
+}
+
+func (c *Core) sendShutdownNotice(target string) {
+	addr, err := c.Router.LookupAddress(target)
+	if err != nil {
+		notify.StdMsgErr("core.shutdown.killRemote.cannotfind=" + target)
+	}
+	client, ctx, can, err := rpc.GetCabalRequest(addr, time.Second)
+	defer can()
+	request := &cabal.ServiceUpdate{
+		Sender:  "core",
+		Target:  target,
+		Message: "core shutdown",
+		Action:  "core.shutdown",
+	}
+	client.UpdateServiceRegistration(ctx, request)
 }
 
 func (c *Core) registerRemoteService(name string, aliases []string, isclient bool, isserver bool) (*service.Service, error) {

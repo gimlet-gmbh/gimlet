@@ -68,7 +68,6 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool,
 	}
 
 	if mode == "remote" {
-		notify.StdMsg("starting in remote mode")
 		request.NewServ.Mode = cabal.NewService_REMOTE
 	}
 
@@ -195,15 +194,8 @@ func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.Servi
 
 	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
-	if !g.configured {
-		// reply := &cabal.ServiceUpdate{
-		// 	Action:  "error",
-		// 	Message: "invalid service name",
-		// }
-		// return reply, nil
-	}
-
 	if in.GetTarget() != g.conf.ServiceName {
+		notify.StdMsgErr("invalid target")
 		reply := &cabal.ServiceUpdate{
 			Action:  "error",
 			Message: "invalid service name",
@@ -211,8 +203,8 @@ func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.Servi
 		return reply, nil
 	}
 
-	if in.Action == "core.offline" {
-
+	if in.Action == "core.shutdown" {
+		g.disconnect()
 	}
 
 	reply := &cabal.ServiceUpdate{Action: "acknowledged"}

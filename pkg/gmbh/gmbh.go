@@ -21,6 +21,7 @@ import (
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -183,9 +184,44 @@ func (g *Client) MakeRequest(target, method, data string) (Responder, error) {
 	return resp, nil
 }
 
+// disconnect from gmbh-core and go back into connecting mode
 func (g *Client) disconnect() {
+	notify.StdMsgBlue("disconnecting from gmbh-core")
 	g.con.Disconnect()
 	g.con.Server = nil
+	notify.StdMsgBlue("a")
+	g.connecting()
+}
+
+// connecting mode
+func (g *Client) connecting() {
+	notify.StdMsgBlue("attempting to reconnect to gmbh-core")
+
+	addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
+	for err != nil && err.Error() == "registration.gmbhUnavailable" {
+
+		notify.StdMsgErr("Could not reach gmbh-core, trying again in 5 seconds")
+		time.Sleep(time.Second * 5)
+		addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
+	}
+	if err != nil && err.Error() != "registration.gmbhUnavailable" {
+		notify.StdMsgErr("error reported=" + err.Error())
+		panic(err)
+	}
+
+	notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
+	if addr != "" {
+		notify.StdMsgGreen("assigned address=" + addr)
+	}
+
+	if addr != "" {
+		g.con.Address = addr
+		g.con.Cabal = &_server{}
+		err := g.con.Connect()
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func (g *Client) connect() error {

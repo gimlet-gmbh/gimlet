@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"net"
 	"time"
@@ -76,9 +77,19 @@ func (c *Connection) Connect() error {
 // Disconnect from grpc server
 func (c *Connection) Disconnect() {
 	if c.Connected {
-		c.Server.GracefulStop()
+		c.Server.Stop()
 		c.Connected = false
 	}
+}
+
+// GetCabalRequest returns a cabal client to make requests through at address and with timeout
+func GetCabalRequest(address string, timeout time.Duration) (cabal.CabalClient, context.Context, context.CancelFunc, error) {
+	con, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ctx, can := context.WithTimeout(context.Background(), timeout)
+	return cabal.NewCabalClient(con), ctx, can, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

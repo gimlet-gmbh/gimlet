@@ -164,6 +164,17 @@ func (r *Router) RestartAllServices() {
 	}
 }
 
+// GetAllRemoteServices returns a pointer to all services in remote mode
+func (r *Router) GetAllRemoteServices() []*service.Service {
+	remote := []*service.Service{}
+	for _, name := range r.Names {
+		if r.Services[name].Mode == service.Remote {
+			remote = append(remote, r.Services[name])
+		}
+	}
+	return remote
+}
+
 // TakeInventory returns a list of paths to services
 func (r *Router) TakeInventory() []string {
 	r.smLock.Lock()
