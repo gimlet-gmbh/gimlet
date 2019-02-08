@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
 	"github.com/gmbh-micro/service/process"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -23,32 +25,35 @@ type Connection struct {
 	Control   cabal.ControlServer
 	Remote    cabal.RemoteServer
 	Connected bool
+	mu        *sync.Mutex
 	Errors    []error
 }
 
 // NewCabalConnection returns a new connection object
 func NewCabalConnection() *Connection {
-	return &Connection{
-		Connected: false,
-		ctype:     "cabal",
-		Errors:    make([]error, 0),
-	}
+	con := newConnection()
+	con.ctype = "cabal"
+	return &con
 }
 
 // NewControlConnection returns a new connection object
 func NewControlConnection() Connection {
-	return Connection{
-		Connected: false,
-		ctype:     "control",
-		Errors:    make([]error, 0),
-	}
+	con := newConnection()
+	con.ctype = "control"
+	return con
 }
 
 // NewRemoteConnection returns a new connection object
 func NewRemoteConnection() Connection {
+	con := newConnection()
+	con.ctype = "remote"
+	return con
+}
+
+func newConnection() Connection {
 	return Connection{
 		Connected: false,
-		ctype:     "remote",
+		mu:        &sync.Mutex{},
 		Errors:    make([]error, 0),
 	}
 }
@@ -84,17 +89,20 @@ func (c *Connection) Connect() error {
 		}
 
 	}()
-
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.Connected = true
 	return nil
 }
 
 // Disconnect from grpc server
 func (c *Connection) Disconnect() {
-	if c.Connected {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.Server != nil {
 		c.Server.Stop()
-		c.Connected = false
 	}
+	c.Connected = false
 }
 
 // GetCabalRequest returns a cabal client to make requests through at address and with timeout

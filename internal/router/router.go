@@ -12,33 +12,39 @@ import (
 	"github.com/gmbh-micro/service/static"
 )
 
-// Router represents the handling of services including their process
+// Router represents the internal handling of services and containers
 type Router struct {
-	Services      map[string]*service.Service
-	serviceLock   *sync.Mutex
-	containers    map[string]*container.Container
-	containerLock *sync.Mutex
-	smLock        *sync.Mutex
-	Names         []string
-	CNames        []string
-	addresses     *addressHandler
-	containerID   int
+	Services     map[string]*service.Service
+	serviceNames []string
+	serviceID    int
+	serviceMu    *sync.Mutex
+
+	containers     map[string]*container.Container
+	containerNames []string
+	containerID    int
+	containerMu    *sync.Mutex
+
+	addresses *addressHandler
 }
 
 // NewRouter initializes and returns a new Router struct
 func NewRouter() *Router {
 	return &Router{
-		Services:      make(map[string]*service.Service),
-		serviceLock:   &sync.Mutex{},
-		containers:    make(map[string]*container.Container),
-		containerLock: &sync.Mutex{},
-		smLock:        &sync.Mutex{},
-		Names:         make([]string, 0),
+		Services:     make(map[string]*service.Service),
+		serviceNames: make([]string, 0),
+		serviceID:    0,
+		serviceMu:    &sync.Mutex{},
+
+		containers:     make(map[string]*container.Container),
+		containerNames: make([]string, 0),
+		containerID:    100,
+		containerMu:    &sync.Mutex{},
+
 		addresses: &addressHandler{
 			host: defaults.BASE_ADDRESS,
 			port: defaults.BASE_PORT,
+			mu:   &sync.Mutex{},
 		},
-		containerID: 100,
 	}
 }
 
@@ -74,7 +80,7 @@ func (r *Router) LookupAddress(name string) (string, error) {
 
 // LookupByID looks through the service map and returns the service if the id matches the parameter
 func (r *Router) LookupByID(id string) (*service.Service, error) {
-	for _, name := range r.Names {
+	for _, name := range r.serviceNames {
 		if r.Services[name].ID == id {
 			return r.Services[name], nil
 		}
@@ -138,8 +144,11 @@ func (r *Router) addToMap(newService *service.Service) error {
 		}
 	}
 
+	r.serviceMu.Lock()
+	defer r.serviceMu.Unlock()
+
 	r.Services[newService.Static.Name] = newService
-	r.Names = append(r.Names, newService.Static.Name)
+	r.serviceNames = append(r.serviceNames, newService.Static.Name)
 	for _, alias := range newService.Static.Aliases {
 		r.Services[alias] = newService
 	}
@@ -150,7 +159,7 @@ func (r *Router) addToMap(newService *service.Service) error {
 // GetAllServices in the service map
 func (r *Router) GetAllServices() []*service.Service {
 	ret := []*service.Service{}
-	for _, s := range r.Names {
+	for _, s := range r.serviceNames {
 		ret = append(ret, r.Services[s])
 	}
 	return ret
@@ -158,7 +167,7 @@ func (r *Router) GetAllServices() []*service.Service {
 
 // KillAllServices that are currently in managed mode
 func (r *Router) KillAllServices() {
-	for _, name := range r.Names {
+	for _, name := range r.serviceNames {
 		if r.Services[name].Mode == service.Managed {
 			r.Services[name].KillProcess()
 		}
@@ -167,7 +176,7 @@ func (r *Router) KillAllServices() {
 
 // RestartAllServices that are currently in managed mode
 func (r *Router) RestartAllServices() {
-	for _, name := range r.Names {
+	for _, name := range r.serviceNames {
 		if r.Services[name].Mode == service.Managed {
 			r.Services[name].RestartProcess()
 		}
@@ -177,7 +186,7 @@ func (r *Router) RestartAllServices() {
 // GetAllRemoteServices returns a pointer to all services in remote mode
 func (r *Router) GetAllRemoteServices() []*service.Service {
 	remote := []*service.Service{}
-	for _, name := range r.Names {
+	for _, name := range r.serviceNames {
 		if r.Services[name].Mode == service.Remote {
 			remote = append(remote, r.Services[name])
 		}
@@ -187,11 +196,8 @@ func (r *Router) GetAllRemoteServices() []*service.Service {
 
 // TakeInventory returns a list of paths to services
 func (r *Router) TakeInventory() []string {
-	r.smLock.Lock()
-	defer r.smLock.Unlock()
-
 	paths := []string{}
-	for _, s := range r.Names {
+	for _, s := range r.serviceNames {
 		paths = append(paths, r.Services[s].Path)
 	}
 	return paths
@@ -224,26 +230,50 @@ func (r *Router) LookupContainer(name string) (*container.Container, error) {
 	return r.containers[name], nil
 }
 
+// GetAllContainers that have been registered to gmbh
+func (r *Router) GetAllContainers() []*container.Container {
+	ret := []*container.Container{}
+	for _, name := range r.containerNames {
+		ret = append(ret, r.containers[name])
+	}
+	return ret
+}
+
 // addContainerToMap after checking for collisions between names
 //
 // TODO: Before declaring a duplicate, find a way to actually check before.
 //		 This might involve a query to see if the expected answer comes back
 //		 from the container if we request it...
 func (r *Router) addContainerToMap(c *container.Container) error {
-	r.containerLock.Lock()
-	defer r.containerLock.Unlock()
+
 	if _, ok := r.containers[c.Name]; ok {
 		return nil
 		// return errors.New("router.addContainerToMap.duplicate")
 	}
+
+	r.containerMu.Lock()
+	defer r.containerMu.Unlock()
+
 	r.containers[c.Name] = c
-	r.CNames = append(r.CNames, c.Name)
+	r.containerNames = append(r.containerNames, c.Name)
+
 	return nil
 }
 
 func (r *Router) assignNextContainerID() string {
+	r.containerMu.Lock()
+	defer r.containerMu.Unlock()
+
 	r.containerID++
 	return "c" + strconv.Itoa(r.containerID)
+}
+
+func (r *Router) assignNextServiceID() string {
+	r.serviceMu.Lock()
+	defer r.serviceMu.Unlock()
+
+	r.serviceID++
+	return strconv.Itoa(r.serviceID)
 }
 
 // addressHandler is in charge of assigning addresses to services
@@ -251,14 +281,17 @@ type addressHandler struct {
 	table map[string]string
 	host  string
 	port  int
+	mu    *sync.Mutex
 }
 
 func (a *addressHandler) assignAddress(service bool) string {
-	addr := a.host + ":" + strconv.Itoa(a.port)
 	a.setNextAddress()
+	addr := a.host + ":" + strconv.Itoa(a.port)
 	return addr
 }
 
 func (a *addressHandler) setNextAddress() {
-	a.port += 10
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.port += 2
 }

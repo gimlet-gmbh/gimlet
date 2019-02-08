@@ -163,6 +163,7 @@ func (g *Client) disconnect() {
 	notify.StdMsgBlue("disconnecting from gmbh-core")
 	g.con.Disconnect()
 	g.con.Server = nil
+	time.Sleep(time.Second * 5)
 	g.connecting()
 }
 

@@ -8,10 +8,13 @@ package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -22,66 +25,144 @@ import (
 	"github.com/gmbh-micro/service/process"
 )
 
-var s *service.Service
-var id string
-var con *rpc.Connection
+type container struct {
+	serv      *service.Service
+	con       rpc.Connection
+	to        time.Duration
+	mu        *sync.Mutex
+	coreAddr  string
+	close     bool
+	id        string
+	forkError error
 
-// First arg should be path to file where gmbh-config can be found
+	configPath *string
+	managed    *bool
+}
+
+var c *container
 
 func main() {
-	id = "c100"
-	notify.SetTag("[gmbh-exp] ")
-	notify.StdMsgBlue("gmbh container process manager")
 
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		notify.StdMsgErr("could not create absolute file path")
+	notify.SetTag("[gmbh-pm] ")
+	notify.StdMsg("gmbh container process manager")
+
+	c = &container{
+		mu:         &sync.Mutex{},
+		con:        rpc.NewRemoteConnection(),
+		coreAddr:   "localhost:59997",
+		close:      false,
+		to:         time.Second * 5,
+		configPath: flag.String("config", "", "relative path to gmbh-service config file"),
+		managed:    flag.Bool("m", false, "run service in managed mode"),
 	}
 
-	path := ""
-	if len(os.Args) > 1 {
-		path = os.Args[1]
+	flag.Parse()
+
+	if *c.configPath == "" {
+		notify.StdMsgErr("must specify a config file")
+		os.Exit(1)
+	}
+
+	run()
+
+	os.Exit(0)
+}
+
+func run() {
+	var err error
+	c.serv, err = service.NewManagedService(*c.configPath)
+	if err != nil {
+		notify.StdMsgErr("could not start service; err=(" + err.Error() + ")")
+		os.Exit(1)
+	}
+
+	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	c.serv.StartLog(dir+"/gmbh", "process-manager.log")
+
+	pid, err := c.serv.StartService()
+	if err != nil {
+		notify.StdMsgErr("could not start service, error=(" + err.Error() + ")")
+		c.forkError = err
 	} else {
-		notify.StdMsgErr("no path specified")
-		os.Exit(1)
+		notify.StdMsgGreen("started process; pid=(" + pid + ")")
 	}
-	notify.StdMsgBlue("Path: " + path)
-
-	s, err = service.NewManagedService(path)
-	s.StartLog(dir+"/gmbh", "process-manager.log")
-	if err != nil {
-		notify.StdMsgErr("could not create service: " + err.Error())
-		os.Exit(1)
-	}
-	notify.StdMsgBlue("Attempting to start " + s.Static.Name)
-	pid, err := s.StartService()
-	if err != nil {
-		notify.StdMsgErr("could not start service: " + err.Error())
-		os.Exit(1)
-	}
-	notify.StdMsgGreen("service process started with pid=" + pid)
 
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
-
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		_ = <-sigs
 		done <- true
 	}()
-	connectToCore(s.Static.Name)
-	notify.StdMsgDebug("Blocking until control server interface is implemented")
+
+	if *c.managed {
+		go connect()
+	}
+
 	<-done
-	s.KillProcess()
+	fmt.Println()
 
-	fmt.Println("")
-	notify.StdMsgMagenta("Recieved shutdown signal")
+	c.serv.KillProcess()
 
-	os.Exit(0)
+	if *c.managed {
+		c.mu.Lock()
+		c.close = true
+		c.mu.Unlock()
+
+		disconnect()
+	}
+
+	notify.StdMsg("shutdown signal")
+	return
 }
 
-func connectToCore(name string) {
-	client, ctx, can, err := rpc.GetControlRequest("localhost:59997", time.Second*5)
+func connect() {
+	notify.StdMsg("connecting to gmbh-core")
+
+	addr, status := makeConnectRequest()
+	for status != nil {
+		if status.Error() != "makeConnectRequest.fail" {
+			notify.StdMsg("gmbh internal error")
+			return
+		}
+
+		if c.close {
+			return
+		}
+
+		notify.StdMsg("could not connect; retry=(" + c.to.String() + ")")
+		time.Sleep(c.to)
+		addr, status = makeConnectRequest()
+	}
+
+	if addr == "" {
+		notify.StdMsg("gmbh internal error, no address returned from core")
+		return
+	}
+
+	c.con.Address = addr
+	c.con.Remote = &remoteServer{}
+	err := c.con.Connect()
+	if err != nil {
+		notify.StdMsgErr("gmbh connection error=(" + err.Error() + ")")
+		return
+	}
+
+	notify.StdMsgGreen("connected; address=(" + addr + ")")
+
+}
+
+func disconnect() {
+	notify.StdMsg("disconnected")
+	c.con.Disconnect()
+	c.con.Server = nil
+	if !c.close {
+		time.Sleep(c.to)
+	}
+}
+
+func makeConnectRequest() (string, error) {
+	client, ctx, can, err := rpc.GetControlRequest(c.coreAddr, time.Second*5)
 	if err != nil {
 		panic(err)
 	}
@@ -90,53 +171,51 @@ func connectToCore(name string) {
 	request := &cabal.ServiceUpdate{
 		Sender:  "gmbh-container",
 		Target:  "core",
-		Message: name,
+		Message: c.serv.Static.Name,
 		Action:  "container.register",
 	}
+
 	reply, err := client.UpdateServiceRegistration(ctx, request)
 	if err != nil {
-
-		notify.StdMsgErr("could not contact core")
-		return
-
-		// panic(err)
-
+		return "", errors.New("makeConnectRequest.fail")
 	}
-	id = reply.GetStatus()
-	notify.StdMsgGreen(fmt.Sprintf("reponse from core=(%s); address=(%s)", reply.GetMessage(), reply.GetAction()))
-	registerControlServer(reply.GetAction())
-}
 
-func registerControlServer(address string) {
-
-	con := rpc.NewRemoteConnection()
-	con.Address = address
-	con.Remote = &remoteServer{}
-	err := con.Connect()
-	if err != nil {
-		notify.StdMsgErr("Error starting remote server=" + err.Error())
-		return
-	}
-	notify.StdMsgGreen("started remote server")
+	return reply.GetAction(), nil
 }
 
 type remoteServer struct{}
 
-func (c *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-	// notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+func (r *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+
+	if in.GetAction() == "core.shutdown" {
+		response := &cabal.ServiceUpdate{
+			Sender:  c.serv.Static.Name,
+			Target:  "gmbh-core",
+			Message: "ack",
+		}
+		if !c.close {
+			go func() {
+				disconnect()
+				connect()
+			}()
+		}
+		return response, nil
+	}
+
 	return &cabal.ServiceUpdate{Message: "unimp"}, nil
 }
 
-func (c *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action) (*cabal.Action, error) {
+func (r *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action) (*cabal.Action, error) {
 	notify.StdMsgBlue(fmt.Sprintf("-> Request Remote Action; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
 	if in.GetAction() == "request.info" {
 
-		procRuntime := s.GetProcess().GetRuntime()
+		procRuntime := c.serv.GetProcess().GetRuntime()
 
 		si := &cabal.Service{
-			Id:        id + "-" + s.ID,
-			Name:      s.Static.Name,
+			Id:        c.id + "-" + c.serv.ID,
+			Name:      c.serv.Static.Name,
 			Path:      "-",
 			LogPath:   "-",
 			Pid:       0,
@@ -144,11 +223,11 @@ func (c *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 			Restarts:  int32(procRuntime.Restarts),
 			StartTime: procRuntime.StartTime.Format(time.RFC3339),
 			FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
-			Errors:    s.GetProcess().ReportErrors(),
+			Errors:    c.serv.GetProcess().ReportErrors(),
 			Mode:      "remote",
 		}
 
-		switch s.Process.GetStatus() {
+		switch c.serv.Process.GetStatus() {
 		case process.Stable:
 			si.Status = "Stable"
 		case process.Running:
@@ -162,9 +241,8 @@ func (c *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 		case process.Initialized:
 			si.Status = "Initialized"
 		}
-
 		response := &cabal.Action{
-			Sender:      s.Static.Name,
+			Sender:      c.serv.Static.Name,
 			Target:      "gmbh-core",
 			Message:     "response.info",
 			ServiceInfo: si,

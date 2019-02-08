@@ -27,6 +27,7 @@ import (
 	"github.com/gmbh-micro/router"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/service"
+	"github.com/gmbh-micro/service/container"
 	"github.com/gmbh-micro/service/static"
 	"github.com/gmbh-micro/setting"
 
@@ -302,11 +303,17 @@ func (c *Core) shutdown(remote bool) {
 		time.Sleep(time.Second * 2)
 	}
 
+	// Send shutdown notice to all managed services
 	c.Router.KillAllServices()
 
-	remoteServices := c.Router.GetAllRemoteServices()
-	for _, rs := range remoteServices {
-		c.sendShutdownNotice(rs.Static.Name)
+	// Send shutdown notice to all remote services
+	for _, rs := range c.Router.GetAllRemoteServices() {
+		c.sendServiceShutdownNotice(rs)
+	}
+
+	// send shutdown notice to all containers
+	for _, rc := range c.Router.GetAllContainers() {
+		c.sendContainerShutdownNotice(rc)
 	}
 
 	c.logm.Lock()
@@ -315,16 +322,39 @@ func (c *Core) shutdown(remote bool) {
 	c.log.Close()
 }
 
-func (c *Core) sendShutdownNotice(target string) {
-	addr, err := c.Router.LookupAddress(target)
-	if err != nil {
-		notify.StdMsgErr("core.shutdown.killRemote.cannotfind=" + target)
+func (c *Core) sendServiceShutdownNotice(serv *service.Service) {
+	if serv.Address == "" {
+		notify.StdMsgErr("core.sendServiceShutdownNotice.cannotFind=" + serv.Static.Name)
+		return
 	}
-	client, ctx, can, err := rpc.GetCabalRequest(addr, time.Second)
+	client, ctx, can, err := rpc.GetCabalRequest(serv.Address, time.Second)
+	if err != nil {
+		notify.StdMsgErr("core.sendServiceShutdownNotice.cannotContact=" + serv.Static.Name)
+		return
+	}
 	defer can()
 	request := &cabal.ServiceUpdate{
 		Sender:  "core",
-		Target:  target,
+		Target:  serv.Static.Name,
+		Message: "core shutdown",
+		Action:  "core.shutdown",
+	}
+	client.UpdateServiceRegistration(ctx, request)
+}
+
+func (c *Core) sendContainerShutdownNotice(cont *container.Container) {
+	if cont.Address == "" {
+		notify.StdMsgErr("core.sendContainerShutdownNotice.cannotFind=" + cont.ID)
+	}
+	client, ctx, can, err := rpc.GetRemoteRequest(cont.Address, time.Second)
+	if err != nil {
+		notify.StdMsgErr("core.sendServiceShutdownNotice.cannotContact=" + cont.ID)
+		return
+	}
+	defer can()
+	request := &cabal.ServiceUpdate{
+		Sender:  "core",
+		Target:  cont.ID,
 		Message: "core shutdown",
 		Action:  "core.shutdown",
 	}
