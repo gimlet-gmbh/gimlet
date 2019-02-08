@@ -180,6 +180,8 @@ func makeConnectRequest() (string, error) {
 		return "", errors.New("makeConnectRequest.fail")
 	}
 
+	c.id = reply.GetStatus()
+
 	return reply.GetAction(), nil
 }
 
