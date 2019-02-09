@@ -8,10 +8,12 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/rpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -24,7 +26,7 @@ func handleErr(err error) string {
 }
 
 func listAll() {
-	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}
@@ -44,7 +46,7 @@ func listAll() {
 }
 
 func report() {
-	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}
@@ -66,7 +68,7 @@ func report() {
 }
 
 func restartAll() {
-	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}
@@ -82,7 +84,7 @@ func restartAll() {
 }
 
 func listOne(id string) {
-	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}
@@ -102,7 +104,7 @@ func listOne(id string) {
 }
 
 func restartOne(id string) {
-	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}
@@ -120,7 +122,7 @@ func restartOne(id string) {
 }
 
 func shutdown() {
-	client, ctx, can, err := getClient(defaults.CONTROL_HOST + defaults.CONTROL_PORT)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}

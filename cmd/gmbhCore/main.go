@@ -7,43 +7,54 @@ package main
  */
 
 import (
-	"fmt"
+	"flag"
 	"os"
+	"time"
 
-	"github.com/fatih/color"
 	"github.com/gmbh-micro/notify"
 )
 
-func init() {
-	if len(os.Args) < 2 {
-		notify.StdMsgErr("must start gmbhCore with argument containing path to project")
+func main() {
+
+	path := flag.String("path", "", "the path to the directory of the gmbh Config")
+	// container := flag.String("c", false, "")
+	flag.Parse()
+
+	if *path == "" {
+		notify.StdMsgErr("cannot start gmbhCore without path argument")
 		os.Exit(1)
 	}
-}
 
-func main() {
-	daemon := false
-	if len(os.Args) == 3 {
-		if os.Args[2] == "-d" {
-			daemon = true
-		}
+	core, err := StartCore(*path)
+	if err != nil {
+		core.Log.Err("could not start gmbhCore; error=%v", err.Error())
+		return
 	}
 
-	gmbhCore := StartCore(os.Args[1], true, daemon)
+	notify.StdMsgBlueNoPrompt("                    _           ")
+	notify.StdMsgBlueNoPrompt("  _  ._ _  |_  |_| /   _  ._ _  ")
+	notify.StdMsgBlueNoPrompt(" (_| | | | |_) | | \\_ (_) | (/_")
+	notify.StdMsgBlueNoPrompt("  _|                            ")
+	notify.StdMsgBlue("version=" + core.Version + "; code=" + core.CodeName + "; startTime=" + core.StartTime.Format(time.Stamp))
 
-	printLogo()
-	notify.StdMsgBlue("Starting version: " + gmbhCore.Version + " (" + gmbhCore.CodeName + ")")
+	err = core.StartCabalServer()
+	if err != nil {
+		notify.StdMsgErr("could not start cabal server")
+		return
+	}
 
-	gmbhCore.StartCabalServer()
-	gmbhCore.StartControlServer()
-	gmbhCore.ServiceDiscovery()
-}
+	err = core.StartControlServer()
+	if err != nil {
+		notify.StdMsgErr("could not start control server")
+		return
+	}
 
-func printLogo() {
-	color.Set(color.FgBlue)
-	fmt.Println("                    _           ")
-	fmt.Println("  _  ._ _  |_  |_| /   _  ._ _  ")
-	fmt.Println(" (_| | | | |_) | | \\_ (_) | (/_")
-	fmt.Println("  _|                            ")
-	color.Unset()
+	err = core.ServiceDiscovery()
+	if err != nil {
+		notify.StdMsgErr("service discovery error")
+	}
+
+	notify.StdMsgBlueNoPrompt(notify.SEP)
+
+	core.Wait()
 }

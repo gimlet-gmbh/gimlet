@@ -27,32 +27,48 @@ import (
 
 var cmd *exec.Cmd
 
+var c *container
+
 func main() {
 
 	notify.SetTag(defaults.CLI_PROMPT)
 	notify.SetVerbose(defaults.VERBOSE)
 	daemon := flag.Bool("d", defaults.DAEMON, "daemon mode")
+	containerMode := flag.Bool("container", false, "container mode")
+
+	c = &container{
+		configPath: flag.String("config", "", "relative path to gmbh-service config file"),
+		managed:    flag.Bool("m", false, "run service in managed mode"),
+		embedded:   flag.Bool("e", false, "is the service being managed inside of a container"),
+		daemon:     daemon,
+	}
+
 	flag.Parse()
-	startCore(*daemon)
+
+	if *containerMode {
+		startContainer()
+	} else {
+		startCore(*daemon)
+	}
 }
 
 func startCore(daemon bool) {
-	println(fmt.Sprintf("cli version: %s", defaults.VERSION), 0)
-	println("Starting gmbhCore...", 0)
+	notify.StdMsgMagenta(fmt.Sprintf("cli version: %s", defaults.VERSION))
+	notify.StdMsgMagenta("Starting gmbhCore...")
 
 	exists := checkConfig()
 	if !exists {
-		printerr("could not find config file", 1)
+		notify.StdMsgErr("could not find config file", 1)
 		return
 	}
-	println("found config", 1)
+	notify.StdMsgMagenta("found config")
 
 	exists = checkInstall()
 	if !exists {
-		printerr("could not find gmbhCore", 1)
+		notify.StdMsgErr("could not find gmbhCore", 1)
 		return
 	}
-	println("found gmbhCore binary", 1)
+	notify.StdMsgMagenta("found gmbhCore binary", 1)
 
 	// Monitor/ Force Core Shutdown
 	wg := new(sync.WaitGroup)
@@ -62,7 +78,7 @@ func startCore(daemon bool) {
 	go startListener(shutdownSignal, wg)
 
 	// Fork/Exec gmbhCore
-	args := []string{getCurrentDir()}
+	args := []string{"--path=" + getCurrentDir()}
 	if daemon {
 		args = append(args, "-d")
 	}
@@ -130,10 +146,10 @@ func kill() {
 	if cmd != nil {
 		err := cmd.Process.Signal(syscall.SIGINT)
 		if err != nil {
-			printerr(err.Error(), 0)
+			notify.StdMsgErr(err.Error(), 0)
 		}
 	} else {
-		printerr("cmd was never set", 0)
+		notify.StdMsgErr("cmd was never set", 0)
 	}
 }
 
@@ -149,19 +165,7 @@ func setCmd(path string, args []string) *exec.Cmd {
 func getCurrentDir() string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		printerr(fmt.Sprintf("could not get current dir: %s", err.Error()), 0)
+		notify.StdMsgErr(fmt.Sprintf("could not get current dir: %s", err.Error()), 0)
 	}
 	return dir
 }
-
-func println(msg string, indent int) {
-	notify.StdMsgMagenta(msg, indent)
-}
-
-func printerr(msg string, indent int) {
-	notify.StdMsgErr(msg, indent)
-}
-
-// func genConfig() {
-
-// }

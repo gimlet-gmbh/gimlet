@@ -64,7 +64,7 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 
 	for _, s := range cc.Router.GetAllServices() {
 		if s.Mode == service.Managed {
-			rpcServices = append(rpcServices, rpc.ServiceToRPC(*s))
+			rpcServices = append(rpcServices, ServiceToRPC(*s))
 		} else if s.Mode == service.Remote {
 
 			container, err := cc.Router.LookupContainer(s.Static.Name)
@@ -112,7 +112,7 @@ func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*
 
 	reply := cabal.ListReply{
 		Length:   1,
-		Services: []*cabal.Service{rpc.ServiceToRPC(*target)},
+		Services: []*cabal.Service{ServiceToRPC(*target)},
 	}
 
 	return &reply, nil
@@ -146,7 +146,7 @@ func (c *controlServer) ServerStatus(ctx context.Context, in *cabal.StatusReques
 }
 
 func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+	notify.StdMsgCyanNoPrompt(fmt.Sprintf("[cont] <- Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
 	if in.GetSender() != "gmbh-container" {
 		return &cabal.ServiceUpdate{Message: "invalid sender"}, nil

@@ -9,7 +9,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -27,36 +26,34 @@ import (
 
 type container struct {
 	serv      *service.Service
-	con       rpc.Connection
+	con       *rpc.Connection
 	to        time.Duration
 	mu        *sync.Mutex
 	coreAddr  string
-	close     bool
+	closed    bool
 	id        string
 	forkError error
 
 	configPath *string
 	managed    *bool
+	embedded   *bool
+	daemon     *bool
 }
 
-var c *container
+func startContainer() {
 
-func main() {
+	c.mu = &sync.Mutex{}
+	c.con = rpc.NewRemoteConnection("", &remoteServer{})
+	c.coreAddr = "localhost:59997"
+	c.closed = false
+	c.to = time.Second * 5
 
-	notify.SetTag("[gmbh-pm] ")
-	notify.StdMsg("gmbh container process manager")
-
-	c = &container{
-		mu:         &sync.Mutex{},
-		con:        rpc.NewRemoteConnection(),
-		coreAddr:   "localhost:59997",
-		close:      false,
-		to:         time.Second * 5,
-		configPath: flag.String("config", "", "relative path to gmbh-service config file"),
-		managed:    flag.Bool("m", false, "run service in managed mode"),
+	if !*c.daemon {
+		notify.SetTag("[gmbh-pm] ")
+		notify.StdMsg("gmbh container process manager")
+	} else {
+		notify.SetVerbose(false)
 	}
-
-	flag.Parse()
 
 	if *c.configPath == "" {
 		notify.StdMsgErr("must specify a config file")
@@ -65,7 +62,6 @@ func main() {
 
 	run()
 
-	os.Exit(0)
 }
 
 func run() {
@@ -106,7 +102,7 @@ func run() {
 
 	if *c.managed {
 		c.mu.Lock()
-		c.close = true
+		c.closed = true
 		c.mu.Unlock()
 
 		disconnect()
@@ -126,7 +122,7 @@ func connect() {
 			return
 		}
 
-		if c.close {
+		if c.closed {
 			return
 		}
 
@@ -140,7 +136,7 @@ func connect() {
 		return
 	}
 
-	c.con.Address = addr
+	c.con.SetAddress(addr)
 	c.con.Remote = &remoteServer{}
 	err := c.con.Connect()
 	if err != nil {
@@ -156,7 +152,7 @@ func disconnect() {
 	notify.StdMsg("disconnected")
 	c.con.Disconnect()
 	c.con.Server = nil
-	if !c.close {
+	if !c.closed {
 		time.Sleep(c.to)
 	}
 }
@@ -177,6 +173,7 @@ func makeConnectRequest() (string, error) {
 
 	reply, err := client.UpdateServiceRegistration(ctx, request)
 	if err != nil {
+		notify.StdMsgErr("updateServiceRegistration err=(" + err.Error() + ")")
 		return "", errors.New("makeConnectRequest.fail")
 	}
 
@@ -196,7 +193,7 @@ func (r *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.
 			Target:  "gmbh-core",
 			Message: "ack",
 		}
-		if !c.close {
+		if !c.closed {
 			go func() {
 				disconnect()
 				connect()

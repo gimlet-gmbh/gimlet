@@ -14,40 +14,11 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
-	"google.golang.org/grpc"
+	"github.com/gmbh-micro/service"
+	"github.com/gmbh-micro/service/process"
 )
-
-/////////////////////////////////////////////////////////////////////////
-// CLIENT
-/////////////////////////////////////////////////////////////////////////
-
-func makeCabalRequest(address string) (cabal.CabalClient, context.Context, context.CancelFunc, error) {
-	con, err := grpc.Dial(address, grpc.WithInsecure())
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	ctx, can := context.WithTimeout(context.Background(), time.Second)
-	return cabal.NewCabalClient(con), ctx, can, nil
-}
-
-func requestQueryData(address string) (*cabal.QueryResponse, error) {
-	client, ctx, can, err := makeCabalRequest(address)
-	if err != nil {
-		panic(err)
-	}
-	defer can()
-
-	req := cabal.QueryRequest{
-		Query: cabal.QueryRequest_STATUS,
-	}
-	return client.QueryStatus(ctx, &req)
-}
-
-/////////////////////////////////////////////////////////////////////////
-// SERVER
-/////////////////////////////////////////////////////////////////////////
 
 // cabalServer is for gRPC interface for the gmbhCore service coms server
 type cabalServer struct{}
@@ -71,11 +42,11 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 	}
 
 	if !core.Config.Daemon {
-		notify.StdMsgMagenta(fmt.Sprintf("<(%s)- processing ephem-reg request; name=(%s); aliases=(%s); mode=(%s)", lookupService.ID, in.NewServ.GetName(), strings.Join(in.NewServ.GetAliases(), ","), lookupService.GetMode()))
+		notify.StdMsgMagentaNoPrompt(fmt.Sprintf("[serv] <(%s)- processing ephem-reg request; name=(%s); aliases=(%s); mode=(%s)", lookupService.ID, in.NewServ.GetName(), strings.Join(in.NewServ.GetAliases(), ","), lookupService.GetMode()))
 		if lookupService.Static.IsServer {
-			notify.StdMsgMagenta(fmt.Sprintf("-(%s)> success; address=(%v)", lookupService.ID, lookupService.Address))
+			notify.StdMsgMagentaNoPrompt(fmt.Sprintf("       -(%s)> success; address=(%v)", lookupService.ID, lookupService.Address))
 		} else {
-			notify.StdMsgMagenta(fmt.Sprintf("-(%s)> success;", lookupService.ID))
+			notify.StdMsgMagentaNoPrompt(fmt.Sprintf("       -(%s)> success;", lookupService.ID))
 		}
 	}
 
@@ -108,4 +79,55 @@ func (s *cabalServer) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (
 
 func (s *cabalServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
 	return &cabal.ServiceUpdate{Message: "unimp"}, nil
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Converters
+//////////////////////////////////////////////////////////////////////////////////////////
+
+// ServiceToRPC translates one service to cabal form
+func ServiceToRPC(s service.Service) *cabal.Service {
+
+	procRuntime := s.GetProcess().GetRuntime()
+
+	rpcService := &cabal.Service{
+		Id:      s.ID,
+		Name:    s.Static.Name,
+		Path:    s.Path,
+		LogPath: s.Path + defaults.SERVICE_LOG_PATH + defaults.SERVICE_LOG_FILE,
+	}
+
+	if s.Mode == service.Managed {
+
+		rpcService.Pid = int32(procRuntime.Pid)
+		rpcService.Fails = int32(procRuntime.Fails)
+		rpcService.Restarts = int32(procRuntime.Restarts)
+		rpcService.StartTime = procRuntime.StartTime.Format(time.RFC3339)
+		rpcService.FailTime = procRuntime.DeathTime.Format(time.RFC3339)
+		rpcService.Errors = s.GetProcess().ReportErrors()
+
+		rpcService.Mode = "managed"
+		switch s.Process.GetStatus() {
+		case process.Stable:
+			rpcService.Status = "Stable"
+		case process.Running:
+			rpcService.Status = "Running"
+		case process.Degraded:
+			rpcService.Status = "Degraded"
+		case process.Failed:
+			rpcService.Status = "Failed"
+		case process.Killed:
+			rpcService.Status = "Killed"
+		case process.Initialized:
+			rpcService.Status = "Initialized"
+		}
+	} else if s.Mode == service.Remote {
+		rpcService.Mode = "remote"
+		rpcService.Status = "-"
+	}
+	return rpcService
+}
+
+func serviceToStruct() *service.Service {
+	return nil
 }

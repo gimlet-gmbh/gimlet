@@ -14,11 +14,10 @@ import (
 	"strconv"
 	"time"
 
-	"google.golang.org/grpc/codes"
-
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 )
 

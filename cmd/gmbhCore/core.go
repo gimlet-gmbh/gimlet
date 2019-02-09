@@ -11,13 +11,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -29,10 +27,7 @@ import (
 	"github.com/gmbh-micro/service"
 	"github.com/gmbh-micro/service/container"
 	"github.com/gmbh-micro/service/static"
-	"github.com/gmbh-micro/setting"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // The global config and controller for the core
@@ -41,32 +36,29 @@ var core *Core
 
 // Core - internal representation of the gmbhCore core
 type Core struct {
-	Version           string
-	CodeName          string
-	ProjectPath       string
-	Config            *setting.UserConfig
-	Router            *router.Router
-	MsgCounter        int
-	log               *os.File
-	logm              *sync.Mutex
-	controlServerLock *sync.Mutex
-	Info              *Debug
-}
-
-// Debug contains various information about Core operations
-type Debug struct {
-	StartTime time.Time
+	Version     string
+	CodeName    string
+	ProjectPath string
+	MsgCounter  int
+	StartTime   time.Time
+	Log         *notify.Log
+	acclog      *notify.Log
+	errlog      *notify.Log
+	Config      *UserConfig
+	Cabal       *rpc.Connection
+	Control     *rpc.Connection
+	Router      *router.Router
 }
 
 // StartCore initializes settings of the core and creates the service handler and router
 // needed to process requestes
-func StartCore(path string, verbose bool, daemon bool) *Core {
+func StartCore(path string) (*Core, error) {
 
-	userConfig, err := setting.ParseUserConfig(path + defaults.CONFIG_FILE)
+	userConfig, err := ParseUserConfig(path + defaults.CONFIG_FILE)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	userConfig.Daemon = daemon
+	userConfig.Daemon = false
 	core = &Core{
 		Version:     defaults.VERSION,
 		CodeName:    defaults.CODE,
@@ -74,14 +66,19 @@ func StartCore(path string, verbose bool, daemon bool) *Core {
 		Router:      router.NewRouter(),
 		ProjectPath: path,
 		MsgCounter:  1,
-		Info: &Debug{
-			StartTime: time.Now(),
-		},
+		Log:         notify.NewLogFile(path+defaults.LOG_PATH, defaults.CORE_LOG_NAME, false),
+		acclog:      notify.NewLogFile(path+defaults.LOG_PATH, defaults.ACCESS_LOG_NAME, false),
+		errlog:      notify.NewLogFile(path+defaults.LOG_PATH, defaults.ERROR_LOG_NAME, false),
+		StartTime:   time.Now(),
 	}
+	core.Log.Sep()
+	core.Log.Ln("                    _           ")
+	core.Log.Ln("  _  ._ _  |_  |_| /   _  ._ _  ")
+	core.Log.Ln(" (_| | | | |_) | | \\_ (_) | (/_")
+	core.Log.Ln("  _|                            ")
+	core.Log.Ln("version=%v; code=%v; startTime=%s", core.Version, core.CodeName, core.StartTime.Format(time.Stamp))
 
-	notify.SetVerbose(verbose)
-	core.logRuntimeData(path + defaults.SERVICE_LOG_PATH)
-	return core
+	return core, nil
 }
 
 func getCore() (*Core, error) {
@@ -92,20 +89,15 @@ func getCore() (*Core, error) {
 }
 
 // ServiceDiscovery scans all directories in the ./services folder looking for gmbhCore configuration files
-func (c *Core) ServiceDiscovery() {
-	path := c.getServicePath()
+func (c *Core) ServiceDiscovery() error {
 
-	if !c.Config.Daemon {
-		notify.StdMsgBlue("service discovery started in")
-		notify.StdMsgBlue(path)
-	} else {
-		notify.StdMsgBlue("(3/3) service discovery in " + path)
-	}
+	path := c.ProjectPath + "/" + c.Config.ServicesDirectory
+	// c.Log.Ln("Managed Services (path = %s)", path)
 
 	// scan the services directory and find all services
 	servicePaths, err := c.scanForServices(path)
 	if err != nil {
-		notify.StdMsgErr(err.Error(), 1)
+		return errors.New("could not read service directory")
 	}
 
 	// Create and attach all services that run in Managed mode
@@ -114,51 +106,31 @@ func (c *Core) ServiceDiscovery() {
 		// Add a new managed service to router
 		newService, err := c.Router.AddManagedService(servicePath + defaults.CONFIG_FILE)
 		if err != nil {
-			// report the error and skip the rest for now
-			// TODO: Better process error handling
-			notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(servicePaths)))
-			notify.StdMsgErr(err.Error(), 1)
+			c.Log.Err("(%d/%d) error = %s", i+1, len(servicePaths), err.Error())
 			continue
-		}
-
-		if !c.Config.Daemon {
-			notify.StdMsgBlue(fmt.Sprintf("(%d/%d)", i+1, len(servicePaths)))
-			notify.StdMsgBlue(newService.Static.Name, 1)
-			notify.StdMsgBlue(servicePath, 1)
-			if newService.Static.IsServer {
-				notify.StdMsgBlue("assigning address: "+newService.Address, 1)
-			}
 		}
 
 		// Start service
 		pid, err := newService.StartService()
 		if err != nil {
-			notify.StdMsgErr(err.Error(), 1)
-		}
-		if !c.Config.Daemon {
-			notify.StdMsgGreen(fmt.Sprintf("Service running in ephemeral mode with pid=(%v)", pid), 1)
-		} else {
-			notify.StdMsgBlue(fmt.Sprintf("(%d/%d) %v started in ephemeral mode with pid=(%v)", i+1, len(servicePaths), newService.Static.Name, pid), 0)
+			c.Log.Err("(%d/%d) error = %s", i+1, len(servicePaths), err.Error())
+			continue
 		}
 
+		c.Log.Ln("(%d/%d) name = %s", i+1, len(servicePaths), newService.Static.Name)
+		c.Log.Ln("      path = %s\n      address = %s\n      pid = %s", servicePath, newService.Address, pid)
 	}
 
-	notify.StdMsgBlue(fmt.Sprintf("startup complete; duration=(%v)", time.Since(c.Info.StartTime)))
+	return nil
+}
 
-	go c.takeInventory()
-
+// Wait for shutdown
+func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT)
 	_ = <-sig
 
-	if !c.Config.Daemon {
-		notify.StdMsgMagenta(fmt.Sprintf("received shutdown signal; duration=(%v)", time.Since(c.Info.StartTime)))
-	}
 	c.shutdown(false)
-}
-
-func (c *Core) getServicePath() string {
-	return c.ProjectPath + "/" + c.Config.ServicesDirectory
 }
 
 // scanForServices scans for directories (or symbolic links to directories)
@@ -220,86 +192,31 @@ func (c *Core) scanForServices(baseDir string) ([]string, error) {
 }
 
 // StartCabalServer starts the gRPC server to run core on
-func (c *Core) StartCabalServer() {
-	go func() {
-		list, err := net.Listen("tcp", c.Config.DefaultHost+c.Config.DefaultPort)
-		if err != nil {
-			panic(err)
-		}
-
-		s := grpc.NewServer()
-		cabal.RegisterCabalServer(s, &cabalServer{})
-
-		reflection.Register(s)
-		if err := s.Serve(list); err != nil {
-			panic(err)
-		}
-
-	}()
-	if !c.Config.Daemon {
-		notify.StdMsgBlue("attempting to start cabal server")
-		notify.StdMsgGreen("starting cabal server at "+c.Config.DefaultHost+c.Config.DefaultPort, 1)
-	} else {
-		notify.StdMsgBlue("(1/3) starting cabal server at " + c.Config.DefaultHost + c.Config.DefaultPort)
+func (c *Core) StartCabalServer() error {
+	c.Cabal = rpc.NewCabalConnection(c.Config.DefaultHost+c.Config.DefaultPort, &cabalServer{})
+	err := c.Cabal.Connect()
+	if err != nil {
+		c.Log.Err("could not start cabal server\nerror = %v", err.Error())
+		return err
 	}
+	c.Log.Ln("cabal server started at %v", c.Config.DefaultHost+c.Config.DefaultPort)
+	return nil
 }
 
 // StartControlServer starts the gRPC server to run core on
-func (c *Core) StartControlServer() {
-	go func() {
-		list, err := net.Listen("tcp", c.Config.ControlHost+c.Config.ControlPort)
-		if err != nil {
-			panic(err)
-		}
-
-		s := grpc.NewServer()
-		cabal.RegisterControlServer(s, &controlServer{})
-
-		reflection.Register(s)
-		if err := s.Serve(list); err != nil {
-			panic(err)
-		}
-
-	}()
-	if !c.Config.Daemon {
-		notify.StdMsgBlue("Attempting to start control server")
-		notify.StdMsgGreen("starting control server at "+c.Config.ControlHost+c.Config.ControlPort, 1)
-	} else {
-		notify.StdMsgBlue("(2/3) starting control server at " + c.Config.ControlHost + c.Config.ControlPort)
-	}
-}
-
-func (c *Core) logRuntimeData(path string) {
-	filename := ".gmbhCore"
-	var err error
-	c.log, err = notify.OpenLogFile(path, filename)
-	c.logm = &sync.Mutex{}
+func (c *Core) StartControlServer() error {
+	c.Control = rpc.NewControlConnection(c.Config.ControlHost+c.Config.ControlPort, &controlServer{})
+	err := c.Control.Connect()
 	if err != nil {
-		notify.StdMsgErr("could not create log file: " + err.Error())
-		return
+		c.Log.Err("could not start control server\nerror = %v", err.Error())
+		return err
 	}
-	sep := "------------------------------------------------------------------------"
-	c.log.WriteString("\n" + sep + "\n")
-	c.log.WriteString("startTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
-	c.log.WriteString("cabalAddress=\"" + c.Config.DefaultHost + c.Config.DefaultPort + "\"\n")
-	c.log.WriteString("ctrlAddress=\"" + c.Config.ControlHost + c.Config.ControlPort + "\"\n")
-
-}
-
-func (c *Core) takeInventory() {
-	paths := c.Router.TakeInventory()
-	result := "services=[" + strings.Join(paths, ", ") + "]\n"
-	c.logm.Lock()
-	defer c.logm.Unlock()
-	c.log.WriteString(result)
+	c.Log.Ln("control server started at %v", c.Config.ControlHost+c.Config.ControlPort)
+	return nil
 }
 
 func (c *Core) shutdown(remote bool) {
-	defer os.Exit(0)
 	if remote {
-		if !c.Config.Daemon {
-			notify.StdMsgGreen("n Recieved remote shutdown notification")
-		}
 		time.Sleep(time.Second * 2)
 	}
 
@@ -316,10 +233,12 @@ func (c *Core) shutdown(remote bool) {
 		c.sendContainerShutdownNotice(rc)
 	}
 
-	c.logm.Lock()
-	c.log.WriteString("stopTime=\"" + time.Now().Format("Jan 2 2006 15:04:05 MST") + "\"\n")
-	c.logm.Unlock()
-	c.log.Close()
+	c.Cabal.Disconnect()
+	c.Control.Disconnect()
+
+	c.Log.Sep()
+	c.Log.Ln("shutdownTime = %v; duration=%v", time.Now().Format(time.Stamp), time.Since(c.StartTime))
+	os.Exit(0)
 }
 
 func (c *Core) sendServiceShutdownNotice(serv *service.Service) {
@@ -455,7 +374,7 @@ func (r *RequestHandler) processErrors() {
 }
 
 func (r *RequestHandler) forewardRequest(address string) {
-	client, ctx, can, err := makeCabalRequest(address)
+	client, ctx, can, err := rpc.GetCabalRequest(address, time.Second)
 	if err != nil {
 		panic(err)
 	}
@@ -478,12 +397,59 @@ func (r *RequestHandler) GetResponder() *cabal.Responder {
 
 func (r *RequestHandler) reportRequest(silently bool) {
 	if !silently {
-		notify.StdMsgBlue(fmt.Sprintf("<(%d)- Processing data request; sender=(%s); target=(%s); method=(%s)", r.count, r.Request.Sender, r.Request.Target, r.Request.Method))
+		notify.StdMsgBlueNoPrompt(fmt.Sprintf("[data] <(%d)- sender=(%s); target=(%s); method=(%s)", r.count, r.Request.Sender, r.Request.Target, r.Request.Method))
 		if r.success == true {
-			notify.StdMsgGreen(fmt.Sprintf("-(%d)> Success; duration=(%s); errorString=(%s)", r.count, time.Since(r.startTime), r.Responder.ErrorString))
+			notify.StdMsgBlueNoPrompt(fmt.Sprintf("       -(%d)> Success; duration=(%s); errorString=(%s)", r.count, time.Since(r.startTime), r.Responder.ErrorString))
 			return
 		}
-		notify.StdMsgErr(fmt.Sprintf("-(%d)> Failed; duration=(%s); errorString=(%s)", r.count, time.Since(r.startTime), r.Responder.ErrorString))
+		notify.StdMsgErrNoPrompt(fmt.Sprintf("       -(%d)> Failed; duration=(%s); errorString=(%s)", r.count, time.Since(r.startTime), r.Responder.ErrorString))
 		return
 	}
+}
+
+// UserConfig represents the parsable config settings
+type UserConfig struct {
+	Name              string   `yaml:"project_name"`
+	Verbose           bool     `yaml:"verbose"`
+	Daemon            bool     `yaml:"daemon"`
+	DefaultHost       string   `yaml:"default_host"`
+	DefaultPort       string   `yaml:"default_port"`
+	ControlHost       string   `yaml:"control_host"`
+	ControlPort       string   `yaml:"control_port"`
+	ServicesDirectory string   `yaml:"services_directory"`
+	ServicesToAttach  []string `yaml:"services_to_attach"`
+	ServicesDetached  []string `yaml:"services_detached"`
+}
+
+// ParseUserConfig attempts to parse a yaml file at path and return the UserConfigStruct.
+// If not all settings have been defined in user path, the defaults will be used.
+func ParseUserConfig(path string) (*UserConfig, error) {
+	c := UserConfig{Verbose: defaults.VERBOSE, Daemon: defaults.DAEMON}
+
+	yamlFile, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, errors.New("could not open yaml file: " + err.Error())
+	}
+
+	err = yaml.Unmarshal(yamlFile, &c)
+	if err != nil {
+		return nil, errors.New("could not parse yaml file: " + err.Error())
+	}
+
+	if c.Name == "" {
+		c.Name = defaults.PROJECT_NAME
+	}
+	if c.DefaultHost == "" {
+		c.DefaultHost = defaults.DEFAULT_HOST
+	}
+	if c.DefaultPort == "" {
+		c.DefaultPort = defaults.DEFAULT_PORT
+	}
+	if c.ControlHost == "" {
+		c.ControlHost = defaults.CONTROL_HOST
+	}
+	if c.ControlPort == "" {
+		c.ControlPort = defaults.CONTROL_PORT
+	}
+	return &c, nil
 }

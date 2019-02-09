@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/gmbh-micro/defaults"
@@ -11,6 +12,9 @@ import (
 
 // TAB is the amount of indent to set
 const TAB = "  "
+
+// SEP is a seperator
+const SEP = "-----------------------------------------------"
 
 // TAG is the msg to put before a msg
 var TAG string
@@ -71,6 +75,21 @@ func StdMsgGreenNoPrompt(msg string, tab ...int) {
 // StdMsgMagenta logs a magenta message to stdOut if in verbose mode
 func StdMsgMagenta(msg string, tab ...int) {
 	toStdOutWithColorTag(color.FgMagenta, checkIndent(tab...)+msg)
+}
+
+// StdMsgMagentaNoPrompt logs a magenta message to stdOut if in verbose mode
+func StdMsgMagentaNoPrompt(msg string, tab ...int) {
+	toStdOutWithColor(color.FgMagenta, checkIndent(tab...)+msg)
+}
+
+// StdMsgCyan logs a Cyan message to stdOut if in verbose mode
+func StdMsgCyan(msg string, tab ...int) {
+	toStdOutWithColorTag(color.FgCyan, checkIndent(tab...)+msg)
+}
+
+// StdMsgCyanNoPrompt logs a Cyan message to stdOut if in verbose mode
+func StdMsgCyanNoPrompt(msg string, tab ...int) {
+	toStdOutWithColor(color.FgCyan, checkIndent(tab...)+msg)
 }
 
 // StdMsgErr logs a red error message to stdOut if in verbose mode
@@ -145,4 +164,79 @@ func checkDir(path string) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.Mkdir(path, 0755)
 	}
+}
+
+// Log is the object that holds onto logging data
+type Log struct {
+	path     string
+	filename string
+	verbose  bool
+	file     *os.File
+	mu       *sync.Mutex
+}
+
+// NewLogFile creates a new log at path with filename name
+func NewLogFile(path, filename string, verbose bool) *Log {
+
+	logger := &Log{
+		path:     path,
+		filename: filename,
+		verbose:  verbose,
+		mu:       &sync.Mutex{},
+	}
+
+	createFilePath(path)
+	file := createFile(path + "/" + filename)
+	logger.file = file
+
+	return logger
+}
+
+// Ln writes a message to log
+func (l *Log) Ln(format string, a ...interface{}) {
+	if l.file != nil {
+		l.mu.Lock()
+		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
+		l.mu.Unlock()
+	}
+	if l.verbose {
+		fmt.Println(fmt.Sprintf(format, a...))
+	}
+}
+
+// Err writes a message to log
+func (l *Log) Err(format string, a ...interface{}) {
+	if l.file != nil {
+		l.mu.Lock()
+		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
+		l.mu.Unlock()
+	}
+	if l.verbose {
+		color.Set(color.FgRed)
+		fmt.Println(fmt.Sprintf(format, a...))
+		color.Unset()
+	}
+}
+
+// Sep writes a seperator message to log
+func (l *Log) Sep() {
+	if l.file != nil {
+		l.mu.Lock()
+		l.file.WriteString(SEP + "\n")
+		l.mu.Unlock()
+	}
+}
+
+func createFilePath(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.Mkdir(path, 0755)
+	}
+}
+
+func createFile(pathName string) *os.File {
+	file, err := os.OpenFile(pathName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	if err != nil {
+		return nil
+	}
+	return file
 }

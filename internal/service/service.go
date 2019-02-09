@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/defaults"
-	"github.com/gmbh-micro/log"
+	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
 	"github.com/gmbh-micro/service/static"
 )
@@ -55,7 +55,7 @@ type Service struct {
 	Static        *static.Static
 	Process       process.Process
 	ActiveProcess bool
-	Logs          *log.Log
+	Logs          *notify.Log
 }
 
 // GetProcess returns the process or empty process and error of a service
@@ -120,10 +120,10 @@ func (s *Service) StartService() (pid string, err error) {
 		s.ActiveProcess = true // have to include this because cannot have pointer to interface type in Go
 		pid, err := s.Process.Start()
 		if err != nil {
-			s.LogMsg("error starting service; err=" + err.Error())
+			s.Println("error starting service; err=" + err.Error())
 			return "-1", errors.New("service.StartService.couldNotStartService")
 		}
-		s.LogMsg("started with pid=" + strconv.Itoa(pid))
+		s.Println("started with pid=" + strconv.Itoa(pid))
 		return strconv.Itoa(pid), nil
 	} else if s.Static.Language == "node" {
 		s.Process = process.NewNodeProc()
@@ -141,7 +141,7 @@ func (s *Service) KillProcess() {
 	if s.Mode == Planetary {
 		return
 	}
-	s.LogMsg("kill process request at " + time.Now().Format(time.RFC3339))
+	s.Println("kill process request at " + time.Now().Format(time.RFC3339))
 	s.Process.Kill(true)
 }
 
@@ -150,17 +150,17 @@ func (s *Service) RestartProcess() {
 	if s.Mode == Planetary {
 		return
 	}
-	s.LogMsg("kill process request at " + time.Now().Format(time.RFC3339))
+	s.Println("kill process request at " + time.Now().Format(time.RFC3339))
 	pid, err := s.Process.Restart(false)
 	if err != nil {
-		s.LogMsg("error restarting; err=" + err.Error())
+		s.Println("error restarting; err=" + err.Error())
 	}
-	s.LogMsg("restarted with pid=" + strconv.Itoa(pid))
+	s.Println("restarted with pid=" + strconv.Itoa(pid))
 }
 
 // StartLog starts the logger for process management information
 func (s *Service) StartLog(path, filename string) {
-	s.Logs = log.NewLogFile(path, filename)
+	s.Logs = notify.NewLogFile(path, filename, false)
 }
 
 // createAbsPathToBin attempts to resolve an absolute path to the binary file to start
@@ -178,10 +178,10 @@ func assignNextID() string {
 	return strconv.Itoa(idtag)
 }
 
-// LogMsg adds a log message to the service's log if it has been configured
-func (s *Service) LogMsg(msg string) {
+// Println adds a log message to the service's log if it has been configured
+func (s *Service) Println(msg string) {
 	if s.Logs != nil {
-		s.Logs.Msg(msg)
+		s.Logs.Ln(msg)
 	}
 }
 
