@@ -50,6 +50,7 @@ func init() {
 type Service struct {
 	ID            string
 	Path          string
+	Created       string
 	Address       string
 	Mode          Mode
 	Status        Status
@@ -100,9 +101,10 @@ func NewManagedService(path string) (*Service, error) {
 func NewPlanetaryService(staticData *static.Static) (*Service, error) {
 
 	service := Service{
-		ID:     assignNextID(),
-		Mode:   Planetary,
-		Static: staticData,
+		ID:      assignNextID(),
+		Created: time.Now().Format(time.Stamp),
+		Mode:    Planetary,
+		Static:  staticData,
 	}
 
 	service.Status = Configured

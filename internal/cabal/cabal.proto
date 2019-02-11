@@ -282,8 +282,9 @@ message StartReply {
 }
 
 message ListReply {
-    repeated Service services = 1;
-    repeated ProcessManager procm = 3;
+    repeated Service managed = 6;
+    repeated Service planetary = 7;
+    repeated ProcessManager remote = 8;
     int32 length = 2;
 }
 

@@ -39,10 +39,7 @@ func listAll() {
 		notify.StdMsgErr("error: "+err.Error(), 1)
 		return
 	}
-	if reply.Length == 0 {
-		notify.StdMsgBlue("no services to list")
-	}
-	pprintListAll(reply.Services)
+	pprintListAll(reply.GetManaged(), reply.GetRemote(), reply.GetPlanetary())
 }
 
 func report() {
@@ -62,7 +59,7 @@ func report() {
 	if reply.Length == 0 {
 		notify.StdMsgBlue("no services to list")
 	}
-	for _, s := range reply.GetServices() {
+	for _, s := range reply.GetManaged() {
 		pprintListOne(*s)
 	}
 }
@@ -100,7 +97,7 @@ func listOne(id string) {
 		notify.StdMsgErr("could not find service with id: " + id)
 		return
 	}
-	pprintListOne(*reply.Services[0])
+	pprintListOne(*reply.Managed[0])
 }
 
 func restartOne(id string) {

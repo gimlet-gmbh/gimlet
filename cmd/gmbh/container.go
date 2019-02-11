@@ -233,7 +233,7 @@ func serviceToRPC(s *service.Service) *cabal.Service {
 	procRuntime := c.serv.GetProcess().GetRuntime()
 
 	si := &cabal.Service{
-		Id:        c.id + "-" + c.serv.ID,
+		Id:        c.serv.ID,
 		Name:      c.serv.Static.Name,
 		Path:      "-",
 		LogPath:   "-",

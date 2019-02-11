@@ -101,6 +101,7 @@ func ServiceToRPC(s service.Service) *cabal.Service {
 
 		rpcService.Pid = int32(procRuntime.Pid)
 		rpcService.Fails = int32(procRuntime.Fails)
+		rpcService.Address = s.Address
 		rpcService.Restarts = int32(procRuntime.Restarts)
 		rpcService.StartTime = procRuntime.StartTime.Format(time.RFC3339)
 		rpcService.FailTime = procRuntime.DeathTime.Format(time.RFC3339)

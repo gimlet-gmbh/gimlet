@@ -62,16 +62,27 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 
 	cc.Router.Reconcile()
 
-	rpcServices := []*cabal.Service{}
+	rpcManaged := []*cabal.Service{}
+	rpcPlanetary := []*cabal.Service{}
+	rpcRemote := []*cabal.ProcessManager{}
 
 	for _, s := range cc.Router.GetAllServices() {
 		if s.Mode == service.Managed {
-			rpcServices = append(rpcServices, ServiceToRPC(*s))
+			rpcManaged = append(rpcManaged, ServiceToRPC(*s))
 		} else if s.Mode == service.Remote {
 
 			pm, err := cc.Router.LookupProcessManager(s.Static.Name)
 			if err != nil {
-				rpcServices = append(rpcServices, &cabal.Service{Name: s.Static.Name, Mode: "Remote", Errors: []string{"could not contact"}})
+				epm := &cabal.ProcessManager{
+					Services: []*cabal.Service{
+						&cabal.Service{
+							Name:   s.Static.Name,
+							Mode:   "Remote",
+							Errors: []string{"could not contact"},
+						},
+					},
+				}
+				rpcRemote = append(rpcRemote, epm)
 				continue
 			}
 
@@ -83,26 +94,43 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 
 			reply, err := client.RequestRemoteAction(con, request)
 			if err != nil {
-				rpcServices = append(rpcServices, &cabal.Service{Name: s.Static.Name, Mode: "Remote", Errors: []string{"could not contact"}})
+				epm := &cabal.ProcessManager{
+					Services: []*cabal.Service{
+						&cabal.Service{
+							Name:   s.Static.Name,
+							Mode:   "Remote",
+							Errors: []string{"could not contact"},
+						},
+					},
+				}
+				rpcRemote = append(rpcRemote, epm)
 				continue
 			}
 
-			rpcServices = append(rpcServices, reply.GetServiceInfo())
+			pmData := &cabal.ProcessManager{
+				ID:       s.Parent.ID,
+				Name:     s.Parent.Name,
+				Address:  s.Parent.Address,
+				Services: []*cabal.Service{reply.GetServiceInfo()},
+			}
+			rpcRemote = append(rpcRemote, pmData)
 
 			can()
 		} else {
 			ns := &cabal.Service{
-				Name: s.Static.Name,
-				Id:   s.ID,
-				Mode: "Planetary",
+				Name:    s.Static.Name,
+				Id:      s.ID,
+				Address: s.Address,
+				Mode:    "Planetary",
 			}
-			rpcServices = append(rpcServices, ns)
+			rpcPlanetary = append(rpcPlanetary, ns)
 		}
 	}
 
 	reply := cabal.ListReply{
-		Length:   int32(len(rpcServices)),
-		Services: rpcServices,
+		Managed:   rpcManaged,
+		Remote:    rpcRemote,
+		Planetary: rpcPlanetary,
 	}
 
 	return &reply, nil
@@ -120,8 +148,8 @@ func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*
 	}
 
 	reply := cabal.ListReply{
-		Length:   1,
-		Services: []*cabal.Service{ServiceToRPC(*target)},
+		Length:  1,
+		Managed: []*cabal.Service{ServiceToRPC(*target)},
 	}
 
 	return &reply, nil

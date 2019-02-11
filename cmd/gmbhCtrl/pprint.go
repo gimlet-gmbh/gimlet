@@ -48,127 +48,113 @@ func pprintListOne(service cabal.Service) {
 	}
 }
 
-// Don't look too hard at this...
-func pprintListAll(processes []*cabal.Service) {
+func pprintListAll(managed []*cabal.Service, remote []*cabal.ProcessManager, planetary []*cabal.Service) {
 
-	nameLength, largestID, _ := getDetails(processes)
-	color.Set(color.Underline)
-
-	fmt.Printf(" ID  ")
-	if largestID >= 10 && largestID < 100 {
-		fmt.Printf(" ")
-	} else if largestID >= 100 {
-		fmt.Printf("  ")
+	if len(managed) != 0 {
+		fmt.Println("Managed Services")
+		fmt.Println(reportProcessHeader())
+		for _, s := range managed {
+			fmt.Println(reportProcess(s))
+		}
 	}
-	fmt.Printf("\u2502 PID   \u2502 Status      \u2502 Uptime \u2502 Name")
-	for i := 0; i < nameLength-2; i++ {
-		fmt.Printf(" ")
+
+	if len(remote) != 0 {
+		fmt.Println("\nRemote Services")
+		fmt.Println(reportRemoteHeader())
+		for _, p := range remote {
+			for _, s := range p.GetServices() {
+				fmt.Println(reportRemote(s, p.ID))
+			}
+		}
 	}
-	fmt.Printf("| Path        \n")
-	color.Unset()
 
-	for _, p := range processes {
-
-		id, _ := strconv.Atoi(p.Id)
-		if (largestID >= 10 && largestID < 100) && id < 10 {
-			fmt.Printf(" ")
-		} else if largestID >= 100 && id < 100 {
-			fmt.Printf("  ")
+	if len(planetary) != 0 {
+		notify.StdMsgNoPrompt("\nPlanetary Services")
+		for _, p := range planetary {
+			fmt.Println(reportRemoteHeader())
+			fmt.Println(reportRemote(p, "----"))
 		}
-
-		fmt.Printf(" %s   \u2502 ", p.Id)
-		if p.Pid == -1 {
-			fmt.Printf("----- \u2502 ")
-		} else {
-			if p.Pid < 10000 {
-				fmt.Printf(" ")
-			}
-			fmt.Printf("%d \u2502 ", p.Pid)
-		}
-
-		extraSpace := false
-		sColor := color.FgGreen
-		if p.Status != "Running" {
-			sColor = color.FgRed
-			extraSpace = true
-		}
-
-		color.Set(sColor)
-		fmt.Printf("[ %s ]", p.Status)
-		color.Unset()
-		if extraSpace {
-			fmt.Printf(" ")
-		}
-
-		t, err := time.Parse(time.RFC3339, p.StartTime)
-		if err != nil {
-			fmt.Printf(" |       ")
-		} else {
-
-			dur := time.Now().Sub(t).Truncate(time.Minute)
-			var durStr string
-			if dur >= time.Minute {
-
-				durStr = shortDur(dur)
-				fmt.Printf(" | %v", durStr)
-
-				if dur < (time.Minute * 10) {
-					fmt.Printf("    ")
-				} else if dur < (time.Hour) {
-					fmt.Printf("   ")
-				} else if dur < (time.Hour * 10) {
-					fmt.Printf("  ")
-				}
-
-			} else {
-				fmt.Printf(" | <1m   ")
-			}
-
-		}
-
-		fmt.Printf(" ")
-
-		fmt.Printf("\u2502 ")
-		color.Set(color.FgBlue)
-		fmt.Printf("%s", p.Name)
-		color.Unset()
-		if false {
-			fmt.Printf(" \u2502 %s", p.Path)
-		}
-
-		for i := 0; i < (nameLength - len(p.Name) + 2); i++ {
-			fmt.Printf(" ")
-		}
-
-		fmt.Printf("\u2502 ")
-		fmt.Printf("%v", p.Path)
-		fmt.Printf("\n")
 	}
 }
 
-func shortDur(d time.Duration) string {
-	str := d.String()
-	e := str[:len(str)-2]
-	return e
+func getStatus(s string) string {
+	status := ""
+	if s == "Stable" || s == "Running" {
+		green := color.New(color.FgGreen).SprintFunc()
+		status = green(fmt.Sprintf("%-8s", s))
+	} else if s == "Degraded" {
+		yellow := color.New(color.FgYellow).SprintFunc()
+		status = yellow(fmt.Sprintf("%-8s", s))
+	} else {
+		red := color.New(color.FgRed).SprintFunc()
+		status = red(fmt.Sprintf("%-8s", s))
+	}
+	return status
 }
 
-// Longest name length, largest id
-func getDetails(processes []*cabal.Service) (longestName int, longestID int, longestPath int) {
-	ln := 0
-	li := 0
-	lp := 0
-	for _, p := range processes {
-		if len(p.Name) > ln {
-			ln = len(p.Name)
-		}
-		id, _ := strconv.Atoi(p.Id)
-		if id > li {
-			li = id
-		}
-
-		if len(p.Path) > lp {
-			lp = len(p.Path)
-		}
+func getPid(s int32) string {
+	if s == -1 {
+		return "-----"
 	}
-	return ln, li, lp
+	return strconv.Itoa(int(s))
+}
+
+func getUptime(t string) string {
+	pt, err := time.Parse(time.RFC3339, t)
+	if err != nil {
+		return ""
+	}
+	ts := time.Now().Sub(pt).Truncate(time.Minute).String()
+	return ts[:len(ts)-2]
+}
+
+func getName(s string) string {
+	blue := color.New(color.FgBlue).SprintFunc()
+	return blue(fmt.Sprintf("%-12s", s))
+}
+
+func reportProcessHeader() string {
+	u := color.New(color.Underline).SprintFunc()
+	return u(fmt.Sprintf(" %-3s \u2502 %5s \u2502 %-8s \u2502 %-7s \u2502 %-12s \u2502 %-20s",
+		"ID",
+		"PID",
+		"Status",
+		"Uptime",
+		"Name",
+		"Path",
+	))
+}
+
+func reportProcess(p *cabal.Service) string {
+	return fmt.Sprintf(" %-3s \u2502 %5s \u2502 %-8s \u2502 %-7s \u2502 %-12s \u2502 %s",
+		p.Id,
+		getPid(p.Pid),
+		getStatus(p.Status),
+		getUptime(p.StartTime),
+		getName(p.Name),
+		p.Path,
+	)
+}
+
+func reportRemoteHeader() string {
+	u := color.New(color.Underline).SprintFunc()
+	return u(fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-5s \u2502 %-12s ",
+		"NID",
+		"ID",
+		"Status",
+		"Uptime",
+		"Err",
+		"Name",
+	))
+}
+
+func reportRemote(p *cabal.Service, nid string) string {
+	return fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-5d \u2502 %-12s ",
+		nid,
+		p.Id,
+		getStatus(p.Status),
+		getUptime(p.StartTime),
+		len(p.Errors),
+		getName(p.Name),
+	)
 }
