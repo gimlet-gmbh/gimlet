@@ -209,45 +209,56 @@ func (r *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 	notify.StdMsgBlue(fmt.Sprintf("-> Request Remote Action; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
 	if in.GetAction() == "request.info" {
-
-		procRuntime := c.serv.GetProcess().GetRuntime()
-
-		si := &cabal.Service{
-			Id:        c.id + "-" + c.serv.ID,
-			Name:      c.serv.Static.Name,
-			Path:      "-",
-			LogPath:   "-",
-			Pid:       0,
-			Fails:     int32(procRuntime.Fails),
-			Restarts:  int32(procRuntime.Restarts),
-			StartTime: procRuntime.StartTime.Format(time.RFC3339),
-			FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
-			Errors:    c.serv.GetProcess().ReportErrors(),
-			Mode:      "remote",
-		}
-
-		switch c.serv.Process.GetStatus() {
-		case process.Stable:
-			si.Status = "Stable"
-		case process.Running:
-			si.Status = "Running"
-		case process.Degraded:
-			si.Status = "Degraded"
-		case process.Failed:
-			si.Status = "Failed"
-		case process.Killed:
-			si.Status = "Killed"
-		case process.Initialized:
-			si.Status = "Initialized"
-		}
 		response := &cabal.Action{
 			Sender:      c.serv.Static.Name,
 			Target:      "gmbh-core",
 			Message:     "response.info",
-			ServiceInfo: si,
+			ServiceInfo: serviceToRPC(c.serv),
+		}
+		return response, nil
+	} else if in.GetAction() == "service.restart" {
+		c.serv.RestartProcess()
+		response := &cabal.Action{
+			Sender:  c.serv.Static.Name,
+			Target:  "gmbh-core",
+			Message: "action.completed",
 		}
 		return response, nil
 	}
 	return &cabal.Action{Message: "unimp"}, nil
 
+}
+
+func serviceToRPC(s *service.Service) *cabal.Service {
+	procRuntime := c.serv.GetProcess().GetRuntime()
+
+	si := &cabal.Service{
+		Id:        c.id + "-" + c.serv.ID,
+		Name:      c.serv.Static.Name,
+		Path:      "-",
+		LogPath:   "-",
+		Pid:       0,
+		Fails:     int32(procRuntime.Fails),
+		Restarts:  int32(procRuntime.Restarts),
+		StartTime: procRuntime.StartTime.Format(time.RFC3339),
+		FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
+		Errors:    c.serv.GetProcess().ReportErrors(),
+		Mode:      "remote",
+	}
+
+	switch c.serv.Process.GetStatus() {
+	case process.Stable:
+		si.Status = "Stable"
+	case process.Running:
+		si.Status = "Running"
+	case process.Degraded:
+		si.Status = "Degraded"
+	case process.Failed:
+		si.Status = "Failed"
+	case process.Killed:
+		si.Status = "Killed"
+	case process.Initialized:
+		si.Status = "Initialized"
+	}
+	return si
 }

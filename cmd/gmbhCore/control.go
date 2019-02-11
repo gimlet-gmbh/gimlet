@@ -60,6 +60,8 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 		return nil, errors.New("gmbh system error, could not locate instance of core")
 	}
 
+	cc.Router.Reconcile()
+
 	rpcServices := []*cabal.Service{}
 
 	for _, s := range cc.Router.GetAllServices() {
@@ -67,13 +69,13 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 			rpcServices = append(rpcServices, ServiceToRPC(*s))
 		} else if s.Mode == service.Remote {
 
-			container, err := cc.Router.LookupContainer(s.Static.Name)
+			pm, err := cc.Router.LookupProcessManager(s.Static.Name)
 			if err != nil {
 				rpcServices = append(rpcServices, &cabal.Service{Name: s.Static.Name, Mode: "Remote", Errors: []string{"could not contact"}})
 				continue
 			}
 
-			client, con, can, err := rpc.GetRemoteRequest(container.Address, time.Second)
+			client, con, can, err := rpc.GetRemoteRequest(pm.Address, time.Second)
 
 			request := &cabal.Action{
 				Action: "request.info",
@@ -88,6 +90,13 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 			rpcServices = append(rpcServices, reply.GetServiceInfo())
 
 			can()
+		} else {
+			ns := &cabal.Service{
+				Name: s.Static.Name,
+				Id:   s.ID,
+				Mode: "Planetary",
+			}
+			rpcServices = append(rpcServices, ns)
 		}
 	}
 
@@ -146,7 +155,7 @@ func (c *controlServer) ServerStatus(ctx context.Context, in *cabal.StatusReques
 }
 
 func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-	notify.StdMsgCyanNoPrompt(fmt.Sprintf("[cont] <- Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+	notify.StdMsgCyanNoPrompt(fmt.Sprintf("[ pm ] <- Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
 	if in.GetSender() != "gmbh-container" {
 		return &cabal.ServiceUpdate{Message: "invalid sender"}, nil
@@ -158,14 +167,14 @@ func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal
 	}
 
 	if in.GetAction() == "container.register" {
-		c, err := cc.Router.AddContainer(in.GetMessage())
+		c, err := cc.Router.AddProcessManager(in.GetMessage())
 		if err != nil {
 			return &cabal.ServiceUpdate{Message: err.Error()}, nil
 		}
 		return &cabal.ServiceUpdate{
 			Target:  in.GetSender(),
 			Sender:  "core",
-			Message: "added container",
+			Message: "added process manager",
 			Action:  c.Address,
 			Status:  c.ID,
 		}, nil

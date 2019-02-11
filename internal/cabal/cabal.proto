@@ -283,6 +283,7 @@ message StartReply {
 
 message ListReply {
     repeated Service services = 1;
+    repeated ProcessManager procm = 3;
     int32 length = 2;
 }
 
@@ -302,6 +303,13 @@ message Service {
     string StartTime = 17;
     string FailTime = 18;
     repeated string Errors = 19;
+}
+
+message ProcessManager {
+    string ID = 1;
+    string Name = 2;
+    string Address = 3;
+    repeated Service Services = 4;
 }
 
 message ServiceUpdate {

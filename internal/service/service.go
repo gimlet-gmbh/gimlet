@@ -8,6 +8,7 @@ import (
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
+	"github.com/gmbh-micro/service/procm"
 	"github.com/gmbh-micro/service/static"
 )
 
@@ -54,6 +55,7 @@ type Service struct {
 	Status        Status
 	Static        *static.Static
 	Process       process.Process
+	Parent        *procm.Manager
 	ActiveProcess bool
 	Logs          *notify.Log
 }
@@ -94,12 +96,12 @@ func NewManagedService(path string) (*Service, error) {
 	return &service, nil
 }
 
-// NewRemoteService returns a new service with static data that is passed in
-func NewRemoteService(staticData *static.Static) (*Service, error) {
+// NewPlanetaryService returns a new service with static data that is passed in
+func NewPlanetaryService(staticData *static.Static) (*Service, error) {
 
 	service := Service{
 		ID:     assignNextID(),
-		Mode:   Remote,
+		Mode:   Planetary,
 		Static: staticData,
 	}
 
@@ -112,7 +114,7 @@ func NewRemoteService(staticData *static.Static) (*Service, error) {
 func (s *Service) StartService() (pid string, err error) {
 
 	if s.Mode == Planetary {
-		return "-1", errors.New("service.StartService.invalidService Mode")
+		return "-1", errors.New("service.StartService.invalidServiceMode")
 	}
 
 	if s.Static.Language == "go" {
@@ -150,12 +152,18 @@ func (s *Service) RestartProcess() {
 	if s.Mode == Planetary {
 		return
 	}
-	s.Println("kill process request at " + time.Now().Format(time.RFC3339))
-	pid, err := s.Process.Restart(false)
-	if err != nil {
-		s.Println("error restarting; err=" + err.Error())
+
+	if s.Mode == Remote {
+		s.Println("signaling process manager for process restart at " + time.Now().Format(time.RFC3339))
+		s.Parent.RestartProcess()
+	} else {
+		s.Println("kill process request" + time.Now().Format(time.RFC3339))
+		pid, err := s.Process.Restart(false)
+		if err != nil {
+			s.Println("error restarting; err=" + err.Error())
+		}
+		s.Println("restarted with pid=" + strconv.Itoa(pid))
 	}
-	s.Println("restarted with pid=" + strconv.Itoa(pid))
 }
 
 // StartLog starts the logger for process management information

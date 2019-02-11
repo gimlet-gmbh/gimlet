@@ -31,10 +31,7 @@ func main() {
 		return
 	}
 
-	notify.StdMsgBlueNoPrompt("                    _           ")
-	notify.StdMsgBlueNoPrompt("  _  ._ _  |_  |_| /   _  ._ _  ")
-	notify.StdMsgBlueNoPrompt(" (_| | | | |_) | | \\_ (_) | (/_")
-	notify.StdMsgBlueNoPrompt("  _|                            ")
+	notify.StdMsgBlueNoPrompt(notify.CORE)
 	notify.StdMsgBlue("version=" + core.Version + "; code=" + core.CodeName + "; startTime=" + core.StartTime.Format(time.Stamp))
 
 	err = core.StartCabalServer()

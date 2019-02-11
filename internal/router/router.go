@@ -7,22 +7,28 @@ import (
 
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/service"
-	"github.com/gmbh-micro/service/container"
+
 	"github.com/gmbh-micro/service/process"
+	"github.com/gmbh-micro/service/procm"
 	"github.com/gmbh-micro/service/static"
 )
 
-// Router represents the internal handling of services and containers
+// Note ARD 2-10
+// The difference between services being planetary or managed is the reference to the process manager
+// in the service. If there is not one found then planetary and will be rechecked every so
+// often
+
+// The maps will be from name -> ( service | procm.Manager )
+// The string is the name of the service in both cases
+
+// Router represents the internal handling of services and process managers
 type Router struct {
 	Services     map[string]*service.Service
 	serviceNames []string
 	serviceID    int
-	serviceMu    *sync.Mutex
 
-	containers     map[string]*container.Container
-	containerNames []string
-	containerID    int
-	containerMu    *sync.Mutex
+	processManagers map[string]*procm.Manager
+	procmID         int
 
 	addresses *addressHandler
 }
@@ -33,12 +39,9 @@ func NewRouter() *Router {
 		Services:     make(map[string]*service.Service),
 		serviceNames: make([]string, 0),
 		serviceID:    0,
-		serviceMu:    &sync.Mutex{},
 
-		containers:     make(map[string]*container.Container),
-		containerNames: make([]string, 0),
-		containerID:    100,
-		containerMu:    &sync.Mutex{},
+		processManagers: make(map[string]*procm.Manager),
+		procmID:         100,
 
 		addresses: &addressHandler{
 			host: defaults.BASE_ADDRESS,
@@ -109,10 +112,10 @@ func (r *Router) AddManagedService(configFilePath string) (*service.Service, err
 	return newService, nil
 }
 
-// AddRemoteService to the router
-func (r *Router) AddRemoteService(staticData *static.Static) (*service.Service, error) {
+// AddPlanetaryService to the router
+func (r *Router) AddPlanetaryService(staticData *static.Static) (*service.Service, error) {
 
-	newService, err := service.NewRemoteService(staticData)
+	newService, err := service.NewPlanetaryService(staticData)
 	if err != nil {
 		return nil, errors.New("router.AddService.newService " + err.Error())
 	}
@@ -144,8 +147,9 @@ func (r *Router) addToMap(newService *service.Service) error {
 		}
 	}
 
-	r.serviceMu.Lock()
-	defer r.serviceMu.Unlock()
+	mu := &sync.Mutex{}
+	mu.Lock()
+	defer mu.Unlock()
 
 	r.Services[newService.Static.Name] = newService
 	r.serviceNames = append(r.serviceNames, newService.Static.Name)
@@ -179,6 +183,8 @@ func (r *Router) RestartAllServices() {
 	for _, name := range r.serviceNames {
 		if r.Services[name].Mode == service.Managed {
 			r.Services[name].RestartProcess()
+		} else if r.Services[name].Mode == service.Remote {
+			r.processManagers[name].RestartProcess()
 		}
 	}
 }
@@ -203,18 +209,31 @@ func (r *Router) TakeInventory() []string {
 	return paths
 }
 
-// AddContainer to the router or return the container if it already exists
-func (r *Router) AddContainer(name string) (*container.Container, error) {
+// Reconcile matches services to process managers
+func (r *Router) Reconcile() {
+	for _, n := range r.serviceNames {
+		if r.Services[n].Mode == service.Planetary {
+			c := r.processManagers[n]
+			if c != nil {
+				r.Services[n].Parent = c
+				r.Services[n].Mode = service.Remote
+			}
+		}
+	}
+}
 
-	exists, _ := r.LookupContainer(name)
+// AddProcessManager to the router or return it if it already exists
+func (r *Router) AddProcessManager(name string) (*procm.Manager, error) {
+
+	exists, _ := r.LookupProcessManager(name)
 	if exists != nil {
 		return exists, nil
 	}
 
-	c := container.New(name)
-	c.ID = r.assignNextContainerID()
+	c := procm.New(name)
+	c.ID = r.assignNextProcessManagerID()
 	c.Address = r.addresses.assignAddress(false)
-	err := r.addContainerToMap(c)
+	err := r.addProcessManagerToMap(c)
 	if err != nil {
 		return nil, err
 	}
@@ -222,55 +241,66 @@ func (r *Router) AddContainer(name string) (*container.Container, error) {
 	return c, nil
 }
 
-// LookupContainer from the router
-func (r *Router) LookupContainer(name string) (*container.Container, error) {
-	if r.containers[name] == nil {
-		return nil, errors.New("router.LookupContainer.notFound")
+// LookupProcessManager from the router
+func (r *Router) LookupProcessManager(name string) (*procm.Manager, error) {
+	if r.processManagers[name] == nil {
+		return nil, errors.New("router.LookupProcessManager.notFound")
 	}
-	return r.containers[name], nil
+	return r.processManagers[name], nil
 }
 
-// GetAllContainers that have been registered to gmbh
-func (r *Router) GetAllContainers() []*container.Container {
-	ret := []*container.Container{}
-	for _, name := range r.containerNames {
-		ret = append(ret, r.containers[name])
+// LookupProcessManagerByID from the router
+func (r *Router) LookupProcessManagerByID(id string) (*procm.Manager, error) {
+	for _, c := range r.processManagers {
+		if c.ID == id {
+			return c, nil
+		}
+	}
+	return nil, errors.New("router.LookupProcessManagerByID.notFound")
+}
+
+// GetAllProcessManagers that have been registered to gmbh
+func (r *Router) GetAllProcessManagers() []*procm.Manager {
+	ret := []*procm.Manager{}
+	for _, c := range r.processManagers {
+		ret = append(ret, c)
 	}
 	return ret
 }
 
-// addContainerToMap after checking for collisions between names
+// addProcessManagerToMap after checking for collisions between names
 //
 // TODO: Before declaring a duplicate, find a way to actually check before.
 //		 This might involve a query to see if the expected answer comes back
-//		 from the container if we request it...
-func (r *Router) addContainerToMap(c *container.Container) error {
+//		 from the process manager if we request it...
+func (r *Router) addProcessManagerToMap(c *procm.Manager) error {
 
-	if _, ok := r.containers[c.Name]; ok {
+	if _, ok := r.processManagers[c.Name]; ok {
 		return nil
-		// return errors.New("router.addContainerToMap.duplicate")
 	}
 
-	r.containerMu.Lock()
-	defer r.containerMu.Unlock()
+	mu := &sync.Mutex{}
+	mu.Lock()
+	defer mu.Unlock()
 
-	r.containers[c.Name] = c
-	r.containerNames = append(r.containerNames, c.Name)
+	r.processManagers[c.Name] = c
 
 	return nil
 }
 
-func (r *Router) assignNextContainerID() string {
-	r.containerMu.Lock()
-	defer r.containerMu.Unlock()
+func (r *Router) assignNextProcessManagerID() string {
+	mu := &sync.Mutex{}
+	mu.Lock()
+	defer mu.Unlock()
 
-	r.containerID++
-	return "c" + strconv.Itoa(r.containerID)
+	r.procmID++
+	return "c" + strconv.Itoa(r.procmID)
 }
 
 func (r *Router) assignNextServiceID() string {
-	r.serviceMu.Lock()
-	defer r.serviceMu.Unlock()
+	mu := &sync.Mutex{}
+	mu.Lock()
+	defer mu.Unlock()
 
 	r.serviceID++
 	return strconv.Itoa(r.serviceID)

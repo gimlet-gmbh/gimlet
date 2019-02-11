@@ -28,8 +28,8 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 	lookupService, err := core.Router.LookupService(in.NewServ.GetName())
 	if err != nil {
 		if err.Error() == "router.LookupService.nameNotFound" {
-			if in.NewServ.GetMode() == cabal.NewService_REMOTE {
-				lookupService, err = core.registerRemoteService(
+			if in.NewServ.GetMode() != cabal.NewService_MANAGED {
+				lookupService, err = core.registerPlanetaryService(
 					in.GetNewServ().GetName(),
 					in.GetNewServ().GetAliases(),
 					in.GetNewServ().GetIsClient(),

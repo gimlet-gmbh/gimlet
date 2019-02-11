@@ -25,9 +25,17 @@ import (
 	"github.com/gmbh-micro/router"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/service"
-	"github.com/gmbh-micro/service/container"
+	"github.com/gmbh-micro/service/procm"
 	"github.com/gmbh-micro/service/static"
 	yaml "gopkg.in/yaml.v2"
+)
+
+// mode changes how things are allowed to be attached to Core
+// whether it be open to new services or closed to a manifest file
+type mode int
+
+const (
+	local mode = 1
 )
 
 // The global config and controller for the core
@@ -37,6 +45,7 @@ var core *Core
 // Core - internal representation of the gmbhCore core
 type Core struct {
 	Version     string
+	Mode        mode
 	CodeName    string
 	ProjectPath string
 	MsgCounter  int
@@ -228,15 +237,14 @@ func (c *Core) shutdown(remote bool) {
 		c.sendServiceShutdownNotice(rs)
 	}
 
-	// send shutdown notice to all containers
-	for _, rc := range c.Router.GetAllContainers() {
-		c.sendContainerShutdownNotice(rc)
+	// send shutdown notice to all process managers
+	for _, rc := range c.Router.GetAllProcessManagers() {
+		c.sendProcessManagerShutdownNotice(rc)
 	}
 
 	c.Cabal.Disconnect()
 	c.Control.Disconnect()
 
-	c.Log.Sep()
 	c.Log.Ln("shutdownTime = %v; duration=%v", time.Now().Format(time.Stamp), time.Since(c.StartTime))
 	os.Exit(0)
 }
@@ -261,9 +269,9 @@ func (c *Core) sendServiceShutdownNotice(serv *service.Service) {
 	client.UpdateServiceRegistration(ctx, request)
 }
 
-func (c *Core) sendContainerShutdownNotice(cont *container.Container) {
+func (c *Core) sendProcessManagerShutdownNotice(cont *procm.Manager) {
 	if cont.Address == "" {
-		notify.StdMsgErr("core.sendContainerShutdownNotice.cannotFind=" + cont.ID)
+		notify.StdMsgErr("core.sendProcessManagerShutdownNotice.cannotFind=" + cont.ID)
 	}
 	client, ctx, can, err := rpc.GetRemoteRequest(cont.Address, time.Second)
 	if err != nil {
@@ -280,15 +288,15 @@ func (c *Core) sendContainerShutdownNotice(cont *container.Container) {
 	client.UpdateServiceRegistration(ctx, request)
 }
 
-func (c *Core) registerRemoteService(name string, aliases []string, isclient bool, isserver bool) (*service.Service, error) {
+func (c *Core) registerPlanetaryService(name string, aliases []string, isclient bool, isserver bool) (*service.Service, error) {
 	static := &static.Static{
 		Name:     name,
 		Aliases:  aliases,
-		Mode:     "remote",
+		Mode:     "planetary",
 		IsClient: isclient,
 		IsServer: isserver,
 	}
-	return c.Router.AddRemoteService(static)
+	return c.Router.AddPlanetaryService(static)
 }
 
 // GetMsgCount of the current msg counter and increment the count

@@ -16,20 +16,19 @@ const TAB = "  "
 // SEP is a seperator
 const SEP = "-----------------------------------------------"
 
+// CORE is the core logo text
+const CORE = `                    _           
+  _  ._ _  |_  |_| /   _  ._ _  
+ (_| | | | |_) | | \\_ (_) | (/_
+  _|                            `
+
 // TAG is the msg to put before a msg
 var TAG string
-var lvl int
 var verbose bool
 
 func init() {
 	TAG = defaults.DEFAULT_PROMPT
-	lvl = 0
 	verbose = true
-}
-
-// SetLevel of the logging
-func SetLevel(newLvl int) {
-	lvl = newLvl
 }
 
 // SetVerbose on or off
