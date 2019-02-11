@@ -215,6 +215,7 @@ func (r *Router) Reconcile() {
 		if r.Services[n].Mode == service.Planetary {
 			c := r.processManagers[n]
 			if c != nil {
+				r.Services[n].ID = c.ID + "-" + r.Services[n].ID
 				r.Services[n].Parent = c
 				r.Services[n].Mode = service.Remote
 			}

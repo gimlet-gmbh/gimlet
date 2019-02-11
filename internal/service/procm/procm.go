@@ -22,18 +22,22 @@ func New(name string) *Manager {
 }
 
 // RestartProcess that is being managed by gmbh-container
-func (c *Manager) RestartProcess() {
-	client, ctx, can, err := rpc.GetRemoteRequest(c.Address, time.Second)
+func (c *Manager) RestartProcess() (string, error) {
+	client, ctx, can, err := rpc.GetRemoteRequest(c.Address, time.Second*5)
 	if err != nil {
-		return
+		return "-1", err
 	}
 	defer can()
 
 	request := &cabal.Action{
-		Sender:  "gmbh-core",
-		Target:  c.Name,
-		Message: "service.restart",
+		Sender: "gmbh-core",
+		Target: c.Name,
+		Action: "service.restart",
 	}
 
-	client.RequestRemoteAction(ctx, request)
+	response, err := client.RequestRemoteAction(ctx, request)
+	if err != nil {
+		return "-1", err
+	}
+	return response.GetStatus(), nil
 }

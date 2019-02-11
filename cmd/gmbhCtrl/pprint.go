@@ -163,6 +163,9 @@ func getUptime(t string) string {
 		return ""
 	}
 	ts := time.Now().Sub(pt).Truncate(time.Minute).String()
+	if len(ts) == 2 {
+		return "<1m"
+	}
 	return ts[:len(ts)-2]
 }
 
@@ -173,22 +176,24 @@ func getName(s string) string {
 
 func reportProcessHeader() string {
 	u := color.New(color.Underline).SprintFunc()
-	return u(fmt.Sprintf(" %-3s \u2502 %5s \u2502 %-8s \u2502 %-7s \u2502 %-12s \u2502 %-20s",
+	return u(fmt.Sprintf(" %-3s \u2502 %5s \u2502 %-8s \u2502 %-7s \u2502 %3s \u2502 %-12s \u2502 %-20s",
 		"ID",
 		"PID",
 		"Status",
 		"Uptime",
+		"Err",
 		"Name",
 		"Path",
 	))
 }
 
 func reportProcess(p *cabal.Service) string {
-	return fmt.Sprintf(" %-3s \u2502 %5s \u2502 %-8s \u2502 %-7s \u2502 %-12s \u2502 %s",
+	return fmt.Sprintf(" %-3s \u2502 %5s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %s",
 		p.Id,
 		getPid(p.Pid),
 		getStatus(p.Status),
 		getUptime(p.StartTime),
+		len(p.Errors),
 		getName(p.Name),
 		p.Path,
 	)
@@ -196,8 +201,7 @@ func reportProcess(p *cabal.Service) string {
 
 func reportRemoteHeader() string {
 	u := color.New(color.Underline).SprintFunc()
-	return u(fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-3s \u2502 %-12s ",
-		"NID",
+	return u(fmt.Sprintf(" %-8s \u2502 %-8s \u2502 %-7s \u2502 %-3s \u2502 %-12s ",
 		"ID",
 		"Status",
 		"Uptime",
@@ -207,8 +211,7 @@ func reportRemoteHeader() string {
 }
 
 func reportRemote(p *cabal.Service, nid string) string {
-	return fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s ",
-		nid,
+	return fmt.Sprintf(" %-8s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s ",
 		p.Id,
 		getStatus(p.Status),
 		getUptime(p.StartTime),

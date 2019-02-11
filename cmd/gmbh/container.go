@@ -217,12 +217,21 @@ func (r *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 		}
 		return response, nil
 	} else if in.GetAction() == "service.restart" {
-		c.serv.RestartProcess()
+
 		response := &cabal.Action{
 			Sender:  c.serv.Static.Name,
 			Target:  "gmbh-core",
 			Message: "action.completed",
 		}
+
+		pid, err := c.serv.RestartProcess()
+		if err != nil {
+			response.Status = err.Error()
+		} else {
+			response.Status = pid
+		}
+
+		notify.StdMsgBlue(fmt.Sprintf("<- Message=(%s); Status=(%s)", response.Message, response.Status))
 		return response, nil
 	}
 	return &cabal.Action{Message: "unimp"}, nil

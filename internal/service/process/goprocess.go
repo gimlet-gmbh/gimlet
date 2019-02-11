@@ -53,10 +53,27 @@ func (g *GoProc) Start() (int, error) {
 
 	if pid != -1 {
 		g.status = Running
+		go g.upgrade()
 		return pid, nil
 	}
 	g.status = Failed
 	return -1, errors.New("GoProc.Start.unableToStartProcess")
+}
+
+func (g *GoProc) upgrade() {
+	time.Sleep(time.Second * 31)
+
+	if g.status == Running {
+
+		if time.Since(g.Run.StartTime) > (time.Second * 30) {
+			g.Update.Lock()
+			g.status = Stable
+			g.Update.Unlock()
+		} else {
+			g.upgrade()
+		}
+	}
+
 }
 
 // Restart a go process

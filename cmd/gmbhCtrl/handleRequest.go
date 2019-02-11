@@ -80,7 +80,7 @@ func restartAll() {
 }
 
 func listOne(id string) {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*5)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}
@@ -100,7 +100,7 @@ func listOne(id string) {
 }
 
 func restartOne(id string) {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*10)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 	}

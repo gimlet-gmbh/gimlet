@@ -41,11 +41,19 @@ func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequ
 	if err != nil {
 		return &cabal.StatusReply{Status: "could not find service: " + err.Error()}, nil
 	}
-	pid, err := target.Process.Restart(false)
-	if err != nil {
-		return &cabal.StatusReply{Status: "could not restart service: " + err.Error()}, nil
+	if target.Mode == service.Managed {
+		pid, err := target.Process.Restart(false)
+		if err != nil {
+			return &cabal.StatusReply{Status: "could not restart service: " + err.Error()}, nil
+		}
+		return &cabal.StatusReply{Status: "pid=" + strconv.Itoa(pid)}, nil
 	}
-	return &cabal.StatusReply{Status: "pid=" + strconv.Itoa(pid)}, nil
+	pid, err := target.RestartProcess()
+	if err != nil {
+		return &cabal.StatusReply{Status: "issue restarting service"}, nil
+	}
+	return &cabal.StatusReply{Status: "pid=" + pid}, nil
+
 }
 
 func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
@@ -105,6 +113,13 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 				}
 				rpcRemote = append(rpcRemote, epm)
 				continue
+			}
+			s, err = cc.Router.LookupService(reply.GetServiceInfo().GetName())
+			if err != nil {
+				reply.GetServiceInfo().Id = "err"
+				reply.GetServiceInfo().Errors = append(reply.GetServiceInfo().Errors, "could not resolve service id")
+			} else {
+				reply.GetServiceInfo().Id = s.ID
 			}
 
 			pmData := &cabal.ProcessManager{

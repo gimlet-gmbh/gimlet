@@ -259,6 +259,8 @@ message StartRequest {
 
 message SearchRequest {
     string Name = 1;
+    bool managed = 5;
+    string parentID = 6;
     string Path = 2;
     string Pid = 3;
     string Id = 4;

@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -150,22 +151,27 @@ func (s *Service) KillProcess() {
 }
 
 // RestartProcess if it is in mangaed or attached mode
-func (s *Service) RestartProcess() {
+func (s *Service) RestartProcess() (string, error) {
 	if s.Mode == Planetary {
-		return
+		return "-1", errors.New("Service.RestartProcess.inPlanetaryMode")
 	}
 
 	if s.Mode == Remote {
 		s.Println("signaling process manager for process restart at " + time.Now().Format(time.RFC3339))
-		s.Parent.RestartProcess()
-	} else {
-		s.Println("kill process request" + time.Now().Format(time.RFC3339))
-		pid, err := s.Process.Restart(false)
-		if err != nil {
-			s.Println("error restarting; err=" + err.Error())
-		}
-		s.Println("restarted with pid=" + strconv.Itoa(pid))
+		return s.Parent.RestartProcess()
 	}
+
+	// s.Mode == Managed
+	s.Println("kill process request" + time.Now().Format(time.RFC3339))
+	pid, err := s.Process.Restart(false)
+	if err != nil {
+		s.Println("error restarting; err=" + err.Error())
+		fmt.Println("error restarting; err=" + err.Error())
+		return "-1", err
+	}
+	s.Println("restarted with pid=" + strconv.Itoa(pid))
+	return strconv.Itoa(pid), nil
+
 }
 
 // StartLog starts the logger for process management information
