@@ -17,33 +17,91 @@ import (
 	"github.com/gmbh-micro/notify"
 )
 
-func pprintListOne(service cabal.Service) {
-	notify.StdMsg("Displaying service information")
-	notify.StdMsgNoPrompt(" ID:\t"+service.GetId(), 2)
-	notify.StdMsgNoPrompt(" Name:\t"+service.GetName(), 2)
-	notify.StdMsgNoPrompt(" Mode:\t"+service.GetMode(), 2)
-	notify.StdMsgNoPrompt(" PID:\t"+strconv.Itoa(int(service.GetPid())), 2)
-	notify.StdMsgNoPrompt(" Start:\t"+service.GetStartTime(), 2)
-	if service.GetStatus() == "Failed" {
-		notify.StdMsgErrNoPrompt(" Status:\t"+service.GetStatus(), 2)
-		notify.StdMsgErrNoPrompt(" Failed:\t"+service.GetFailTime(), 2)
-	} else if service.GetStatus() == "degraded" {
-		notify.StdMsgErrNoPrompt(" Status:\t"+service.GetStatus(), 2)
-	} else {
-		notify.StdMsgGreenNoPrompt(" Status:\t"+service.GetStatus(), 2)
+func reportOne(p *cabal.Service, h string) {
+	fmt.Println(h + getBoxTop(p.Name, 38))
+	fmt.Println(h + getBoxLine(formatLine("ID", p.Id, ":")))
+	if p.Pid != 0 {
+		fmt.Println(h + getBoxLine(formatLine("PID", getPid(p.Pid), ":")))
 	}
-	notify.StdMsgNoPrompt(" Fails:\t"+strconv.Itoa(int(service.GetFails())), 2)
-	notify.StdMsgNoPrompt(" Restarts:"+strconv.Itoa(int(service.GetRestarts())), 2)
-	notify.StdMsgNoPrompt(" Path:\t"+service.GetPath(), 2)
-	notify.StdMsgNoPrompt(" Logs:\t"+service.GetLogPath(), 2)
-	errs := service.GetErrors()
-	if len(errs) <= 1 {
-		notify.StdMsgNoPrompt(" Errors:\t"+strings.Join(errs, ","), 2)
-	} else {
-		notify.StdMsgNoPrompt(" Errors:\t"+errs[0], 2)
-		errs = errs[1:]
-		for _, e := range errs {
-			notify.StdMsgNoPrompt("        \t"+e, 2)
+	fmt.Println(h + getBoxLine(formatLine("Mode", p.Mode, ":")))
+	fmt.Println(h + getBoxLine(formatLine("Start", p.StartTime, ":")))
+	fmt.Println(h + getBoxLine(formatLine("Status", getStatus(p.Status), ":")))
+	fmt.Println(h + getBoxLine(formatLine("Address", p.Address, ":")))
+	fmt.Println(h + getBoxLine(formatLine("Failures", strconv.Itoa(int(p.Fails)), ":")))
+	if p.Fails > 0 {
+		fmt.Println(h + getBoxLine(formatLine("Failed At", p.FailTime, ":")))
+	}
+	fmt.Println(h + getBoxLine(formatLine("Restarts", strconv.Itoa(int(p.Restarts)), ":")))
+	if p.Path != "-" {
+		fmt.Println(h + getBoxLine(formatLine("Path", p.Path, ":")))
+	}
+	if p.LogPath != "-" {
+		fmt.Println(h + getBoxLine(formatLine("Log", p.LogPath, ":")))
+	}
+	if len(p.Errors) > 0 {
+		fmt.Println(h + getBoxLine(formatLine("Errors", p.Errors[0], ":")))
+		for i, e := range p.Errors {
+			if i == 0 {
+				continue
+			}
+			fmt.Println(h + getBoxLine(formatLine("", e, "")))
+			if i > 5 {
+				fmt.Println(h + getBoxLine(formatLine("", "...query individually for more.", "")))
+				break
+			}
+		}
+	}
+	fmt.Println()
+}
+
+func reportCluster(c *cabal.ProcessManager) {
+	fmt.Println(getBoxTop(c.Name, 42))
+	fmt.Println(getBoxLine(formatLine("Address", c.Address, ":")))
+	fmt.Println(getBoxLine(formatLine("Services", "", "")))
+	for _, p := range c.Services {
+		reportOne(p, " \u2502 ")
+	}
+
+}
+
+func formatLine(attr, val, sep string) string {
+	return fmt.Sprintf("%-9s %s %s", attr, sep, val)
+}
+
+func getBoxTop(name string, length int) string {
+	length = length - len(name)
+	if length < 0 {
+		length = 0
+	}
+	return fmt.Sprintf(" \u250C%s %s %s\u2510", strings.Repeat("\u2500", 2), name, strings.Repeat("\u2500", length))
+}
+
+func getBoxLine(data string) string {
+	// end := "\u2502\n"
+	// if len(data) > 38 {
+	// 	end = "\n"
+	// }
+	end := ""
+	return fmt.Sprintf(" \u2502 %-38s %s", data, end)
+}
+
+func pprintListOne(managed []*cabal.Service, remote []*cabal.ProcessManager, planetary []*cabal.Service) {
+
+	if len(managed) != 0 {
+		for _, s := range managed {
+			reportOne(s, "")
+		}
+	}
+
+	if len(remote) != 0 {
+		for _, r := range remote {
+			reportCluster(r)
+		}
+	}
+
+	if len(planetary) != 0 {
+		for _, s := range planetary {
+			reportOne(s, "")
 		}
 	}
 }
@@ -138,7 +196,7 @@ func reportProcess(p *cabal.Service) string {
 
 func reportRemoteHeader() string {
 	u := color.New(color.Underline).SprintFunc()
-	return u(fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-5s \u2502 %-12s ",
+	return u(fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-3s \u2502 %-12s ",
 		"NID",
 		"ID",
 		"Status",
@@ -149,7 +207,7 @@ func reportRemoteHeader() string {
 }
 
 func reportRemote(p *cabal.Service, nid string) string {
-	return fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-5d \u2502 %-12s ",
+	return fmt.Sprintf(" %-4s \u2502 %-3s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s ",
 		nid,
 		p.Id,
 		getStatus(p.Status),
