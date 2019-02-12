@@ -66,7 +66,7 @@ func startContainer() {
 
 func run() {
 	var err error
-	c.serv, err = service.NewManagedService(*c.configPath)
+	c.serv, err = service.NewManagedService("101", *c.configPath)
 	if err != nil {
 		notify.StdMsgErr("could not start service; err=(" + err.Error() + ")")
 		os.Exit(1)
@@ -75,7 +75,7 @@ func run() {
 	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	c.serv.StartLog(dir+"/gmbh", "process-manager.log")
 
-	pid, err := c.serv.StartService()
+	pid, err := c.serv.Start()
 	if err != nil {
 		notify.StdMsgErr("could not start service, error=(" + err.Error() + ")")
 		c.forkError = err
@@ -98,7 +98,7 @@ func run() {
 	<-done
 	fmt.Println()
 
-	c.serv.KillProcess()
+	c.serv.Kill()
 
 	if *c.managed {
 		c.mu.Lock()
@@ -224,7 +224,7 @@ func (r *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 			Message: "action.completed",
 		}
 
-		pid, err := c.serv.RestartProcess()
+		pid, err := c.serv.Restart()
 		if err != nil {
 			response.Status = err.Error()
 		} else {
@@ -239,7 +239,7 @@ func (r *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 }
 
 func serviceToRPC(s *service.Service) *cabal.Service {
-	procRuntime := c.serv.GetProcess().GetRuntime()
+	procRuntime := c.serv.Process.GetInfo()
 
 	si := &cabal.Service{
 		Id:        c.serv.ID,
@@ -251,7 +251,7 @@ func serviceToRPC(s *service.Service) *cabal.Service {
 		Restarts:  int32(procRuntime.Restarts),
 		StartTime: procRuntime.StartTime.Format(time.RFC3339),
 		FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
-		Errors:    c.serv.GetProcess().ReportErrors(),
+		Errors:    c.serv.Process.GetErrors(),
 		Mode:      "remote",
 	}
 
@@ -260,14 +260,10 @@ func serviceToRPC(s *service.Service) *cabal.Service {
 		si.Status = "Stable"
 	case process.Running:
 		si.Status = "Running"
-	case process.Degraded:
-		si.Status = "Degraded"
 	case process.Failed:
 		si.Status = "Failed"
 	case process.Killed:
 		si.Status = "Killed"
-	case process.Initialized:
-		si.Status = "Initialized"
 	}
 	return si
 }

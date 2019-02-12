@@ -37,7 +37,7 @@ func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequ
 		return nil, errors.New("gmbh system error, could not locate instance of core")
 	}
 
-	target, err := cc.Router.LookupByID(in.GetId())
+	target, err := cc.Router.LookupServiceID(in.GetId())
 	if err != nil {
 		return &cabal.StatusReply{Status: "could not find service: " + err.Error()}, nil
 	}
@@ -48,7 +48,7 @@ func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequ
 		}
 		return &cabal.StatusReply{Status: "pid=" + strconv.Itoa(pid)}, nil
 	}
-	pid, err := target.RestartProcess()
+	pid, err := target.Restart()
 	if err != nil {
 		return &cabal.StatusReply{Status: "issue restarting service"}, nil
 	}
@@ -123,9 +123,9 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 			}
 
 			pmData := &cabal.ProcessManager{
-				ID:       s.Parent.ID,
-				Name:     s.Parent.Name,
-				Address:  s.Parent.Address,
+				ID:       s.Remote.ID,
+				Name:     s.Remote.Name,
+				Address:  s.Remote.Address,
 				Services: []*cabal.Service{reply.GetServiceInfo()},
 			}
 			rpcRemote = append(rpcRemote, pmData)
@@ -157,7 +157,7 @@ func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*
 		return nil, errors.New("gmbh system error, could not locate instance of core")
 	}
 
-	target, err := cc.Router.LookupByID(in.GetId())
+	target, err := cc.Router.LookupServiceID(in.GetId())
 	if err != nil {
 		return &cabal.ListReply{Length: 0}, nil
 	}
@@ -210,7 +210,7 @@ func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal
 	}
 
 	if in.GetAction() == "container.register" {
-		c, err := cc.Router.AddProcessManager(in.GetMessage())
+		c, err := cc.Router.AddRemoteProcessManager(in.GetMessage())
 		if err != nil {
 			return &cabal.ServiceUpdate{Message: err.Error()}, nil
 		}

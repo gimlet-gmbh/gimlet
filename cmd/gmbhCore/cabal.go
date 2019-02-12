@@ -27,7 +27,7 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 
 	lookupService, err := core.Router.LookupService(in.NewServ.GetName())
 	if err != nil {
-		if err.Error() == "router.LookupService.nameNotFound" {
+		if err.Error() == "router.LookupService.NotFound" {
 			if in.NewServ.GetMode() != cabal.NewService_MANAGED {
 				lookupService, err = core.registerPlanetaryService(
 					in.GetNewServ().GetName(),
@@ -88,9 +88,7 @@ func (s *cabalServer) UpdateServiceRegistration(ctx context.Context, in *cabal.S
 // ServiceToRPC translates one service to cabal form
 func ServiceToRPC(s service.Service) *cabal.Service {
 
-	procRuntime := s.GetProcess().GetRuntime()
-
-	rpcService := &cabal.Service{
+	r := &cabal.Service{
 		Id:      s.ID,
 		Name:    s.Static.Name,
 		Path:    s.Path,
@@ -99,34 +97,32 @@ func ServiceToRPC(s service.Service) *cabal.Service {
 
 	if s.Mode == service.Managed {
 
-		rpcService.Pid = int32(procRuntime.Pid)
-		rpcService.Fails = int32(procRuntime.Fails)
-		rpcService.Address = s.Address
-		rpcService.Restarts = int32(procRuntime.Restarts)
-		rpcService.StartTime = procRuntime.StartTime.Format(time.RFC3339)
-		rpcService.FailTime = procRuntime.DeathTime.Format(time.RFC3339)
-		rpcService.Errors = s.GetProcess().ReportErrors()
+		info := s.Process.GetInfo()
 
-		rpcService.Mode = "managed"
+		r.Pid = int32(info.PID)
+		r.Fails = int32(info.Fails)
+		r.Address = s.Address
+		r.Restarts = int32(info.Restarts)
+		r.StartTime = info.StartTime.Format(time.RFC3339)
+		r.FailTime = info.DeathTime.Format(time.RFC3339)
+		r.Errors = s.Process.GetErrors()
+
+		r.Mode = "managed"
 		switch s.Process.GetStatus() {
 		case process.Stable:
-			rpcService.Status = "Stable"
+			r.Status = "Stable"
 		case process.Running:
-			rpcService.Status = "Running"
-		case process.Degraded:
-			rpcService.Status = "Degraded"
+			r.Status = "Running"
 		case process.Failed:
-			rpcService.Status = "Failed"
+			r.Status = "Failed"
 		case process.Killed:
-			rpcService.Status = "Killed"
-		case process.Initialized:
-			rpcService.Status = "Initialized"
+			r.Status = "Killed"
 		}
 	} else if s.Mode == service.Remote {
-		rpcService.Mode = "remote"
-		rpcService.Status = "-"
+		r.Mode = "remote"
+		r.Status = "-"
 	}
-	return rpcService
+	return r
 }
 
 func serviceToStruct() *service.Service {

@@ -2,14 +2,12 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
-	"github.com/gmbh-micro/service/procm"
 	"github.com/gmbh-micro/service/static"
 )
 
@@ -30,51 +28,29 @@ const (
 	GmbH Mode = 5
 )
 
-// Status is the enumerated stated of the current status of the service, !!not the process!!
-type Status int
-
-const (
-	// Configured ; the service's config has been parsed and is valid
-	Configured Status = 1
-
-	// Unconfigured ; the config file was not able to be parsed
-	Unconfigured Status = 2
-)
-
-var idtag int
-
-func init() {
-	idtag = defaults.STARTING_ID
-}
-
 // Service represents a service including all static and runtime data
 type Service struct {
-	ID            string
-	Path          string
-	Created       string
-	Address       string
-	Mode          Mode
-	Status        Status
-	Static        *static.Static
-	Process       process.Process
-	Parent        *procm.Manager
-	ActiveProcess bool
-	Logs          *notify.Log
-}
+	// The ephemeral id of the service. Note that ID is mutable and changes when a
+	// planetary service becomes a remote service
+	ID      string
+	Path    string
+	Created time.Time
+	Address string
+	Mode    Mode
+	Logs    *notify.Log
 
-// GetProcess returns the process or empty process and error of a service
-func (s *Service) GetProcess() process.Process {
-	if s.Mode == Planetary {
-		return process.NewEmptyProc()
-	}
-	if !s.ActiveProcess {
-		return process.NewEmptyProc()
-	}
-	return s.Process
+	// Static data associated with the service
+	Static *static.Static
+
+	// If managed, Process will hold the process controller
+	Process process.Manager
+
+	// If Remote, Remote will hold the remote process controller
+	Remote *process.RemoteManager
 }
 
 // NewManagedService tries to parse the required info from a config file located at path
-func NewManagedService(path string) (*Service, error) {
+func NewManagedService(id, path string) (*Service, error) {
 	staticData, err := static.ParseData(path)
 	if err != nil {
 		return nil, err
@@ -83,95 +59,86 @@ func NewManagedService(path string) (*Service, error) {
 	dir := path[:len(path)-len(defaults.CONFIG_FILE)]
 
 	service := Service{
-		ID:     assignNextID(),
-		Mode:   Managed,
-		Path:   dir,
-		Static: staticData,
+		ID:      id,
+		Created: time.Now(),
+		Mode:    Managed,
+		Path:    dir,
+		Static:  staticData,
 	}
 
 	ok := static.DataIsValid(staticData)
 	if !ok {
-		service.Status = Unconfigured
-		return &service, errors.New("invalid config file")
+		return nil, errors.New("invalid config file")
 	}
-	service.Status = Configured
 	return &service, nil
 }
 
 // NewPlanetaryService returns a new service with static data that is passed in
-func NewPlanetaryService(staticData *static.Static) (*Service, error) {
-
+func NewPlanetaryService(id string, staticData *static.Static) (*Service, error) {
+	if staticData == nil {
+		return nil, errors.New("static data not present")
+	}
 	service := Service{
-		ID:      assignNextID(),
-		Created: time.Now().Format(time.Stamp),
+		ID:      id,
+		Created: time.Now(),
 		Mode:    Planetary,
 		Static:  staticData,
 	}
-
-	service.Status = Configured
 	return &service, nil
 }
 
-// StartService attempts to fork/exec service and returns the pid, else error
+// Start attempts to fork/exec service and returns the pid, else error
 // service must be in managed or remote mode
-func (s *Service) StartService() (pid string, err error) {
+func (s *Service) Start() (pid string, err error) {
 
-	if s.Mode == Planetary {
+	if s.Mode == Planetary || s.Mode == Remote {
 		return "-1", errors.New("service.StartService.invalidServiceMode")
 	}
-
+	notify.StdMsgDebug("Passed mode check")
 	if s.Static.Language == "go" {
-		s.Process = process.NewGoProc(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path)
-		s.ActiveProcess = true // have to include this because cannot have pointer to interface type in Go
+
+		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, []string{})
+		notify.StdMsgDebug("passed instantation")
 		pid, err := s.Process.Start()
 		if err != nil {
-			s.Println("error starting service; err=" + err.Error())
-			return "-1", errors.New("service.StartService.couldNotStartService")
+			notify.StdMsgDebug("failed to start")
+			return "-1", errors.New("service.StartService.couldNotStartNewService")
 		}
-		s.Println("started with pid=" + strconv.Itoa(pid))
+		notify.StdMsgDebug("started")
 		return strconv.Itoa(pid), nil
+
 	} else if s.Static.Language == "node" {
-		s.Process = process.NewNodeProc()
 		return "-1", errors.New("service.StartService.nodeNotYetSupported")
 	} else if s.Static.Language == "python" {
-		s.Process = process.NewPyProc()
 		return "-1", errors.New("service.StartService.pythonNotYetSupported")
 	}
 
 	return "-1", errors.New("service.StartService.invalidLanguage")
 }
 
-// KillProcess if it is in managed or attached mode
-func (s *Service) KillProcess() {
-	if s.Mode == Planetary {
-		return
-	}
-	s.Println("kill process request at " + time.Now().Format(time.RFC3339))
-	s.Process.Kill(true)
-}
-
-// RestartProcess if it is in mangaed or attached mode
-func (s *Service) RestartProcess() (string, error) {
+// Restart if it is in mangaed or attached mode
+func (s *Service) Restart() (string, error) {
 	if s.Mode == Planetary {
 		return "-1", errors.New("Service.RestartProcess.inPlanetaryMode")
 	}
 
 	if s.Mode == Remote {
-		s.Println("signaling process manager for process restart at " + time.Now().Format(time.RFC3339))
-		return s.Parent.RestartProcess()
+		return s.Remote.RestartProcess()
 	}
 
 	// s.Mode == Managed
-	s.Println("kill process request" + time.Now().Format(time.RFC3339))
 	pid, err := s.Process.Restart(false)
 	if err != nil {
-		s.Println("error restarting; err=" + err.Error())
-		fmt.Println("error restarting; err=" + err.Error())
 		return "-1", err
 	}
-	s.Println("restarted with pid=" + strconv.Itoa(pid))
 	return strconv.Itoa(pid), nil
+}
 
+// Kill a process
+func (s *Service) Kill() {
+	if s.Mode == Managed {
+		s.Process.Kill(true)
+	}
 }
 
 // StartLog starts the logger for process management information
@@ -186,12 +153,6 @@ func (s *Service) createAbsPathToBin(path, binPath string) string {
 		absPath = path + binPath[1:]
 	}
 	return absPath
-}
-
-// assignNextID increments idtag and returns it as a string
-func assignNextID() string {
-	idtag++
-	return strconv.Itoa(idtag)
 }
 
 // Println adds a log message to the service's log if it has been configured

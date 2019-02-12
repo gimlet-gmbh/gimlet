@@ -1,0 +1,48 @@
+##################################################################################
+## Service Settings
+##################################################################################
+
+## INFORMATION ###################################################################
+#
+# The name of the service
+name: "test"
+#
+# Any alias you wish for the service to be contacted by
+aliases: 
+  - ""
+#
+# Any arguments to pass to the service at runtime
+args:
+  - ""
+#
+# language of the service
+language: "go"
+#
+# mode - managed, remote, planetary
+mode: ""
+#
+# Does the project have a makefile?
+path_to_makefile: ""
+#
+# Path to the binary of the service
+path_to_bin: "./bin/test"
+#
+# Path to the source files such that the service can be started
+path_to_src: ""
+#
+
+
+## COMMUNICATIONS SETTINGS ########################################################
+#
+# Can this service contact other services?
+is_client: True
+#
+# Can other services contact this service?
+is_server: True
+#
+#
+# gmbhCore address
+core_address: "localhost:59999"
+
+## Dependencies ##################################################################
+#

@@ -25,7 +25,7 @@ import (
 	"github.com/gmbh-micro/router"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/service"
-	"github.com/gmbh-micro/service/procm"
+	"github.com/gmbh-micro/service/process"
 	"github.com/gmbh-micro/service/static"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -120,7 +120,7 @@ func (c *Core) ServiceDiscovery() error {
 		}
 
 		// Start service
-		pid, err := newService.StartService()
+		pid, err := newService.Start()
 		if err != nil {
 			c.Log.Err("(%d/%d) error = %s", i+1, len(servicePaths), err.Error())
 			continue
@@ -230,7 +230,7 @@ func (c *Core) shutdown(remote bool) {
 	}
 
 	// Send shutdown notice to all managed services
-	c.Router.KillAllServices()
+	c.Router.KillManagedServices()
 
 	// Send shutdown notice to all remote services
 	for _, rs := range c.Router.GetAllRemoteServices() {
@@ -269,9 +269,9 @@ func (c *Core) sendServiceShutdownNotice(serv *service.Service) {
 	client.UpdateServiceRegistration(ctx, request)
 }
 
-func (c *Core) sendProcessManagerShutdownNotice(cont *procm.Manager) {
+func (c *Core) sendProcessManagerShutdownNotice(cont *process.RemoteManager) {
 	if cont.Address == "" {
-		notify.StdMsgErr("core.sendProcessManagerShutdownNotice.cannotFind=" + cont.ID)
+		notify.StdMsgErr("core.sendProcessManageprShutdownNotice.cannotFind=" + cont.ID)
 	}
 	client, ctx, can, err := rpc.GetRemoteRequest(cont.Address, time.Second)
 	if err != nil {
@@ -336,7 +336,7 @@ func (r *RequestHandler) Fulfill() {
 	r.count = c.GetMsgCount()
 
 	// Get the address of the target from the router
-	address, err := c.Router.LookupAddress(r.Request.Target)
+	address, err := c.Router.LookupServiceAddress(r.Request.Target)
 	if err != nil {
 		r.Errors = append(r.Errors, err)
 		r.processErrors()

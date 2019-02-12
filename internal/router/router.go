@@ -9,7 +9,6 @@ import (
 	"github.com/gmbh-micro/service"
 
 	"github.com/gmbh-micro/service/process"
-	"github.com/gmbh-micro/service/procm"
 	"github.com/gmbh-micro/service/static"
 )
 
@@ -23,26 +22,20 @@ import (
 
 // Router represents the internal handling of services and process managers
 type Router struct {
-	Services     map[string]*service.Service
-	serviceNames []string
-	serviceID    int
-
-	processManagers map[string]*procm.Manager
-	procmID         int
-
-	addresses *addressHandler
+	remoteManagers map[string]*process.RemoteManager
+	services       map[string]*service.Service
+	serviceNames   []string
+	idCounter      int
+	addresses      *addressHandler
 }
 
 // NewRouter initializes and returns a new Router struct
 func NewRouter() *Router {
 	return &Router{
-		Services:     make(map[string]*service.Service),
-		serviceNames: make([]string, 0),
-		serviceID:    0,
-
-		processManagers: make(map[string]*procm.Manager),
-		procmID:         100,
-
+		remoteManagers: make(map[string]*process.RemoteManager),
+		services:       make(map[string]*service.Service),
+		serviceNames:   make([]string, 0),
+		idCounter:      0,
 		addresses: &addressHandler{
 			host: defaults.BASE_ADDRESS,
 			port: defaults.BASE_PORT,
@@ -53,60 +46,45 @@ func NewRouter() *Router {
 
 // LookupService looks through the services map and returns the service if it exists
 func (r *Router) LookupService(name string) (*service.Service, error) {
-	retrievedService := r.Services[name]
+	retrievedService := r.services[name]
 	if retrievedService == nil {
-		return nil, errors.New("router.LookupService.nameNotFound")
-	}
-	if retrievedService.Mode == service.Managed {
-		if retrievedService.GetProcess().GetStatus() == process.Running || retrievedService.GetProcess().GetStatus() == process.Stable {
-			return retrievedService, nil
-		}
-		return retrievedService, errors.New("router.LookupService.processNotRunning")
+		return nil, errors.New("router.LookupService.NotFound")
 	}
 	return retrievedService, nil
 }
 
-// LookupAddress looks through the service map and returns the service address if it could be found
-func (r *Router) LookupAddress(name string) (string, error) {
-	retrievedService := r.Services[name]
+// LookupServiceAddress looks through the service map and returns the service address if it could be found
+func (r *Router) LookupServiceAddress(name string) (string, error) {
+	retrievedService := r.services[name]
 	if retrievedService == nil {
-		return "", errors.New("router.LookupService.nameNotFound")
-	}
-	if retrievedService.Mode == service.Managed {
-		if retrievedService.GetProcess().GetStatus() == process.Running || retrievedService.GetProcess().GetStatus() == process.Stable {
-			return retrievedService.Address, nil
-		}
-		return "", errors.New("router.LookupService.processNotRunning")
+		return "", errors.New("router.LookupService.NotFound")
 	}
 	return retrievedService.Address, nil
 }
 
-// LookupByID looks through the service map and returns the service if the id matches the parameter
-func (r *Router) LookupByID(id string) (*service.Service, error) {
+// LookupServiceID looks through the service map and returns the service if it could be matched to id
+func (r *Router) LookupServiceID(id string) (*service.Service, error) {
 	for _, name := range r.serviceNames {
-		if r.Services[name].ID == id {
-			return r.Services[name], nil
+		if r.services[name].ID == id {
+			return r.services[name], nil
 		}
 	}
-	return nil, errors.New("router.LookupByID: could not find service")
+	return nil, errors.New("router.LookupServiceID.notFound")
 }
 
 // AddManagedService attaches a service to gmbH
 func (r *Router) AddManagedService(configFilePath string) (*service.Service, error) {
 
-	newService, err := service.NewManagedService(configFilePath)
+	newService, err := service.NewManagedService(r.assignNextID(), configFilePath)
 	if err != nil {
 		return nil, errors.New("router.AddService.newService " + err.Error())
 	}
 
-	// if working with a server, give it an address
-	if newService.Static.IsServer {
-		newService.Address = r.addresses.assignAddress(true)
-	}
+	newService.Address = r.addresses.assignAddress(true)
 
 	err = r.addToMap(newService)
 	if err != nil {
-		return nil, errors.New("router.AddService.addToMap " + err.Error())
+		return nil, err
 	}
 
 	return newService, nil
@@ -115,19 +93,16 @@ func (r *Router) AddManagedService(configFilePath string) (*service.Service, err
 // AddPlanetaryService to the router
 func (r *Router) AddPlanetaryService(staticData *static.Static) (*service.Service, error) {
 
-	newService, err := service.NewPlanetaryService(staticData)
+	newService, err := service.NewPlanetaryService(r.assignNextID(), staticData)
 	if err != nil {
-		return nil, errors.New("router.AddService.newService " + err.Error())
+		return nil, err
 	}
 
-	// if working with a server, give it an address
-	if newService.Static.IsServer {
-		newService.Address = r.addresses.assignAddress(true)
-	}
+	newService.Address = r.addresses.assignAddress(true)
 
 	err = r.addToMap(newService)
 	if err != nil {
-		return nil, errors.New("router.AddService.addToMap " + err.Error())
+		return nil, err
 	}
 	return newService, nil
 }
@@ -137,12 +112,12 @@ func (r *Router) AddPlanetaryService(staticData *static.Static) (*service.Servic
 // the map
 func (r *Router) addToMap(newService *service.Service) error {
 
-	if _, ok := r.Services[newService.Static.Name]; ok {
+	if _, ok := r.services[newService.Static.Name]; ok {
 		return errors.New("router.addToMap: duplicate service with same name found")
 	}
 
 	for _, alias := range newService.Static.Aliases {
-		if _, ok := r.Services[alias]; ok {
+		if _, ok := r.services[alias]; ok {
 			return errors.New("router.addToMap: duplicate service with same alias found")
 		}
 	}
@@ -151,10 +126,10 @@ func (r *Router) addToMap(newService *service.Service) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	r.Services[newService.Static.Name] = newService
+	r.services[newService.Static.Name] = newService
 	r.serviceNames = append(r.serviceNames, newService.Static.Name)
 	for _, alias := range newService.Static.Aliases {
-		r.Services[alias] = newService
+		r.services[alias] = newService
 	}
 
 	return nil
@@ -164,27 +139,25 @@ func (r *Router) addToMap(newService *service.Service) error {
 func (r *Router) GetAllServices() []*service.Service {
 	ret := []*service.Service{}
 	for _, s := range r.serviceNames {
-		ret = append(ret, r.Services[s])
+		ret = append(ret, r.services[s])
 	}
 	return ret
 }
 
-// KillAllServices that are currently in managed mode
-func (r *Router) KillAllServices() {
+// RestartAllServices that are managed or remote
+func (r *Router) RestartAllServices() {
 	for _, name := range r.serviceNames {
-		if r.Services[name].Mode == service.Managed {
-			r.Services[name].KillProcess()
+		if r.services[name].Mode == service.Managed || r.services[name].Mode == service.Remote {
+			r.services[name].Restart()
 		}
 	}
 }
 
-// RestartAllServices that are currently in managed mode
-func (r *Router) RestartAllServices() {
+// KillManagedServices that are managed or remote
+func (r *Router) KillManagedServices() {
 	for _, name := range r.serviceNames {
-		if r.Services[name].Mode == service.Managed {
-			r.Services[name].RestartProcess()
-		} else if r.Services[name].Mode == service.Remote {
-			r.processManagers[name].RestartProcess()
+		if r.services[name].Mode == service.Managed {
+			r.services[name].Kill()
 		}
 	}
 }
@@ -193,46 +166,45 @@ func (r *Router) RestartAllServices() {
 func (r *Router) GetAllRemoteServices() []*service.Service {
 	remote := []*service.Service{}
 	for _, name := range r.serviceNames {
-		if r.Services[name].Mode == service.Remote {
-			remote = append(remote, r.Services[name])
+		if r.services[name].Mode == service.Remote {
+			remote = append(remote, r.services[name])
 		}
 	}
 	return remote
 }
 
-// TakeInventory returns a list of paths to services
-func (r *Router) TakeInventory() []string {
-	paths := []string{}
-	for _, s := range r.serviceNames {
-		paths = append(paths, r.Services[s].Path)
-	}
-	return paths
-}
+// // TakeInventory returns a list of paths to services
+// func (r *Router) TakeInventory() []string {
+// 	paths := []string{}
+// 	for _, s := range r.serviceNames {
+// 		paths = append(paths, r.Services[s].Path)
+// 	}
+// 	return paths
+// }
 
 // Reconcile matches services to process managers
 func (r *Router) Reconcile() {
 	for _, n := range r.serviceNames {
-		if r.Services[n].Mode == service.Planetary {
-			c := r.processManagers[n]
+		if r.services[n].Mode == service.Planetary {
+			c := r.remoteManagers[n]
 			if c != nil {
-				r.Services[n].ID = c.ID + "-" + r.Services[n].ID
-				r.Services[n].Parent = c
-				r.Services[n].Mode = service.Remote
+				r.services[n].ID = c.ID + "-" + r.services[n].ID
+				r.services[n].Remote = c
+				r.services[n].Mode = service.Remote
 			}
 		}
 	}
 }
 
-// AddProcessManager to the router or return it if it already exists
-func (r *Router) AddProcessManager(name string) (*procm.Manager, error) {
+// AddRemoteProcessManager to the router or return it if it already exists
+func (r *Router) AddRemoteProcessManager(name string) (*process.RemoteManager, error) {
 
 	exists, _ := r.LookupProcessManager(name)
 	if exists != nil {
 		return exists, nil
 	}
 
-	c := procm.New(name)
-	c.ID = r.assignNextProcessManagerID()
+	c := process.NewRemoteManager("c"+r.assignNextID(), name)
 	c.Address = r.addresses.assignAddress(false)
 	err := r.addProcessManagerToMap(c)
 	if err != nil {
@@ -243,16 +215,16 @@ func (r *Router) AddProcessManager(name string) (*procm.Manager, error) {
 }
 
 // LookupProcessManager from the router
-func (r *Router) LookupProcessManager(name string) (*procm.Manager, error) {
-	if r.processManagers[name] == nil {
+func (r *Router) LookupProcessManager(name string) (*process.RemoteManager, error) {
+	if r.remoteManagers[name] == nil {
 		return nil, errors.New("router.LookupProcessManager.notFound")
 	}
-	return r.processManagers[name], nil
+	return r.remoteManagers[name], nil
 }
 
-// LookupProcessManagerByID from the router
-func (r *Router) LookupProcessManagerByID(id string) (*procm.Manager, error) {
-	for _, c := range r.processManagers {
+// LookupProcessManagerID from the router
+func (r *Router) LookupProcessManagerID(id string) (*process.RemoteManager, error) {
+	for _, c := range r.remoteManagers {
 		if c.ID == id {
 			return c, nil
 		}
@@ -261,9 +233,9 @@ func (r *Router) LookupProcessManagerByID(id string) (*procm.Manager, error) {
 }
 
 // GetAllProcessManagers that have been registered to gmbh
-func (r *Router) GetAllProcessManagers() []*procm.Manager {
-	ret := []*procm.Manager{}
-	for _, c := range r.processManagers {
+func (r *Router) GetAllProcessManagers() []*process.RemoteManager {
+	ret := []*process.RemoteManager{}
+	for _, c := range r.remoteManagers {
 		ret = append(ret, c)
 	}
 	return ret
@@ -274,9 +246,9 @@ func (r *Router) GetAllProcessManagers() []*procm.Manager {
 // TODO: Before declaring a duplicate, find a way to actually check before.
 //		 This might involve a query to see if the expected answer comes back
 //		 from the process manager if we request it...
-func (r *Router) addProcessManagerToMap(c *procm.Manager) error {
+func (r *Router) addProcessManagerToMap(c *process.RemoteManager) error {
 
-	if _, ok := r.processManagers[c.Name]; ok {
+	if _, ok := r.remoteManagers[c.Name]; ok {
 		return nil
 	}
 
@@ -284,27 +256,17 @@ func (r *Router) addProcessManagerToMap(c *procm.Manager) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	r.processManagers[c.Name] = c
+	r.remoteManagers[c.Name] = c
 
 	return nil
 }
 
-func (r *Router) assignNextProcessManagerID() string {
+func (r *Router) assignNextID() string {
 	mu := &sync.Mutex{}
 	mu.Lock()
 	defer mu.Unlock()
-
-	r.procmID++
-	return "c" + strconv.Itoa(r.procmID)
-}
-
-func (r *Router) assignNextServiceID() string {
-	mu := &sync.Mutex{}
-	mu.Lock()
-	defer mu.Unlock()
-
-	r.serviceID++
-	return strconv.Itoa(r.serviceID)
+	r.idCounter++
+	return strconv.Itoa(r.idCounter)
 }
 
 // addressHandler is in charge of assigning addresses to services

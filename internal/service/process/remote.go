@@ -1,4 +1,4 @@
-package procm
+package process
 
 import (
 	"time"
@@ -7,22 +7,23 @@ import (
 	"github.com/gmbh-micro/rpc"
 )
 
-// Manager ; process manager;  holds data about remote process managers
-type Manager struct {
-	Name    string
-	Address string
-	ID      string
+// RemoteManager ; remote process manager;  holds data about remote process.Manager
+type RemoteManager struct {
+	Name     string
+	Address  string
+	ID       string
+	LastInfo Info
 }
 
-// New returns a new container with name
-func New(name string) *Manager {
-	return &Manager{
+// NewRemoteManager returns a new container with name
+func NewRemoteManager(name, id string) *RemoteManager {
+	return &RemoteManager{
 		Name: name,
 	}
 }
 
 // RestartProcess that is being managed by gmbh-container
-func (c *Manager) RestartProcess() (string, error) {
+func (c *RemoteManager) RestartProcess() (string, error) {
 	client, ctx, can, err := rpc.GetRemoteRequest(c.Address, time.Second*5)
 	if err != nil {
 		return "-1", err
@@ -40,4 +41,9 @@ func (c *Manager) RestartProcess() (string, error) {
 		return "-1", err
 	}
 	return response.GetStatus(), nil
+}
+
+// GetInfo about the remote process
+func (c *RemoteManager) GetInfo() Info {
+	return c.LastInfo
 }
