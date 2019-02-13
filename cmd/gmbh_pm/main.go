@@ -138,7 +138,7 @@ func restartOne(id string) {
 	}
 	defer can()
 
-	request := cabal.SearchRequest{Id: id}
+	request := cabal.SearchRequest{Sender: "gmbh-ctrl", Id: id}
 	reply, err := client.RestartService(ctx, &request)
 	if err != nil {
 		fmt.Println(err)

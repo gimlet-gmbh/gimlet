@@ -26,8 +26,8 @@ import (
 
 type remote struct {
 
-	// The service to manage
-	service *service.Service
+	// the entry point for services to manage
+	serviceManager *ServiceManager
 
 	// registration with data from core
 	reg *registration
@@ -82,42 +82,18 @@ func newRemote(coreAddress string, verbose bool) (*remote, error) {
 	}
 
 	r = &remote{
-		coreAddress: coreAddress,
-		verbose:     verbose,
-		mu:          &sync.Mutex{},
+		serviceManager: NewServiceManager(),
+		pingHelpers:    make([]*pingHelper, 0),
+		startTime:      time.Now(),
+		coreAddress:    coreAddress,
+		verbose:        verbose,
+		mu:             &sync.Mutex{},
 	}
 
 	return r, nil
 }
 
 func (r *remote) Start() {
-
-	// // start the service //////////////////////////////////////////////////////////
-
-	// if config == "" {
-	// 	notify.StdMsgErr("must specify config file using flags")
-	// 	os.Exit(1)
-	// }
-
-	// var err error
-	// r.service, err = service.NewManagedService("101", config)
-	// if err != nil {
-	// 	notify.StdMsgErr("could not start service; err=(" + err.Error() + ")")
-	// 	os.Exit(1)
-	// }
-
-	// dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	// r.service.StartLog(dir+"/gmbh", "process-manager.log")
-
-	// pid, err := r.service.Start()
-	// if err != nil {
-	// 	notify.StdMsgErr("could not start service, error=(" + err.Error() + ")")
-	// 	os.Exit(1)
-	// } else {
-	// 	notify.StdMsgGreen("started process; pid=(" + pid + ")")
-	// }
-
-	// // done starting service //////////////////////////////////////////////////////////
 
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
@@ -144,7 +120,7 @@ func (r *remote) Start() {
 	r.disconnect()
 
 	// shutdown service
-	// r.service.Kill()
+	r.serviceManager.Shutdown()
 
 	// todo: send message to core of shutdown
 
@@ -318,6 +294,21 @@ func (r *remote) makeCoreConnectRequest() (*registration, error) {
 	return reg, nil
 }
 
+// AddService attaches services to the remote and then attempts to start them
+func (r *remote) AddService(configPath string) (pid string, err error) {
+	service, err := r.serviceManager.AddServiceFromConfig(configPath)
+	if err != nil {
+		return "-1", errors.New("could not start service; error=" + err.Error())
+	}
+	return service.Start()
+
+}
+
+// GetService returns all service pointers attached to the remote
+func (r *remote) GetServices() []*service.Service {
+	return r.serviceManager.GetAllServices()
+}
+
 /**********************************************************************************
 **** REFACTORED ABOVE THIS LINE
 **********************************************************************************/
@@ -342,192 +333,6 @@ type container struct {
 	daemon     *bool
 }
 
-// func startContainer() {
-
-// 	c.mu = &sync.Mutex{}
-// 	c.con = rpc.NewRemoteConnection("", &remoteServer{})
-// 	c.coreAddr = "localhost:59997"
-// 	c.closed = false
-// 	c.to = time.Second * 5
-
-// 	if !*c.daemon {
-// 		notify.SetTag("[gmbh-pm] ")
-// 		notify.StdMsg("gmbh container process manager")
-// 	} else {
-// 		notify.SetVerbose(false)
-// 	}
-
-// 	if *c.configPath == "" {
-// 		notify.StdMsgErr("must specify a config file")
-// 		os.Exit(1)
-// 	}
-
-// 	run()
-
-// }
-
-// func run() {
-// 	var err error
-// 	c.serv, err = service.NewManagedService("101", *c.configPath)
-// 	if err != nil {
-// 		notify.StdMsgErr("could not start service; err=(" + err.Error() + ")")
-// 		os.Exit(1)
-// 	}
-
-// 	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-// 	c.serv.StartLog(dir+"/gmbh", "process-manager.log")
-
-// 	pid, err := c.serv.Start()
-// 	if err != nil {
-// 		notify.StdMsgErr("could not start service, error=(" + err.Error() + ")")
-// 		c.forkError = err
-// 	} else {
-// 		notify.StdMsgGreen("started process; pid=(" + pid + ")")
-// 	}
-
-// 	sigs := make(chan os.Signal, 1)
-// 	done := make(chan bool, 1)
-// 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-// 	go func() {
-// 		_ = <-sigs
-// 		done <- true
-// 	}()
-
-// 	if *c.managed {
-// 		go connect()
-// 	}
-
-// 	<-done
-// 	fmt.Println()
-
-// 	c.serv.Kill()
-
-// 	if *c.managed {
-// 		c.mu.Lock()
-// 		c.closed = true
-// 		c.mu.Unlock()
-
-// 		disconnect()
-// 	}
-
-// 	notify.StdMsg("shutdown signal")
-// 	return
-// }
-
-// /**********************************************************************************
-// **** Handling Connection to core
-// **********************************************************************************/
-
-// func connect() {
-// 	notify.StdMsg("connecting to gmbh-core")
-
-// 	addr, status := makeConnectRequest()
-// 	for status != nil {
-// 		if status.Error() != "makeConnectRequest.fail" {
-// 			notify.StdMsg("gmbh internal error")
-// 			return
-// 		}
-
-// 		if c.closed {
-// 			return
-// 		}
-
-// 		notify.StdMsg("could not connect; retry=(" + c.to.String() + ")")
-// 		time.Sleep(c.to)
-// 		addr, status = makeConnectRequest()
-// 	}
-
-// 	if addr == "" {
-// 		notify.StdMsg("gmbh internal error, no address returned from core")
-// 		return
-// 	}
-
-// 	c.con.SetAddress(addr)
-// 	c.con.Remote = &remoteServer{}
-// 	err := c.con.Connect()
-// 	if err != nil {
-// 		notify.StdMsgErr("gmbh connection error=(" + err.Error() + ")")
-// 		return
-// 	}
-
-// 	// start a goroutine that will keep send the keep alive
-// 	go sendPing()
-// 	notify.StdMsgGreen("connected; address=(" + addr + ")")
-
-// }
-
-// // sendPing is meant to run in its own thread. It will continue to call itself or
-// // return and changed the state of the connection if there is a failure reaching
-// // the control server that is ran by gmbhCore
-// func sendPing() {
-// 	if c.con.IsConnected() {
-// 		time.Sleep(time.Second * 45)
-// 		notify.StdMsgBlue("-> ping")
-
-// 		client, ctx, can, err := rpc.GetControlRequest(c.coreAddr, time.Second*5)
-// 		if err != nil {
-// 			notify.StdMsgErr(err.Error())
-// 		}
-
-// 		_, err = client.Alive(ctx, &cabal.Ping{Time: time.Now().Format(time.Stamp)})
-// 		if err == nil {
-// 			can()
-// 			notify.StdMsgBlue("<- pong")
-// 			sendPing()
-// 		} else {
-// 			failed()
-// 			return
-// 		}
-// 	}
-// 	return
-// }
-
-// func disconnect() {
-// 	notify.StdMsg("disconnected")
-// 	c.con.Disconnect()
-// 	c.con.Server = nil
-
-// 	if !c.closed {
-// 		time.Sleep(c.to)
-// 	}
-// }
-
-// func failed() {
-// 	notify.StdMsg("failed to receive pong; disconnecting")
-// 	c.con.Disconnect()
-// 	c.con.Server = nil
-
-// 	if !c.closed {
-// 		time.Sleep(c.to)
-// 		connect()
-// 	}
-// }
-
-// func makeConnectRequest() (string, error) {
-// 	client, ctx, can, err := rpc.GetControlRequest(c.coreAddr, time.Second*5)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer can()
-
-// 	request := &cabal.ServiceUpdate{
-// 		Sender:  "gmbh-container",
-// 		Target:  "core",
-// 		Message: c.serv.Static.Name,
-// 		Action:  "container.register",
-// 	}
-
-// 	reply, err := client.UpdateServiceRegistration(ctx, request)
-// 	if err != nil {
-// 		notify.StdMsgErr("updateServiceRegistration err=(" + err.Error() + ")")
-// 		return "", errors.New("makeConnectRequest.fail")
-// 	}
-
-// 	c.id = reply.GetStatus()
-
-// 	return reply.GetAction(), nil
-// }
-
 /**********************************************************************************
 **** RPC server
 **********************************************************************************/
@@ -546,7 +351,7 @@ func (s *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.
 
 		r.pingHelpers = broadcast(r.pingHelpers)
 
-		if !c.closed {
+		if !r.closed {
 			go func() {
 				r.disconnect()
 				r.connect()
@@ -562,19 +367,27 @@ func (s *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 	notify.StdMsgBlue(fmt.Sprintf("-> Request Remote Action; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
 	if in.GetAction() == "request.info" {
+
+		services := r.GetServices()
+		rpcServices := []*cabal.Service{}
+		for _, service := range services {
+			rpcService := &cabal.Service{
+				Id:   service.ID,
+				Name: service.Static.Name,
+			}
+			rpcServices = append(rpcServices, rpcService)
+		}
 		response := &cabal.Action{
-			// Sender:      r.service.Static.Name,
-			Sender:  "name",
-			Target:  "gmbh-core",
-			Message: "response.info",
-			// ServiceInfo: serviceToRPC(r.service),
+			Sender:   r.reg.id,
+			Target:   "gmbh-core",
+			Message:  "response.info",
+			Services: rpcServices,
 		}
 		return response, nil
 	} else if in.GetAction() == "service.restart" {
 
 		response := &cabal.Action{
-			// Sender:  r.service.Static.Name,
-			Sender:  "name",
+			Sender:  r.reg.id,
 			Target:  "gmbh-core",
 			Message: "action.completed",
 		}
@@ -663,4 +476,91 @@ func update(phs []*pingHelper) []*pingHelper {
 	}
 	notify.StdMsgBlue("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
 	return n
+}
+
+/**********************************************************************************
+**** Service Manager
+**********************************************************************************/
+
+// ServiceManager controls all of the attachable services to the remote process manager
+type ServiceManager struct {
+
+	// services listed from map[id]*service
+	services map[string]*service.Service
+
+	idCounter int
+
+	mu *sync.Mutex
+}
+
+// NewServiceManager instantiates a new service manager
+func NewServiceManager() *ServiceManager {
+	return &ServiceManager{
+		services:  make(map[string]*service.Service),
+		idCounter: 100,
+		mu:        &sync.Mutex{},
+	}
+}
+
+// AddServiceFromConfig attaches a service to the service manager by parsing the config file at configPath
+// and creating a new local binary manager from the process package
+func (s *ServiceManager) AddServiceFromConfig(configPath string) (*service.Service, error) {
+
+	if configPath == "" {
+		return nil, errors.New("serviceManager.AddServiceFromConfig.unspecified config")
+	}
+
+	newService, err := service.NewService(s.assignID(), configPath)
+	if err != nil {
+		return nil, errors.New("serviceManager.AddServiceFromConfig.serviceErr=" + err.Error())
+	}
+
+	err = s.addToMap(newService)
+	if err != nil {
+		return nil, errors.New("serviceManager.AddServiceFromConfig.serviceErr=" + err.Error())
+	}
+
+	notify.StdMsgBlue("added " + newService.ID)
+
+	return newService, nil
+}
+
+// GetAllServices returns the contents of the service map
+func (s *ServiceManager) GetAllServices() []*service.Service {
+	ret := []*service.Service{}
+	for _, v := range s.services {
+		ret = append(ret, v)
+	}
+	return ret
+}
+
+// Shutdown kills all attached processes
+func (s *ServiceManager) Shutdown() {
+	for _, s := range s.services {
+		notify.StdMsgBlue("sending shutdown to " + s.ID)
+		s.Kill()
+	}
+}
+
+// addToMap adds the service to the map or returns error
+func (s *ServiceManager) addToMap(newService *service.Service) error {
+	if _, ok := s.services[newService.ID]; ok {
+		return errors.New("serviceManager.addToMap.error")
+	}
+
+	s.mu.Lock()
+	s.services[newService.ID] = newService
+	s.mu.Unlock()
+
+	return nil
+}
+
+// returns the next id string and then increments the id counter
+func (s *ServiceManager) assignID() string {
+	defer func() {
+		s.mu.Lock()
+		s.idCounter++
+		s.mu.Unlock()
+	}()
+	return "s" + strconv.Itoa(s.idCounter)
 }

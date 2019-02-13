@@ -63,6 +63,30 @@ type Service struct {
 	Remote *process.RemoteManager
 }
 
+// NewService tries to parse the required info from a config file located at path
+func NewService(id, path string) (*Service, error) {
+	staticData, err := static.ParseData(path)
+	if err != nil {
+		return nil, err
+	}
+
+	dir := path[:len(path)-len(defaults.CONFIG_FILE)]
+
+	service := Service{
+		ID:      id,
+		Created: time.Now(),
+		Mode:    Managed,
+		Path:    dir,
+		Static:  staticData,
+	}
+
+	ok := static.DataIsValid(staticData)
+	if !ok {
+		return nil, errors.New("invalid config file")
+	}
+	return &service, nil
+}
+
 // NewManagedService tries to parse the required info from a config file located at path
 func NewManagedService(id, path string) (*Service, error) {
 	staticData, err := static.ParseData(path)

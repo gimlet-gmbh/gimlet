@@ -290,6 +290,7 @@ message StatusRequest {
 }
 
 message StartReply {
+    string Status = 3;
     bool Success = 1;
     int32 Pid = 2;
 }
@@ -348,6 +349,7 @@ message Action {
     string Status = 4;
     string Action = 5;
     Service ServiceInfo = 6 ;
+    repeated Service Services = 7;
 }
 
 message Ping {

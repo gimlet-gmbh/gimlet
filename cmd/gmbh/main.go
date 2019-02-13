@@ -29,8 +29,6 @@ var cmd *exec.Cmd
 
 var c *container
 
-var config string
-
 func main() {
 
 	notify.SetTag(defaults.CLI_PROMPT)
@@ -38,25 +36,27 @@ func main() {
 	daemon := flag.Bool("d", defaults.DAEMON, "daemon mode")
 	containerMode := flag.Bool("container", false, "container mode")
 
-	c = &container{
-		configPath: flag.String("config", "", "relative path to gmbh-service config file"),
-		managed:    flag.Bool("m", false, "run service in managed mode"),
-		embedded:   flag.Bool("e", false, "is the service being managed inside of a container"),
-		daemon:     daemon,
-	}
+	configPath := flag.String("config", "", "relative path to gmbh-service config file")
+	// managed := flag.Bool("m", false, "run service in managed mode")
+	// embedded := flag.Bool("e", false, "is the service being managed inside of a container")
 
 	flag.Parse()
-	config = *c.configPath
 
 	if *containerMode {
-		startRemote()
+		startRemote(*configPath)
 	} else {
 		startCore(*daemon)
 	}
 }
 
-func startRemote() {
+func startRemote(config string) {
 	rem, _ := newRemote("localhost:59997", true)
+	pid, err := rem.AddService(config)
+	if err != nil {
+		notify.StdMsgErr("could not start service; err=" + err.Error())
+	} else {
+		notify.StdMsgBlue("service started; pid=" + pid)
+	}
 	rem.Start()
 }
 

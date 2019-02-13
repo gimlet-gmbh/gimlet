@@ -7,6 +7,7 @@ import (
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/rpc"
 )
 
 /////////////////////////////////////////////////////////////////////////
@@ -17,36 +18,36 @@ type controlServer struct{}
 
 func (c *controlServer) StartService(ctx context.Context, in *cabal.StartRequest) (*cabal.StartReply, error) {
 	// TODO: Implement
-	return nil, nil
+	return &cabal.StartReply{Status: "invalid"}, nil
 }
 
 func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	// cc, err := getCore()
-	// if err != nil {
-	// 	return nil, errors.New("gmbh system error, could not locate instance of core")
-	// }
+	rpcMessage("<- list one request")
 
-	// target, err := cc.Router.LookupServiceID(in.GetId())
-	// if err != nil {
-	// 	return &cabal.StatusReply{Status: "could not find service: " + err.Error()}, nil
-	// }
-	// if target.Mode == service.Managed {
-	// 	pid, err := target.Process.Restart(false)
-	// 	if err != nil {
-	// 		return &cabal.StatusReply{Status: "could not restart service: " + err.Error()}, nil
-	// 	}
-	// 	return &cabal.StatusReply{Status: "pid=" + strconv.Itoa(pid)}, nil
-	// }
-	// pid, err := target.Restart()
-	// if err != nil {
-	// 	return &cabal.StatusReply{Status: "issue restarting service"}, nil
-	// }
-	// return &cabal.StatusReply{Status: "pid=" + pid}, nil
-	return nil, nil
+	// make sure that sender is gmbh-ctrl
+	if in.GetSender() != "gmbh-ctrl" {
+		rpcMessage("reporting invalid sender")
+		return &cabal.StatusReply{Status: "invalid sender"}, nil
+	}
+
+	pm, err := GetProcM()
+	if err != nil {
+		rpcMessage("internal system error")
+		return &cabal.StatusReply{Status: "internal server error"}, nil
+	}
+
+	err = pm.RestartRemote(in.GetId())
+	if err != nil {
+		return &cabal.StatusReply{Status: "Not Found"}, nil
+	}
+
+	// TODO: Need to ping and get process information from each remote
+
+	response := &cabal.StatusReply{Status: "ack"}
+	return response, nil
 }
 
 func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	// TODO: Implement
 	return nil, nil
 }
 
@@ -69,9 +70,31 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 	rmts := pm.GetAllRemotes()
 	rpcrmts := []*cabal.ProcessManager{}
 	for _, re := range rmts {
+		rpcServices := []*cabal.Service{}
+		{
+			client, ctx, can, err := rpc.GetRemoteRequest(re.Address, time.Second*2)
+			if err != nil {
+				notify.StdMsgErr("could not contact " + re.ID)
+				continue
+			}
+			request := &cabal.Action{
+				Sender: "gmbh-core",
+				Target: re.ID,
+				Action: "request.info",
+			}
+			reply, err := client.RequestRemoteAction(ctx, request)
+			if err != nil {
+				notify.StdMsgErr("could not contact " + re.ID)
+				continue
+			}
+			rpcServices = append(rpcServices, reply.GetServices()...)
+			can()
+		}
+
 		rpcRemote := &cabal.ProcessManager{
-			ID:      re.ID,
-			Address: re.Address,
+			ID:       re.ID,
+			Address:  re.Address,
+			Services: rpcServices,
 		}
 		rpcrmts = append(rpcrmts, rpcRemote)
 	}
@@ -150,7 +173,10 @@ func (c *controlServer) StopServer(ctx context.Context, in *cabal.StopRequest) (
 		rpcMessage("internal system error")
 		return &cabal.StatusReply{Status: "internal server error"}, nil
 	}
-	pm.Shutdown(true)
+	go func() {
+		time.Sleep(time.Second * 2)
+		pm.Shutdown(true)
+	}()
 	return &cabal.StatusReply{Status: "shutdown procedure started"}, nil
 }
 

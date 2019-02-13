@@ -157,27 +157,24 @@ func (p *ProcessManager) LookupRemote(id string) (*RemoteServer, error) {
 	return p.router.LookupRemote(id)
 }
 
+// RestartRemote restarts a remote with id=id and if not found returns an error
+func (p *ProcessManager) RestartRemote(id string) error {
+	r, err := p.router.LookupRemote(id)
+	if err != nil {
+		return nil
+	}
+	return p.sendRestart(r)
+}
+
 // RestartAll sends an rpc restart request to all remotes
 func (p *ProcessManager) RestartAll() []error {
 	all := p.router.GetAllAttached()
 	errors := []error{}
 	for _, r := range all {
-		notify.StdMsgBlue("sending restart request to " + r.ID)
-		// send restart request
-		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
+		err := p.sendRestart(r)
 		if err != nil {
 			errors = append(errors, err)
 		}
-		action := &cabal.Action{
-			Sender: "gmbh-core",
-			Target: r.ID,
-			Action: "service.restart",
-		}
-		_, err = client.RequestRemoteAction(ctx, action)
-		if err != nil {
-			errors = append(errors, err)
-		}
-		can()
 	}
 	if len(errors) != 0 {
 		for _, e := range errors {
@@ -189,11 +186,57 @@ func (p *ProcessManager) RestartAll() []error {
 	return errors
 }
 
+// sendRestart sends a restart request to a remote
+func (p *ProcessManager) sendRestart(remote *RemoteServer) error {
+	notify.StdMsgBlue("sending restart request to " + remote.ID)
+
+	client, ctx, can, err := rpc.GetRemoteRequest(remote.Address, time.Second*2)
+	if err != nil {
+		return err
+	}
+	action := &cabal.Action{
+		Sender: "gmbh-core",
+		Target: remote.ID,
+		Action: "service.restart",
+	}
+	_, err = client.RequestRemoteAction(ctx, action)
+	if err != nil {
+		return err
+	}
+	can()
+	return nil
+}
+
+// sendShutdown notice to all attached remotes
+func (p *ProcessManager) sendShutdown() {
+	remotes := p.router.GetAllAttached()
+	for _, r := range remotes {
+		notify.StdMsgBlue("sending shutdown notice to " + r.ID)
+		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
+		if err != nil {
+			notify.StdMsgErr("shutdown error=" + err.Error())
+			return
+		}
+		update := &cabal.ServiceUpdate{
+			Sender: "gmbh-core",
+			Target: r.ID,
+			Action: "core.shutdown",
+		}
+		_, err = client.UpdateServiceRegistration(ctx, update)
+		if err != nil {
+			notify.StdMsgErr("shutdown error=" + err.Error())
+			return
+		}
+		can()
+	}
+}
+
 // Shutdown starts shutdown procedures. If remote it indicates tat the signal came from the control
 // tool
 func (p *ProcessManager) Shutdown(remote bool) {
 	notify.StdMsgBlue("shutdown signal received")
 	p.con.Disconnect()
+	p.sendShutdown()
 	os.Exit(0)
 }
 
