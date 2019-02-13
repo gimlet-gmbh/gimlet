@@ -16,17 +16,31 @@ type Mode int
 
 const (
 	// Managed mode is for services whose underlying process is managed by gmbhCore
-	Managed Mode = 2
+	Managed Mode = 1 + iota
 
 	// Remote mode is for services whose underlying process is mangaged by gmbhContainer
-	Remote Mode = 3
+	Remote
 
 	// Planetary mode is for services whose underlying process is not mangaged by any gmbh tooling
-	Planetary Mode = 4
+	Planetary
 
 	// GmbH mode is for managing the gmbh process itself
-	GmbH Mode = 5
+	GmbH
 )
+
+var modes = [...]string{
+	"Managed",
+	"Remote",
+	"Planetary",
+	"GmbH",
+}
+
+func (m Mode) String() string {
+	if Managed <= m && m <= GmbH {
+		return modes[m-1]
+	}
+	return "%!Mode()"
+}
 
 // Service represents a service including all static and runtime data
 type Service struct {
@@ -94,17 +108,14 @@ func (s *Service) Start() (pid string, err error) {
 	if s.Mode == Planetary || s.Mode == Remote {
 		return "-1", errors.New("service.StartService.invalidServiceMode")
 	}
-	notify.StdMsgDebug("Passed mode check")
 	if s.Static.Language == "go" {
 
 		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, []string{})
-		notify.StdMsgDebug("passed instantation")
 		pid, err := s.Process.Start()
 		if err != nil {
 			notify.StdMsgDebug("failed to start")
 			return "-1", errors.New("service.StartService.couldNotStartNewService")
 		}
-		notify.StdMsgDebug("started")
 		return strconv.Itoa(pid), nil
 
 	} else if s.Static.Language == "node" {

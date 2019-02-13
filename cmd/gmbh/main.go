@@ -29,6 +29,8 @@ var cmd *exec.Cmd
 
 var c *container
 
+var config string
+
 func main() {
 
 	notify.SetTag(defaults.CLI_PROMPT)
@@ -44,12 +46,18 @@ func main() {
 	}
 
 	flag.Parse()
+	config = *c.configPath
 
 	if *containerMode {
-		startContainer()
+		startRemote()
 	} else {
 		startCore(*daemon)
 	}
+}
+
+func startRemote() {
+	rem, _ := newRemote("localhost:59997", true)
+	rem.Start()
 }
 
 func startCore(daemon bool) {

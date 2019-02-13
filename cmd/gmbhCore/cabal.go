@@ -20,26 +20,51 @@ import (
 	"github.com/gmbh-micro/service/process"
 )
 
+func v(msg string) {
+	notify.StdMsgBlueNoPrompt(" [cbl] " + msg)
+
+}
+
 // cabalServer is for gRPC interface for the gmbhCore service coms server
 type cabalServer struct{}
 
 func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
 
+	v(fmt.Sprintf("ephemeral registration service"))
+	v(fmt.Sprintf("name=%s", in.NewServ.GetName()))
+	v(fmt.Sprintf("reported mode=%s", in.NewServ.GetMode()))
+
 	lookupService, err := core.Router.LookupService(in.NewServ.GetName())
 	if err != nil {
+
 		if err.Error() == "router.LookupService.NotFound" {
+
+			v("not found in lookup")
+
 			if in.NewServ.GetMode() != cabal.NewService_MANAGED {
+				v("new service mode is not managed")
 				lookupService, err = core.registerPlanetaryService(
 					in.GetNewServ().GetName(),
 					in.GetNewServ().GetAliases(),
 					in.GetNewServ().GetIsClient(),
 					in.GetNewServ().GetIsServer())
 				if err != nil {
+					v("cannot add service")
 					return &cabal.RegServRep{Status: err.Error()}, nil
 				}
 			}
+		} else {
+			v("other error=" + err.Error())
 		}
 	}
+
+	if lookupService == nil {
+		v("service should not be nil")
+		return &cabal.RegServRep{Status: "error"}, nil
+	}
+
+	v("passed error")
+	v("retrieved service name=" + lookupService.Static.Name)
 
 	if !core.Config.Daemon {
 		notify.StdMsgMagentaNoPrompt(fmt.Sprintf("[serv] <(%s)- processing ephem-reg request; name=(%s); aliases=(%s); mode=(%s)", lookupService.ID, in.NewServ.GetName(), strings.Join(in.NewServ.GetAliases(), ","), lookupService.GetMode()))
@@ -53,6 +78,7 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 	reply := &cabal.RegServRep{
 		Status:   "acknowledged",
 		ID:       lookupService.ID,
+		Mode:     lookupService.Mode.String(),
 		CorePath: core.ProjectPath,
 		Address:  lookupService.Address,
 	}
@@ -79,6 +105,10 @@ func (s *cabalServer) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (
 
 func (s *cabalServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
 	return &cabal.ServiceUpdate{Message: "unimp"}, nil
+}
+
+func (s *cabalServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
+	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

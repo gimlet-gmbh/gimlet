@@ -79,6 +79,12 @@ func (c *Connection) Connect() error {
 	}
 
 	go func() {
+
+		// parms := keepalive.ServerParameters{
+		// 	Time:    time.Second * 30,
+		// 	Timeout: time.Second * 15,
+		// }
+		// a := grpc.KeepaliveParams(parms)
 		c.Server = grpc.NewServer()
 
 		if c.ctype == "cabal" {
@@ -111,6 +117,11 @@ func (c *Connection) Disconnect() {
 		c.Server.Stop()
 	}
 	c.Connected = false
+}
+
+// IsConnected to grpc server
+func (c *Connection) IsConnected() bool {
+	return c.Connected
 }
 
 // GetCabalRequest returns a cabal client to make requests through at address and with timeout

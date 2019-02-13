@@ -7,19 +7,26 @@ package gmbh
  */
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
-	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -29,87 +36,152 @@ import (
 // by default
 type HandlerFunc = func(req Request, resp *Responder)
 
-// Client - the structure between a service and CORE
-type Client struct {
-	conf                *config
-	configured          bool
-	con                 *rpc.Connection
-	blocking            bool
-	address             string
-	registeredFunctions map[string]HandlerFunc
-	msgCounter          int
+// Option functions set options from the client
+type Option func(*options)
+
+// options contain the runtime configurable parameters
+type options struct {
+
+	// RuntimeOptions are options that can be determined at runtime
+	runtime *RuntimeOptions
 }
 
-// config is the data structure to hold the user config settings for a service
-type config struct {
-	ServiceName string   `yaml:"name"`
-	Aliases     []string `yaml:"aliases"`
-	IsServer    bool     `yaml:"is_server"`
-	IsClient    bool     `yaml:"is_client"`
-	CoreAddress string   `yaml:"core_address"`
-	Mode        string   `yaml:"mode"`
+// RuntimeOptions - user configurable
+type RuntimeOptions struct {
+	// Should the client block the main thread until shutdown signal is received?
+	Blocking bool
+
+	// Should the client run in verbose mode. in Verbose mode, debug information regarding
+	// the gmbh client will be printed to stdOut
+	Verbose bool
+}
+
+// userconfig are determined in the config file of the service
+type userconfig struct {
+	// User assigned name
+	ServiceName string `yaml:"name"`
+
+	// User assigned aliases
+	Aliases []string `yaml:"aliases"`
+
+	// Makes requests to other services
+	IsClient bool `yaml:"is_client"`
+
+	// the address back to core
+	CoreAddress string `yaml:"core_address"`
+
+	// the intended mode
+	Mode string `yaml:"mode"`
+}
+
+// registration contains data that is received from core at registration time
+type registration struct {
+	// id from core
+	id string
+
+	// mode from core
+	mode string
+
+	// address to run internal server on
+	address string
+
+	// filesystem path back to core
+	corePath string
+}
+
+var defaultOptions = options{
+	runtime: &RuntimeOptions{
+		Blocking: false,
+		Verbose:  false,
+	},
+}
+
+// SetRuntime options of the client
+func SetRuntime(r RuntimeOptions) Option {
+	return func(o *options) {
+		o.runtime.Blocking = r.Blocking
+		o.runtime.Verbose = r.Verbose
+	}
+}
+
+// Client - the structure between a service and gmbhCore
+type Client struct {
+
+	// registratrion with data from gmbhCore
+	reg *registration
+
+	// static config data from file
+	conf *userconfig
+
+	// rpc connection handler to gmbhCore over Cabal
+	con *rpc.Connection
+
+	// The user configurable options of the server
+	opts options
+
+	// The map that handles function from the user's service
+	registeredFunctions map[string]HandlerFunc
+
+	// pingHelper keeps track of channels
+	pingHelpers []*pingHelper
+
+	msgCounter int
+	mu         *sync.Mutex
+
+	// closed is set true when shutdown procedures have been started
+	closed bool
 }
 
 // g - the gmbhCore object that contains the parsed yaml config and other associated data
 var g *Client
 
-// NewService should be called only once. It returns the object in which parameters, and
+// NewClient should be called only once. It returns the object in which parameters, and
 // handler functions can be attached to gmbh Client.
-func NewService() *Client {
+func NewClient(configPath string, opt ...Option) (*Client, error) {
 
 	// Make sure you can't reset the service
 	if g != nil {
-		return g
+		return g, nil
 	}
-
-	notify.SetVerbose(false)
 
 	g = &Client{
 		registeredFunctions: make(map[string]HandlerFunc),
-		con:                 rpc.NewCabalConnection(),
-		configured:          false,
-		blocking:            true,
-		msgCounter:          0,
+		mu:                  &sync.Mutex{},
+		pingHelpers:         []*pingHelper{},
 	}
-	return g
 
-}
+	g.opts = defaultOptions
+	for _, o := range opt {
+		o(&g.opts)
+	}
 
-// Config specifies a config file to use with gmbh client
-func (g *Client) Config(path string) (*Client, error) {
+	if g.opts.runtime.Verbose {
+		notify.SetVerbose(true)
+		notify.SetTag("[cli] ")
+	}
+
 	var err error
-	g.conf, err = parseYamlConfig(path)
+	g.conf, err = parseConfig(configPath)
 	if err != nil {
-		notify.StdMsgErr("could not parse config=" + path)
-		return nil, errors.New("could not parse config=" + path)
+		return nil, errors.New("could not parse the config file")
 	}
-	if g.conf.CoreAddress == "" {
-		g.conf.CoreAddress = defaults.DEFAULT_HOST + defaults.DEFAULT_PORT
+
+	err = validConfig(g.conf)
+	if err != nil {
+		return nil, err
 	}
-	g.configured = true
+
 	return g, nil
 }
 
-// Verbose runs the client in verbose mode
-func (g *Client) Verbose() *Client {
-	notify.SetTag("[gmbh-client-debug] ")
-	notify.SetVerbose(true)
-	return g
-}
-
-// Nonblocking runs the client in blocking mode, in otherwords it keeps the service running
-// untill a shutdown signal is received. Otherwise the process will exit.
-//
-// This mode should be used if you are implementing a backend-only service
-func (g *Client) Nonblocking() *Client {
-	g.blocking = false
-	return g
-}
+/**********************************************************************************
+**** Handling Client Operation
+**********************************************************************************/
 
 // Start registers the service with gmbh in a new goroutine if blocking, else sets the listener and blocks the
 // main thread awaiting calls from gRPC.
 func (g *Client) Start() {
-	if g.blocking {
+	if g.opts.runtime.Blocking {
 		g.start()
 	} else {
 		go g.start()
@@ -128,18 +200,198 @@ func (g *Client) start() {
 
 	notify.StdMsgNoPrompt("------------------------------------------------------------")
 	notify.StdMsg("started, time=" + time.Now().Format(time.RFC3339))
-	if g.configured {
-		notify.StdMsg("gmbh configuration valid")
-	} else {
-		notify.StdMsgErr("gmbh configuration invalid")
-	}
-	go g.connecting()
+
+	go g.connect()
 
 	<-done
+
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+
+	g.disconnect()
+
 	makeUnregisterRequest(g.conf.ServiceName)
 	notify.StdMsg("shutdown, time=" + time.Now().Format(time.RFC3339))
 	os.Exit(0)
 }
+
+func parseConfig(relativePath string) (*userconfig, error) {
+	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	var stat userconfig
+	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
+	if err != nil {
+		notify.StdMsgErr(path + relativePath)
+		return nil, errors.New("could not find yaml file")
+	}
+	err = yaml.Unmarshal(yamlFile, &stat)
+	if err != nil {
+		return nil, errors.New("could not unmarshal config")
+	}
+	return &stat, nil
+}
+
+func validConfig(c *userconfig) error {
+	if c.ServiceName == "" {
+		return errors.New("service config must contain name")
+	}
+	if c.CoreAddress == "" {
+		return errors.New("service config must contain address to gmbhCore")
+	}
+	return nil
+}
+
+/**********************************************************************************
+**** Handling connection to gmbhCore
+**********************************************************************************/
+
+// connect to gmbhCore
+func (g *Client) connect() {
+	notify.StdMsgBlue("attempting to connect to gmbh-core")
+
+	// when failed or disconnected, the registration is wiped to make sure that
+	// legacy data does not get used, thus if g.reg is not nil, then we can assume
+	// that a thread has aready requested and received a valid registration
+	// and the current thread can be closed
+	if g.reg != nil {
+		return
+	}
+
+	reg, status := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, true, "")
+	for status != nil {
+		if status.Error() != "registration.gmbhUnavailable" {
+			notify.StdMsgErr("gmbh internal error")
+			return
+		}
+
+		if g.closed || (g.con != nil && g.con.IsConnected()) {
+			return
+		}
+		notify.StdMsgErr("Could not reach gmbh-core, trying again in 5 seconds")
+		time.Sleep(time.Second * 5)
+		reg, status = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, true, "")
+
+	}
+
+	notify.StdMsgBlue("registration details:")
+	notify.StdMsgBlue("id=" + reg.id + "; address=" + reg.address)
+	notify.StdMsgBlue("mode=" + reg.mode + "; corePath=" + reg.corePath)
+
+	if reg.address == "" {
+		notify.StdMsgErr("address not received")
+		return
+	}
+
+	g.mu.Lock()
+	g.reg = reg
+	g.con = rpc.NewCabalConnection(reg.address, &_server{})
+
+	// add a new channel to communicate to this goroutine
+
+	ph := newPingHelper()
+	g.pingHelpers = append(g.pingHelpers, ph)
+	g.mu.Unlock()
+
+	err := g.con.Connect()
+	if err != nil {
+		notify.StdMsgErr("gmbh connection error=(" + err.Error() + ")")
+		return
+	}
+	notify.StdMsgGreen("connected; coreAddress=(" + reg.address + ")")
+
+	go g.sendPing(ph)
+
+}
+
+// disconnect from gmbh-core and go back into connecting mode
+func (g *Client) disconnect() {
+
+	notify.StdMsgBlue("disconnecting from gmbh-core")
+
+	g.mu.Lock()
+	if g.con != nil {
+		notify.StdMsgErr("con good")
+		g.con.Disconnect()
+		g.con.Server = nil
+		g.con.SetAddress("-")
+	} else {
+		notify.StdMsgErr("con should not be nil in disconnect")
+	}
+	g.reg = nil
+	g.mu.Unlock()
+
+	if !g.closed {
+		time.Sleep(time.Second * 5)
+		g.connect()
+	}
+}
+
+func (g *Client) failed() {
+	notify.StdMsg("failed to receive pong; disconnecting")
+
+	if g.con.IsConnected() {
+		g.con.Disconnect()
+	}
+	g.con.Server = nil
+
+	if g.reg.mode == "Managed" {
+		os.Exit(1)
+	}
+
+	if !g.closed {
+		time.Sleep(time.Second * 2)
+		g.connect()
+	}
+}
+
+// sendPing is meant to run in its own thread. It will continue to call itself or
+// return and changed the state of the connection if there is a failure reaching
+// the control server that is ran by gmbhCore
+func (g *Client) sendPing(ph *pingHelper) {
+
+	// Loop forever
+	for {
+
+		time.Sleep(time.Second * 45)
+		notify.StdMsgBlue("-> ping")
+
+		select {
+		case _ = <-ph.pingChan: // case in which this channel is no longer needed
+			notify.StdMsgBlue("received chan message in sendPing")
+			close(ph.pingChan)
+			ph.mu.Lock()
+			ph.received = true
+			ph.mu.Unlock()
+			return
+		default: // default operation, wait and send a ping
+
+			if !g.con.IsConnected() {
+				return
+			}
+
+			client, ctx, can, err := rpc.GetCabalRequest("localhost:59999", time.Second*30)
+			if err != nil {
+				notify.StdMsgErr(err.Error())
+			}
+
+			_, err = client.Alive(ctx, &cabal.Ping{Time: time.Now().Format(time.Stamp)})
+			if err == nil {
+				can()
+				notify.StdMsgBlue("<- pong")
+			} else {
+				g.failed()
+				return
+			}
+		}
+	}
+}
+
+/**********************************************************************************
+**** Handling Data Requests
+**********************************************************************************/
 
 // Route - Callback functions to be used when handling data
 // requests from gmbh or other services
@@ -158,46 +410,6 @@ func (g *Client) MakeRequest(target, method, data string) (Responder, error) {
 	return resp, nil
 }
 
-// disconnect from gmbh-core and go back into connecting mode
-func (g *Client) disconnect() {
-	notify.StdMsgBlue("disconnecting from gmbh-core")
-	g.con.Disconnect()
-	g.con.Server = nil
-	time.Sleep(time.Second * 5)
-	g.connecting()
-}
-
-// connecting mode
-func (g *Client) connecting() {
-	notify.StdMsgBlue("attempting to connect to gmbh-core")
-
-	addr, err := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
-	for err != nil && err.Error() == "registration.gmbhUnavailable" {
-
-		notify.StdMsgErr("Could not reach gmbh-core, trying again in 5 seconds")
-		time.Sleep(time.Second * 5)
-		addr, err = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, g.conf.IsServer, g.conf.Mode)
-	}
-	if err != nil && err.Error() != "registration.gmbhUnavailable" {
-		notify.StdMsgErr("error reported=" + err.Error())
-		panic(err)
-	}
-
-	notify.StdMsgGreen("connected to core=" + g.conf.CoreAddress)
-	if addr != "" {
-		notify.StdMsgGreen("assigned address=" + addr)
-	}
-
-	if addr != "" {
-		g.con.Address = addr
-		g.con.Cabal = &_server{}
-		err := g.con.Connect()
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
 func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
 
 	var request Request
@@ -213,24 +425,6 @@ func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
 	}
 
 	return responder.toProto(), nil
-}
-
-func parseYamlConfig(relativePath string) (*config, error) {
-	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
-	}
-	var conf config
-	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
-	if err != nil {
-		notify.StdMsgErr(path + relativePath)
-		return nil, errors.New("could not find yaml file")
-	}
-	err = yaml.Unmarshal(yamlFile, &conf)
-	if err != nil {
-		return nil, errors.New("could not unmarshal config")
-	}
-	return &conf, nil
 }
 
 // Request is the publically exposed requester between services in gmbh
@@ -304,4 +498,258 @@ func responderFromProto(r cabal.Responder) Responder {
 		ErrorString: r.ErrorString,
 		HadError:    r.HadError,
 	}
+}
+
+/**********************************************************************************
+** Helpers
+**********************************************************************************/
+
+type pingHelper struct {
+	pingChan  chan bool
+	contacted bool
+	received  bool
+	mu        *sync.Mutex
+}
+
+func newPingHelper() *pingHelper {
+	return &pingHelper{
+		pingChan: make(chan bool, 1),
+		mu:       &sync.Mutex{},
+	}
+}
+
+func update(phs []*pingHelper) []*pingHelper {
+	n := []*pingHelper{}
+	c := 0
+	for _, p := range phs {
+		if p.contacted && p.received {
+			n = append(n, p)
+		} else {
+			c++
+		}
+	}
+	notify.StdMsgBlue("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
+	return n
+}
+
+/**********************************************************************************
+** RPC Functions
+**********************************************************************************/
+
+/**********************************************************************************
+** RPCClient
+**********************************************************************************/
+
+func getRPCClient() (cabal.CabalClient, error) {
+	con, err := grpc.Dial("localhost:59999", grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	return cabal.NewCabalClient(con), nil
+
+}
+
+func getContextCancel() (context.Context, context.CancelFunc) {
+	ctx, can := context.WithTimeout(context.Background(), time.Second)
+	return ctx, can
+}
+
+func makeRequest() (cabal.CabalClient, context.Context, context.CancelFunc, error) {
+	client, err := getRPCClient()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	ctx, can := context.WithTimeout(context.Background(), time.Second)
+	return client, ctx, can, nil
+}
+
+func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool, mode string) (*registration, error) {
+
+	client, ctx, can, err := makeRequest()
+	if err != nil {
+		panic(err)
+	}
+	defer can()
+
+	request := cabal.RegServReq{
+		NewServ: &cabal.NewService{
+			Name:     name,
+			Aliases:  []string{},
+			IsClient: isClient,
+			IsServer: isServer,
+		},
+	}
+
+	if mode == "remote" {
+		request.NewServ.Mode = cabal.NewService_REMOTE
+	} else {
+		request.NewServ.Mode = cabal.NewService_PLANETARY
+	}
+
+	reply, err := client.EphemeralRegisterService(ctx, &request)
+	if err != nil {
+		if grpc.Code(err) == codes.Unavailable {
+			return nil, errors.New("registration.gmbhUnavailable")
+		}
+		panic(err)
+	}
+
+	if reply.Status == "acknowledged" {
+		r := &registration{
+			id:       reply.ID,
+			mode:     reply.Mode,
+			address:  reply.Address,
+			corePath: reply.CorePath,
+		}
+		return r, nil
+	}
+	return nil, errors.New(reply.GetStatus())
+}
+
+func makeDataRequest(target string, method string, data string) (Responder, error) {
+
+	client, ctx, can, err := makeRequest()
+	if err != nil {
+		panic(err)
+	}
+	defer can()
+
+	request := cabal.DataReq{
+		Req: &cabal.Request{
+			Sender: "test",
+			Target: target,
+			Method: method,
+			Data1:  data,
+		},
+	}
+
+	mcs := strconv.Itoa(g.msgCounter)
+	g.msgCounter++
+	notify.StdMsgNoPrompt("<==" + mcs + "== target: " + target + ", method: " + method)
+
+	reply, err := client.MakeDataRequest(ctx, &request)
+	if err != nil {
+		// panic(err)
+		fmt.Println(fmt.Errorf("%v", err.Error()))
+
+		r := Responder{
+			HadError:    true,
+			ErrorString: err.Error(),
+		}
+		return r, err
+
+	}
+	notify.StdMsgNoPrompt(" ==" + mcs + "==> result: " + reply.Resp.Result + ", errors?: " + reply.Resp.ErrorString)
+
+	return responderFromProto(*reply.Resp), nil
+}
+
+func makeUnregisterRequest(name string) {
+	client, ctx, can, err := makeRequest()
+	if err != nil {
+		panic(err)
+	}
+	defer can()
+
+	_, _ = client.UnregisterService(ctx, &cabal.UnregisterReq{Name: name})
+}
+
+/**********************************************************************************
+** RPC Server
+**********************************************************************************/
+
+// _server implements the coms service using gRPC
+type _server struct{}
+
+func rpcConnect(address string) {
+	list, err := net.Listen("tcp", address)
+	if err != nil {
+		panic(err)
+	}
+
+	s := grpc.NewServer()
+	cabal.RegisterCabalServer(s, &_server{})
+
+	reflection.Register(s)
+	if err := s.Serve(list); err != nil {
+		panic(err)
+	}
+
+}
+
+func (s *_server) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
+	return &cabal.RegServRep{Status: "invalid operation"}, nil
+}
+
+func (s *_server) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
+	return &cabal.UnregisterResp{Awk: false}, nil
+}
+
+func (s *_server) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
+
+	mcs := strconv.Itoa(g.msgCounter)
+	g.msgCounter++
+	notify.StdMsgNoPrompt("==" + mcs + "==> from: " + in.Req.Sender + ", method: " + in.Req.Method)
+
+	responder, err := handleDataRequest(*in.Req)
+	if err != nil {
+		panic(err)
+	}
+
+	reply := &cabal.DataResp{Resp: responder}
+	return reply, nil
+}
+
+func (s *_server) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
+
+	response := cabal.QueryResponse{
+		Awk:     true,
+		Status:  true,
+		Details: make(map[string]string),
+	}
+
+	return &response, nil
+}
+
+func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+
+	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+
+	if in.GetTarget() != g.conf.ServiceName {
+		notify.StdMsgErr("invalid target")
+		reply := &cabal.ServiceUpdate{
+			Action:  "error",
+			Message: "invalid service name",
+		}
+		return reply, nil
+	}
+
+	if in.Action == "core.shutdown" {
+		notify.StdMsgBlue("recieved shutdown")
+		fmt.Println(g.closed)
+
+		notify.StdMsgBlue("sending message over chans to ping")
+		fmt.Println("sending " + strconv.Itoa(len(g.pingHelpers)) + " messages")
+		for _, c := range g.pingHelpers {
+			c.pingChan <- true
+			c.contacted = true
+		}
+
+		g.pingHelpers = update(g.pingHelpers)
+
+		if !g.closed {
+			go func() {
+				g.disconnect()
+				g.connect()
+			}()
+		}
+	}
+
+	reply := &cabal.ServiceUpdate{Action: "acknowledged"}
+	return reply, nil
+}
+
+func (s *_server) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
+	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }

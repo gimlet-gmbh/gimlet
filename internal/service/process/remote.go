@@ -19,6 +19,7 @@ type RemoteManager struct {
 func NewRemoteManager(name, id string) *RemoteManager {
 	return &RemoteManager{
 		Name: name,
+		ID:   id,
 	}
 }
 

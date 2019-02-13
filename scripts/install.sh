@@ -15,4 +15,13 @@ fi
 ./link_packages.sh
 cd ../
 make deps
+
+
+## Experiment for protoc
+# cd ../internal/cabal
+# rm cabal.pb.go
+# ./build.sh
+# cd ../../
+
+
 make

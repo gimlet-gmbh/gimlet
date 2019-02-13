@@ -234,6 +234,7 @@ func (c *Core) shutdown(remote bool) {
 
 	// Send shutdown notice to all remote services
 	for _, rs := range c.Router.GetAllRemoteServices() {
+		fmt.Println("sending shutdown to: ", rs.Static.Name)
 		c.sendServiceShutdownNotice(rs)
 	}
 

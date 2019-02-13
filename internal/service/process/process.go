@@ -1,6 +1,8 @@
 package process
 
-import "time"
+import (
+	"time"
+)
 
 // Things to think about
 // How will untimely process death be notifed

@@ -77,6 +77,8 @@ service Cabal {
      * Use this to query the status of all processes attached to CORE.
      */
     rpc QueryStatus (QueryRequest) returns (QueryResponse) {}
+
+    rpc Alive (Ping) returns (Pong) {}
 }
 
 
@@ -97,11 +99,14 @@ service Control {
     rpc ServerStatus (StatusRequest) returns (StatusReply) {}
 
     rpc UpdateServiceRegistration (ServiceUpdate) returns (ServiceUpdate) {}
+
+    rpc Alive (Ping) returns (Pong) {}
 }
 
 service Remote {
     rpc UpdateServiceRegistration (ServiceUpdate) returns (ServiceUpdate) {}
     rpc RequestRemoteAction (Action) returns (Action) {}
+    rpc Alive (Ping) returns (Pong) {}
 }
 
 message AllRequest {
@@ -134,6 +139,9 @@ message RegServRep {
     //        indice of the arrach and then walk the "Aliases" 
     //        field for a match.
     repeated S2S ServiceTable = 2;
+
+    // the mode of the service
+    string Mode = 6;
 
 }
 
@@ -331,4 +339,12 @@ message Action {
     string Status = 4;
     string Action = 5;
     Service ServiceInfo = 6 ;
+}
+
+message Ping {
+    string Time = 1;
+}
+
+message Pong {
+    string Time = 1;
 }

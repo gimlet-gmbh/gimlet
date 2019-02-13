@@ -226,6 +226,10 @@ func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal
 	return &cabal.ServiceUpdate{Message: "unimp"}, nil
 }
 
+func (c *controlServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
+	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+}
+
 /////////////////////////////////////////////////////////////////////////
 // CLIENT
 /////////////////////////////////////////////////////////////////////////
