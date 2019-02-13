@@ -31,6 +31,7 @@
     - [ ] Windows
 - [ ] Continue standardizing config files
     * Need to parameterize parameters, a large config file is good if we can make most of the options defaults.
+    * **For Deployment mode, need to set a flag that reads things like core and cabal addresses from environment variables**
 - [ ] Docker Support
     * Testing, testing, testing
 - [ ] Move away from Makefile

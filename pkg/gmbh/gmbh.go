@@ -24,6 +24,7 @@ import (
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
