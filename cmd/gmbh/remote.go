@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -93,32 +92,32 @@ func newRemote(coreAddress string, verbose bool) (*remote, error) {
 
 func (r *remote) Start() {
 
-	// start the service //////////////////////////////////////////////////////////
+	// // start the service //////////////////////////////////////////////////////////
 
-	if config == "" {
-		notify.StdMsgErr("must specify config file using flags")
-		os.Exit(1)
-	}
+	// if config == "" {
+	// 	notify.StdMsgErr("must specify config file using flags")
+	// 	os.Exit(1)
+	// }
 
-	var err error
-	r.service, err = service.NewManagedService("101", config)
-	if err != nil {
-		notify.StdMsgErr("could not start service; err=(" + err.Error() + ")")
-		os.Exit(1)
-	}
+	// var err error
+	// r.service, err = service.NewManagedService("101", config)
+	// if err != nil {
+	// 	notify.StdMsgErr("could not start service; err=(" + err.Error() + ")")
+	// 	os.Exit(1)
+	// }
 
-	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	r.service.StartLog(dir+"/gmbh", "process-manager.log")
+	// dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	// r.service.StartLog(dir+"/gmbh", "process-manager.log")
 
-	pid, err := r.service.Start()
-	if err != nil {
-		notify.StdMsgErr("could not start service, error=(" + err.Error() + ")")
-		os.Exit(1)
-	} else {
-		notify.StdMsgGreen("started process; pid=(" + pid + ")")
-	}
+	// pid, err := r.service.Start()
+	// if err != nil {
+	// 	notify.StdMsgErr("could not start service, error=(" + err.Error() + ")")
+	// 	os.Exit(1)
+	// } else {
+	// 	notify.StdMsgGreen("started process; pid=(" + pid + ")")
+	// }
 
-	// done starting service //////////////////////////////////////////////////////////
+	// // done starting service //////////////////////////////////////////////////////////
 
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
@@ -145,7 +144,7 @@ func (r *remote) Start() {
 	r.disconnect()
 
 	// shutdown service
-	r.service.Kill()
+	// r.service.Kill()
 
 	// todo: send message to core of shutdown
 
@@ -292,10 +291,10 @@ func (r *remote) makeCoreConnectRequest() (*registration, error) {
 	defer can()
 
 	request := &cabal.ServiceUpdate{
-		Sender:  "gmbh-container",
+		Sender:  "gmbh-remote",
 		Target:  "core",
-		Message: r.service.Static.Name,
-		Action:  "container.register",
+		Message: "announce",
+		Action:  "remote.register",
 	}
 
 	reply, err := client.UpdateServiceRegistration(ctx, request)
@@ -307,9 +306,13 @@ func (r *remote) makeCoreConnectRequest() (*registration, error) {
 	fmt.Println("reply is")
 	fmt.Println(*reply)
 
+	if reply.GetMessage() != "registered" {
+		return nil, errors.New(reply.GetMessage())
+	}
+
 	reg := &registration{
-		id:      reply.GetStatus(),
-		address: reply.GetAction(),
+		id:      reply.GetTarget(),
+		address: reply.GetStatus(),
 	}
 
 	return reg, nil
@@ -560,26 +563,28 @@ func (s *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 
 	if in.GetAction() == "request.info" {
 		response := &cabal.Action{
-			Sender:      r.service.Static.Name,
-			Target:      "gmbh-core",
-			Message:     "response.info",
-			ServiceInfo: serviceToRPC(r.service),
+			// Sender:      r.service.Static.Name,
+			Sender:  "name",
+			Target:  "gmbh-core",
+			Message: "response.info",
+			// ServiceInfo: serviceToRPC(r.service),
 		}
 		return response, nil
 	} else if in.GetAction() == "service.restart" {
 
 		response := &cabal.Action{
-			Sender:  r.service.Static.Name,
+			// Sender:  r.service.Static.Name,
+			Sender:  "name",
 			Target:  "gmbh-core",
 			Message: "action.completed",
 		}
 
-		pid, err := r.service.Restart()
-		if err != nil {
-			response.Status = err.Error()
-		} else {
-			response.Status = pid
-		}
+		// pid, err := r.service.Restart()
+		// if err != nil {
+		// 	response.Status = err.Error()
+		// } else {
+		// 	response.Status = pid
+		// }
 
 		notify.StdMsgBlue(fmt.Sprintf("<- Message=(%s); Status=(%s)", response.Message, response.Status))
 		return response, nil

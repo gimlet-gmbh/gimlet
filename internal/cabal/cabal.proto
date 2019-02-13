@@ -111,6 +111,7 @@ service Remote {
 
 message AllRequest {
     string Status = 1;
+    string Sender = 2;
 }
 
 message RegServReq {
@@ -272,6 +273,8 @@ message SearchRequest {
     string Path = 2;
     string Pid = 3;
     string Id = 4;
+
+    string Sender = 10;
 }
 
 message StopRequest {
@@ -296,6 +299,12 @@ message ListReply {
     repeated Service planetary = 7;
     repeated ProcessManager remote = 8;
     int32 length = 2;
+
+
+    repeated ProcessManager remotes = 12;
+    string Sender = 10;
+    string Status = 9;
+    
 }
 
 // Service holds data associated gimlet service
