@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"os"
 	"strconv"
 	"time"
 
@@ -134,7 +135,7 @@ func (s *Service) Start() (pid string, err error) {
 	}
 	if s.Static.Language == "go" {
 
-		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, []string{})
+		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, os.Environ())
 		pid, err := s.Process.Start()
 		if err != nil {
 			notify.StdMsgDebug("failed to start")

@@ -22,9 +22,9 @@ const (
 	DAEMON              = false
 	VERBOSE             = true
 	DEFAULT_HOST        = "localhost"
-	DEFAULT_PORT        = ":59999"
+	DEFAULT_PORT        = ":49500"
 	CONTROL_HOST        = "localhost"
-	CONTROL_PORT        = ":59997"
+	CONTROL_PORT        = ":59500"
 )
 
 // For use with ServiceConfig
@@ -53,4 +53,15 @@ const (
 	STARTING_ID = 100
 	NUM_RETRIES = 3
 	TIMEOUT     = 30
+)
+
+// Addresses
+const (
+	CORE_ADDRESS = "localhost:49500"
+	CORE_START   = 49502
+
+	PM_ADDRESS = "localhost:59500"
+	PM_START   = 59502
+
+	LOCALHOST = "localhost"
 )

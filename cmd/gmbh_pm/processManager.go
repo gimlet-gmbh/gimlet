@@ -89,7 +89,7 @@ func NewProcessManager(configFile string) *ProcessManager {
 		Version:   defaults.VERSION,
 		CodeName:  defaults.CODE,
 		startTime: time.Now(),
-		Address:   defaults.CONTROL_HOST + defaults.CONTROL_PORT,
+		Address:   defaults.PM_ADDRESS,
 		router:    NewRouter(),
 		mode:      Dev,
 		// Log: notify.NewLogFile()
@@ -267,8 +267,8 @@ func NewRouter() *Router {
 		remotes:   make(map[string]*RemoteServer),
 		idCounter: 100,
 		addressing: &addressHandler{
-			host: defaults.BASE_ADDRESS,
-			port: defaults.BASE_PORT,
+			host: defaults.LOCALHOST,
+			port: defaults.PM_START,
 			mu:   &sync.Mutex{},
 		},
 		mu:      &sync.Mutex{},

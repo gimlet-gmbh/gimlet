@@ -1,235 +1,235 @@
 package main
 
-import (
-	"context"
-	"errors"
-	"fmt"
-	"strconv"
-	"time"
+// import (
+// 	"context"
+// 	"errors"
+// 	"fmt"
+// 	"strconv"
+// 	"time"
 
-	"github.com/gmbh-micro/cabal"
-	"github.com/gmbh-micro/notify"
-	"github.com/gmbh-micro/rpc"
-	"github.com/gmbh-micro/service"
-)
+// 	"github.com/gmbh-micro/cabal"
+// 	"github.com/gmbh-micro/notify"
+// 	"github.com/gmbh-micro/rpc"
+// 	"github.com/gmbh-micro/service"
+// )
 
-/**
- * control.go
- * Implements the gRPC server and limited client for the gmbhCore Control Server
- * Abe Dick
- * January 2019
- */
+// /**
+//  * control.go
+//  * Implements the gRPC server and limited client for the gmbhCore Control Server
+//  * Abe Dick
+//  * January 2019
+//  */
 
-/////////////////////////////////////////////////////////////////////////
-// SERVER
-/////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
+// // SERVER
+// /////////////////////////////////////////////////////////////////////////
 
-type controlServer struct{}
+// type controlServer struct{}
 
-func (c *controlServer) StartService(ctx context.Context, in *cabal.StartRequest) (*cabal.StartReply, error) {
-	// TODO: Implement
-	return nil, nil
-}
+// func (c *controlServer) StartService(ctx context.Context, in *cabal.StartRequest) (*cabal.StartReply, error) {
+// 	// TODO: Implement
+// 	return nil, nil
+// }
 
-func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	cc, err := getCore()
-	if err != nil {
-		return nil, errors.New("gmbh system error, could not locate instance of core")
-	}
+// func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
+// 	cc, err := getCore()
+// 	if err != nil {
+// 		return nil, errors.New("gmbh system error, could not locate instance of core")
+// 	}
 
-	target, err := cc.Router.LookupServiceID(in.GetId())
-	if err != nil {
-		return &cabal.StatusReply{Status: "could not find service: " + err.Error()}, nil
-	}
-	if target.Mode == service.Managed {
-		pid, err := target.Process.Restart(false)
-		if err != nil {
-			return &cabal.StatusReply{Status: "could not restart service: " + err.Error()}, nil
-		}
-		return &cabal.StatusReply{Status: "pid=" + strconv.Itoa(pid)}, nil
-	}
-	pid, err := target.Restart()
-	if err != nil {
-		return &cabal.StatusReply{Status: "issue restarting service"}, nil
-	}
-	return &cabal.StatusReply{Status: "pid=" + pid}, nil
+// 	target, err := cc.Router.LookupServiceID(in.GetId())
+// 	if err != nil {
+// 		return &cabal.StatusReply{Status: "could not find service: " + err.Error()}, nil
+// 	}
+// 	if target.Mode == service.Managed {
+// 		pid, err := target.Process.Restart(false)
+// 		if err != nil {
+// 			return &cabal.StatusReply{Status: "could not restart service: " + err.Error()}, nil
+// 		}
+// 		return &cabal.StatusReply{Status: "pid=" + strconv.Itoa(pid)}, nil
+// 	}
+// 	pid, err := target.Restart()
+// 	if err != nil {
+// 		return &cabal.StatusReply{Status: "issue restarting service"}, nil
+// 	}
+// 	return &cabal.StatusReply{Status: "pid=" + pid}, nil
 
-}
+// }
 
-func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	// TODO: Implement
-	return nil, nil
-}
+// func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
+// 	// TODO: Implement
+// 	return nil, nil
+// }
 
-func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cabal.ListReply, error) {
+// func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cabal.ListReply, error) {
 
-	cc, err := getCore()
-	if err != nil {
-		return nil, errors.New("gmbh system error, could not locate instance of core")
-	}
+// 	cc, err := getCore()
+// 	if err != nil {
+// 		return nil, errors.New("gmbh system error, could not locate instance of core")
+// 	}
 
-	cc.Router.Reconcile()
+// 	cc.Router.Reconcile()
 
-	rpcManaged := []*cabal.Service{}
-	rpcPlanetary := []*cabal.Service{}
-	rpcRemote := []*cabal.ProcessManager{}
+// 	rpcManaged := []*cabal.Service{}
+// 	rpcPlanetary := []*cabal.Service{}
+// 	rpcRemote := []*cabal.ProcessManager{}
 
-	for _, s := range cc.Router.GetAllServices() {
-		if s.Mode == service.Managed {
-			rpcManaged = append(rpcManaged, ServiceToRPC(*s))
-		} else if s.Mode == service.Remote {
+// 	for _, s := range cc.Router.GetAllServices() {
+// 		if s.Mode == service.Managed {
+// 			rpcManaged = append(rpcManaged, ServiceToRPC(*s))
+// 		} else if s.Mode == service.Remote {
 
-			pm, err := cc.Router.LookupProcessManager(s.Static.Name)
-			if err != nil {
-				epm := &cabal.ProcessManager{
-					Services: []*cabal.Service{
-						&cabal.Service{
-							Name:   s.Static.Name,
-							Mode:   "Remote",
-							Errors: []string{"could not contact"},
-						},
-					},
-				}
-				rpcRemote = append(rpcRemote, epm)
-				continue
-			}
+// 			pm, err := cc.Router.LookupProcessManager(s.Static.Name)
+// 			if err != nil {
+// 				epm := &cabal.ProcessManager{
+// 					Services: []*cabal.Service{
+// 						&cabal.Service{
+// 							Name:   s.Static.Name,
+// 							Mode:   "Remote",
+// 							Errors: []string{"could not contact"},
+// 						},
+// 					},
+// 				}
+// 				rpcRemote = append(rpcRemote, epm)
+// 				continue
+// 			}
 
-			client, con, can, err := rpc.GetRemoteRequest(pm.Address, time.Second)
+// 			client, con, can, err := rpc.GetRemoteRequest(pm.Address, time.Second)
 
-			request := &cabal.Action{
-				Action: "request.info",
-			}
+// 			request := &cabal.Action{
+// 				Action: "request.info",
+// 			}
 
-			reply, err := client.RequestRemoteAction(con, request)
-			if err != nil {
-				epm := &cabal.ProcessManager{
-					Services: []*cabal.Service{
-						&cabal.Service{
-							Name:   s.Static.Name,
-							Mode:   "Remote",
-							Errors: []string{"could not contact"},
-						},
-					},
-				}
-				rpcRemote = append(rpcRemote, epm)
-				continue
-			}
-			s, err = cc.Router.LookupService(reply.GetServiceInfo().GetName())
-			if err != nil {
-				reply.GetServiceInfo().Id = "err"
-				reply.GetServiceInfo().Errors = append(reply.GetServiceInfo().Errors, "could not resolve service id")
-			} else {
-				reply.GetServiceInfo().Id = s.ID
-			}
+// 			reply, err := client.RequestRemoteAction(con, request)
+// 			if err != nil {
+// 				epm := &cabal.ProcessManager{
+// 					Services: []*cabal.Service{
+// 						&cabal.Service{
+// 							Name:   s.Static.Name,
+// 							Mode:   "Remote",
+// 							Errors: []string{"could not contact"},
+// 						},
+// 					},
+// 				}
+// 				rpcRemote = append(rpcRemote, epm)
+// 				continue
+// 			}
+// 			s, err = cc.Router.LookupService(reply.GetServiceInfo().GetName())
+// 			if err != nil {
+// 				reply.GetServiceInfo().Id = "err"
+// 				reply.GetServiceInfo().Errors = append(reply.GetServiceInfo().Errors, "could not resolve service id")
+// 			} else {
+// 				reply.GetServiceInfo().Id = s.ID
+// 			}
 
-			pmData := &cabal.ProcessManager{
-				ID:       s.Remote.ID,
-				Name:     s.Remote.Name,
-				Address:  s.Remote.Address,
-				Services: []*cabal.Service{reply.GetServiceInfo()},
-			}
-			rpcRemote = append(rpcRemote, pmData)
+// 			pmData := &cabal.ProcessManager{
+// 				ID:       s.Remote.ID,
+// 				Name:     s.Remote.Name,
+// 				Address:  s.Remote.Address,
+// 				Services: []*cabal.Service{reply.GetServiceInfo()},
+// 			}
+// 			rpcRemote = append(rpcRemote, pmData)
 
-			can()
-		} else {
-			ns := &cabal.Service{
-				Name:    s.Static.Name,
-				Id:      s.ID,
-				Address: s.Address,
-				Mode:    "Planetary",
-			}
-			rpcPlanetary = append(rpcPlanetary, ns)
-		}
-	}
+// 			can()
+// 		} else {
+// 			ns := &cabal.Service{
+// 				Name:    s.Static.Name,
+// 				Id:      s.ID,
+// 				Address: s.Address,
+// 				Mode:    "Planetary",
+// 			}
+// 			rpcPlanetary = append(rpcPlanetary, ns)
+// 		}
+// 	}
 
-	reply := cabal.ListReply{
-		Managed:   rpcManaged,
-		Remote:    rpcRemote,
-		Planetary: rpcPlanetary,
-	}
+// 	reply := cabal.ListReply{
+// 		Managed:   rpcManaged,
+// 		Remote:    rpcRemote,
+// 		Planetary: rpcPlanetary,
+// 	}
 
-	return &reply, nil
-}
-func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*cabal.ListReply, error) {
+// 	return &reply, nil
+// }
+// func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*cabal.ListReply, error) {
 
-	cc, err := getCore()
-	if err != nil {
-		return nil, errors.New("gmbh system error, could not locate instance of core")
-	}
+// 	cc, err := getCore()
+// 	if err != nil {
+// 		return nil, errors.New("gmbh system error, could not locate instance of core")
+// 	}
 
-	target, err := cc.Router.LookupServiceID(in.GetId())
-	if err != nil {
-		return &cabal.ListReply{Length: 0}, nil
-	}
+// 	target, err := cc.Router.LookupServiceID(in.GetId())
+// 	if err != nil {
+// 		return &cabal.ListReply{Length: 0}, nil
+// 	}
 
-	reply := cabal.ListReply{
-		Length:  1,
-		Managed: []*cabal.Service{ServiceToRPC(*target)},
-	}
+// 	reply := cabal.ListReply{
+// 		Length:  1,
+// 		Managed: []*cabal.Service{ServiceToRPC(*target)},
+// 	}
 
-	return &reply, nil
-}
+// 	return &reply, nil
+// }
 
-func (c *controlServer) RestartAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
-	cc, err := getCore()
-	if err != nil {
-		return nil, errors.New("gmbh system error, could not locate instance of core")
-	}
-	go cc.Router.RestartAllServices()
-	return &cabal.StatusReply{Status: "success"}, nil
-}
+// func (c *controlServer) RestartAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
+// 	cc, err := getCore()
+// 	if err != nil {
+// 		return nil, errors.New("gmbh system error, could not locate instance of core")
+// 	}
+// 	go cc.Router.RestartAllServices()
+// 	return &cabal.StatusReply{Status: "success"}, nil
+// }
 
-func (c *controlServer) KillAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
-	// TODO: Implement
-	return nil, nil
-}
+// func (c *controlServer) KillAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
+// 	// TODO: Implement
+// 	return nil, nil
+// }
 
-func (c *controlServer) StopServer(ctx context.Context, in *cabal.StopRequest) (*cabal.StatusReply, error) {
-	cc, err := getCore()
-	if err != nil {
-		return nil, errors.New("gmbh system error, could not locate instance of core")
-	}
-	go cc.shutdown(true)
-	return &cabal.StatusReply{Status: "shutdown procedure started"}, nil
-}
+// func (c *controlServer) StopServer(ctx context.Context, in *cabal.StopRequest) (*cabal.StatusReply, error) {
+// 	cc, err := getCore()
+// 	if err != nil {
+// 		return nil, errors.New("gmbh system error, could not locate instance of core")
+// 	}
+// 	go cc.shutdown(true)
+// 	return &cabal.StatusReply{Status: "shutdown procedure started"}, nil
+// }
 
-func (c *controlServer) ServerStatus(ctx context.Context, in *cabal.StatusRequest) (*cabal.StatusReply, error) {
-	return &cabal.StatusReply{Status: "awk"}, nil
-}
+// func (c *controlServer) ServerStatus(ctx context.Context, in *cabal.StatusRequest) (*cabal.StatusReply, error) {
+// 	return &cabal.StatusReply{Status: "awk"}, nil
+// }
 
-func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-	notify.StdMsgCyanNoPrompt(fmt.Sprintf("[ pm ] <- Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+// func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+// 	notify.StdMsgCyanNoPrompt(fmt.Sprintf("[ pm ] <- Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
-	if in.GetSender() != "gmbh-container" {
-		return &cabal.ServiceUpdate{Message: "invalid sender"}, nil
-	}
+// 	if in.GetSender() != "gmbh-container" {
+// 		return &cabal.ServiceUpdate{Message: "invalid sender"}, nil
+// 	}
 
-	cc, err := getCore()
-	if err != nil {
-		return nil, errors.New("gmbh system error, could not locate instance of core")
-	}
+// 	cc, err := getCore()
+// 	if err != nil {
+// 		return nil, errors.New("gmbh system error, could not locate instance of core")
+// 	}
 
-	if in.GetAction() == "container.register" {
-		c, err := cc.Router.AddRemoteProcessManager(in.GetMessage())
-		if err != nil {
-			return &cabal.ServiceUpdate{Message: err.Error()}, nil
-		}
-		return &cabal.ServiceUpdate{
-			Target:  in.GetSender(),
-			Sender:  "core",
-			Message: "added process manager",
-			Action:  c.Address,
-			Status:  c.ID,
-		}, nil
-	}
+// 	if in.GetAction() == "container.register" {
+// 		c, err := cc.Router.AddRemoteProcessManager(in.GetMessage())
+// 		if err != nil {
+// 			return &cabal.ServiceUpdate{Message: err.Error()}, nil
+// 		}
+// 		return &cabal.ServiceUpdate{
+// 			Target:  in.GetSender(),
+// 			Sender:  "core",
+// 			Message: "added process manager",
+// 			Action:  c.Address,
+// 			Status:  c.ID,
+// 		}, nil
+// 	}
 
-	return &cabal.ServiceUpdate{Message: "unimp"}, nil
-}
+// 	return &cabal.ServiceUpdate{Message: "unimp"}, nil
+// }
 
-func (c *controlServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
-	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
-}
+// func (c *controlServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
+// 	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+// }
 
-/////////////////////////////////////////////////////////////////////////
-// CLIENT
-/////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
+// // CLIENT
+// /////////////////////////////////////////////////////////////////////////

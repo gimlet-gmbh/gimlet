@@ -10,13 +10,15 @@ CORE_BINARY=gmbhCore
 CTRL_BINARY=gmbhCtrl
 PM_BINARY=gmbhPM
 CONTAINER_BINARY=gmbhContainer
+NC_BINARY=gmbhNC
 
-all: core cli ctrl pm
+all: core cli ctrl pm nc
 
 core: build-core install-core
 cli: build-cli install-cli
 ctrl: build-ctrl install-ctrl
 pm: build-pm install-pm
+nc: build-nc install-nc
 
 build-core:
 	$(GOBUILD) -o ./bin/$(CORE_BINARY) ./cmd/gmbhCore/*.go
@@ -26,6 +28,8 @@ build-ctrl:
 	$(GOBUILD) -o ./bin/$(CTRL_BINARY) ./cmd/gmbhCtrl/*.go
 build-pm:
 	$(GOBUILD) -o ./bin/$(PM_BINARY) ./cmd/gmbh_pm/*.go
+build-nc:
+	$(GOBUILD) -o ./bin/$(NC_BINARY) ./cmd/gmbh_nc/*.go
 
 install-core:
 	cp bin/$(CORE_BINARY) /usr/local/bin/
@@ -35,6 +39,8 @@ install-ctrl:
 	cp bin/$(CTRL_BINARY) /usr/local/bin/
 install-pm:
 	cp bin/$(PM_BINARY) /usr/local/bin/
+install-nc:
+	cp bin/$(NC_BINARY) /usr/local/bin/
 
 deps:
 	$(GOGET) github.com/fatih/color

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 
@@ -126,6 +127,9 @@ type Client struct {
 	// pingHelper keeps track of channels
 	pingHelpers []*pingHelper
 
+	// coreAddress is the address back to core
+	coreAddress string
+
 	msgCounter int
 	mu         *sync.Mutex
 
@@ -147,6 +151,7 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 
 	g = &Client{
 		registeredFunctions: make(map[string]HandlerFunc),
+		coreAddress:         defaults.CORE_ADDRESS,
 		mu:                  &sync.Mutex{},
 		pingHelpers:         []*pingHelper{},
 	}
@@ -158,7 +163,7 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 
 	if g.opts.runtime.Verbose {
 		notify.SetVerbose(true)
-		notify.SetTag("[cli] ")
+		notify.SetTag("[gmbh] ")
 	}
 
 	var err error
@@ -170,6 +175,12 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 	err = validConfig(g.conf)
 	if err != nil {
 		return nil, err
+	}
+
+	// check the environment for an address to core
+	if os.Getenv("GMBHCORE") != "" {
+		g.coreAddress = os.Getenv("GMBHCORE")
+		notify.LnBBlueF("[gmbh] using core address from env=%s", g.coreAddress)
 	}
 
 	return g, nil
@@ -210,11 +221,17 @@ func (g *Client) start() {
 	g.closed = true
 	g.mu.Unlock()
 
+	g.makeUnregisterRequest()
+
 	g.disconnect()
 
-	makeUnregisterRequest(g.conf.ServiceName)
 	notify.StdMsg("shutdown, time=" + time.Now().Format(time.RFC3339))
-	os.Exit(0)
+	if os.Getenv("GMBHMODE") == "Managed" {
+		notify.LnBlueF("os.exit")
+		os.Exit(0)
+	}
+	notify.LnBlueF("return")
+	return
 }
 
 func parseConfig(relativePath string) (*userconfig, error) {
@@ -373,7 +390,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 				return
 			}
 
-			client, ctx, can, err := rpc.GetCabalRequest("localhost:59999", time.Second*30)
+			client, ctx, can, err := rpc.GetCabalRequest(defaults.CORE_ADDRESS, time.Second*30)
 			if err != nil {
 				notify.StdMsgErr(err.Error())
 			}
@@ -388,6 +405,20 @@ func (g *Client) sendPing(ph *pingHelper) {
 			}
 		}
 	}
+}
+
+func (g *Client) makeUnregisterRequest() {
+	client, ctx, can, err := rpc.GetCabalRequest(g.coreAddress, time.Second*5)
+	if err != nil {
+		panic(err)
+	}
+	defer can()
+	request := &cabal.UnregisterReq{
+		Name:    g.conf.ServiceName,
+		Id:      g.reg.id,
+		Address: g.reg.address,
+	}
+	_, _ = client.UnregisterService(ctx, request)
 }
 
 /**********************************************************************************
@@ -542,7 +573,7 @@ func update(phs []*pingHelper) []*pingHelper {
 **********************************************************************************/
 
 func getRPCClient() (cabal.CabalClient, error) {
-	con, err := grpc.Dial("localhost:59999", grpc.WithInsecure())
+	con, err := grpc.Dial(g.coreAddress, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -646,16 +677,6 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 	return responderFromProto(*reply.Resp), nil
 }
 
-func makeUnregisterRequest(name string) {
-	client, ctx, can, err := makeRequest()
-	if err != nil {
-		panic(err)
-	}
-	defer can()
-
-	_, _ = client.UnregisterService(ctx, &cabal.UnregisterReq{Name: name})
-}
-
 /**********************************************************************************
 ** RPC Server
 **********************************************************************************/
@@ -684,7 +705,7 @@ func (s *_server) EphemeralRegisterService(ctx context.Context, in *cabal.RegSer
 }
 
 func (s *_server) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
-	return &cabal.UnregisterResp{Awk: false}, nil
+	return &cabal.UnregisterResp{Ack: false}, nil
 }
 
 func (s *_server) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {

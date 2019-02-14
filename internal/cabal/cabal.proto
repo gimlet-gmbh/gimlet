@@ -227,9 +227,17 @@ message UnregisterReq {
     string address = 3;
 }
 
+message Status {
+    string Sender = 1;
+    string Target = 2;
+    string Error = 10;
+}
+
 message UnregisterResp {
     // If CORE awknowledged the unregister reuqest
-    bool awk = 1;
+    bool ack = 6;
+
+    Status status = 3;
 }
 
 message QueryRequest {
@@ -350,7 +358,6 @@ message Action {
     string Action = 5;
     Service ServiceInfo = 6 ;
     repeated Service Services = 7;
-    
     repeated ProcessManager remotes = 8;
 }
 

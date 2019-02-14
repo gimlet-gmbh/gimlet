@@ -57,6 +57,7 @@ func main() {
 	flag.Parse()
 
 	if *containerMode {
+		notify.LnBRedF("[remote] env=%s", os.Getenv("GMBHCORE"))
 		startRemote(*configPath)
 	} else {
 		startCore(*daemon)
@@ -64,7 +65,7 @@ func main() {
 }
 
 func startRemote(config string) {
-	rem, _ := newRemote("localhost:59997", true)
+	rem, _ := newRemote(defaults.PM_ADDRESS, true)
 	pid, err := rem.AddService(config)
 	if err != nil {
 		notify.StdMsgErr("could not start service; err=" + err.Error())
