@@ -29,6 +29,19 @@ var cmd *exec.Cmd
 
 var c *container
 
+// type configFlags []string
+
+// func (c *configFlags) String() string {
+// 	return "configPath to gmbh service config"
+// }
+
+// func (c *configFlags) Set(value string) error {
+// 	*c = append(*c, value)
+// 	return nil
+// }
+
+// var configs configFlags
+
 func main() {
 
 	notify.SetTag(defaults.CLI_PROMPT)
@@ -37,6 +50,7 @@ func main() {
 	containerMode := flag.Bool("container", false, "container mode")
 
 	configPath := flag.String("config", "", "relative path to gmbh-service config file")
+	// configPaths := flag.Var(&configs, "config", "relative path")
 	// managed := flag.Bool("m", false, "run service in managed mode")
 	// embedded := flag.Bool("e", false, "is the service being managed inside of a container")
 

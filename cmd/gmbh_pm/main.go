@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
@@ -70,7 +71,7 @@ func listAll() {
 		notify.StdMsgErr("error: "+err.Error(), 1)
 		return
 	}
-	pprintListAll(reply.GetManaged(), reply.GetRemote(), reply.GetPlanetary())
+	pprintListAll(reply.GetRemotes())
 }
 
 func report() {
@@ -91,7 +92,7 @@ func report() {
 		notify.StdMsgBlue("no services to list")
 	}
 
-	pprintListOne(reply.GetManaged(), reply.GetRemote(), reply.GetPlanetary())
+	pprintListOne(reply.GetRemotes())
 }
 
 func restartAll() {
@@ -117,7 +118,13 @@ func listOne(id string) {
 	}
 	defer can()
 
-	request := cabal.SearchRequest{Sender: "gmbh-ctrl", Id: id}
+	splitID := strings.Split(id, "-")
+	if len(splitID) != 2 {
+		notify.StdMsgErr("could not parse id")
+		return
+	}
+
+	request := cabal.SearchRequest{Sender: "gmbh-ctrl", ParentID: splitID[0], Id: splitID[1]}
 	reply, err := client.ListOne(ctx, &request)
 	if err != nil {
 		notify.StdMsgErr(handleErr(err))
@@ -129,16 +136,22 @@ func listOne(id string) {
 		notify.StdMsgErr("report from core=" + reply.GetStatus())
 		return
 	}
-	pprintListOne(reply.GetManaged(), reply.GetRemote(), reply.GetPlanetary())
+	pprintListOne(reply.GetRemotes())
 }
 func restartOne(id string) {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*10)
+	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*20)
 	if err != nil {
 		notify.StdMsgErr("client error: " + err.Error())
 	}
 	defer can()
 
-	request := cabal.SearchRequest{Sender: "gmbh-ctrl", Id: id}
+	splitID := strings.Split(id, "-")
+	if len(splitID) != 2 {
+		notify.StdMsgErr("could not parse id")
+		return
+	}
+
+	request := cabal.SearchRequest{Sender: "gmbh-ctrl", ParentID: splitID[0], Id: splitID[1]}
 	reply, err := client.RestartService(ctx, &request)
 	if err != nil {
 		fmt.Println(err)

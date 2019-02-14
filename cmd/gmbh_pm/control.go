@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,7 +23,7 @@ func (c *controlServer) StartService(ctx context.Context, in *cabal.StartRequest
 }
 
 func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	rpcMessage("<- list one request")
+	rpcMessage("<- restart one request")
 
 	// make sure that sender is gmbh-ctrl
 	if in.GetSender() != "gmbh-ctrl" {
@@ -36,15 +37,35 @@ func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequ
 		return &cabal.StatusReply{Status: "internal server error"}, nil
 	}
 
-	err = pm.RestartRemote(in.GetId())
+	remote, err := pm.LookupRemote(in.GetParentID())
 	if err != nil {
-		return &cabal.StatusReply{Status: "Not Found"}, nil
+		notify.StdMsgErr("could not contact " + in.GetParentID())
+		return &cabal.StatusReply{Status: "could not contact remote"}, nil
 	}
 
-	// TODO: Need to ping and get process information from each remote
+	pid := "-1"
+	{
+		client, ctx, can, err := rpc.GetRemoteRequest(remote.Address, time.Second*15)
+		if err != nil {
+			notify.StdMsgErr("could not contact " + remote.ID)
+		}
+		request := &cabal.Action{
+			Sender:  "gmbh-core",
+			Target:  remote.ID,
+			Message: in.GetId(),
+			Action:  "service.restart",
+		}
+		reply, err := client.RequestRemoteAction(ctx, request)
+		if err != nil {
+			notify.StdMsgErr("could not contact " + remote.ID)
+		}
+		pid = reply.GetStatus()
+		can()
+	}
 
-	response := &cabal.StatusReply{Status: "ack"}
+	response := &cabal.StatusReply{Status: "pid=" + pid}
 	return response, nil
+
 }
 
 func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
@@ -80,7 +101,7 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 			request := &cabal.Action{
 				Sender: "gmbh-core",
 				Target: re.ID,
-				Action: "request.info",
+				Action: "request.info.all",
 			}
 			reply, err := client.RequestRemoteAction(ctx, request)
 			if err != nil {
@@ -91,19 +112,12 @@ func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cab
 			can()
 		}
 
-		rpcRemote := &cabal.ProcessManager{
-			ID:       re.ID,
-			Address:  re.Address,
-			Services: rpcServices,
-		}
-		rpcrmts = append(rpcrmts, rpcRemote)
+		rpcrmts = append(rpcrmts, remoteToRPC(re, rpcServices))
 	}
 
-	// TODO: Need to ping and get process information from each remote
-
 	response := &cabal.ListReply{
-		Status: "ack",
-		Remote: rpcrmts,
+		Status:  "ack",
+		Remotes: rpcrmts,
 	}
 	return response, nil
 
@@ -124,19 +138,31 @@ func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*
 		return &cabal.ListReply{Status: "internal server error"}, nil
 	}
 
-	rmt, err := pm.LookupRemote(in.GetId())
+	rmt, err := pm.LookupRemote(in.GetParentID())
 	if err != nil {
 		return &cabal.ListReply{Status: "Not Found"}, nil
 	}
-
-	rpcrmt := &cabal.ProcessManager{
-		ID:      rmt.ID,
-		Address: rmt.Address,
+	rpcServices := []*cabal.Service{}
+	{
+		client, ctx, can, err := rpc.GetRemoteRequest(rmt.Address, time.Second*5)
+		if err != nil {
+			notify.StdMsgErr("could not contact " + rmt.ID)
+		}
+		request := &cabal.Action{
+			Sender:  "gmbh-core",
+			Target:  rmt.ID,
+			Message: in.GetId(),
+			Action:  "request.info.one",
+		}
+		reply, err := client.RequestRemoteAction(ctx, request)
+		if err != nil {
+			notify.StdMsgErr("could not contact " + rmt.ID)
+		}
+		rpcServices = []*cabal.Service{reply.GetServiceInfo()}
+		can()
 	}
 
-	// TODO: Need to ping and get process information from each remote
-
-	response := &cabal.ListReply{Status: "ack", Remote: []*cabal.ProcessManager{rpcrmt}}
+	response := &cabal.ListReply{Status: "ack", Remotes: []*cabal.ProcessManager{remoteToRPC(rmt, rpcServices)}}
 	return response, nil
 
 }
@@ -218,12 +244,37 @@ func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal
 		return update, nil
 	}
 
+	if in.GetAction() == "shutdown.notification" {
+		pm.MarkShutdown(in.GetMessage())
+	}
+
 	return &cabal.ServiceUpdate{Message: "invalid request"}, nil
 }
 
 func (c *controlServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
 	rpcMessage("<- pong")
+
+	pm, err := GetProcM()
+	if err != nil {
+		rpcMessage("internal system error")
+		return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+	}
+
+	r, err := pm.LookupRemote(ping.GetFromID())
+	if err != nil {
+		return nil, errors.New("")
+	}
+	r.UpdatePing(time.Now())
+
 	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+}
+
+func remoteToRPC(r *RemoteServer, services []*cabal.Service) *cabal.ProcessManager {
+	return &cabal.ProcessManager{
+		ID:       r.ID,
+		Address:  r.Address,
+		Services: services,
+	}
 }
 
 func rpcMessage(msg string) {

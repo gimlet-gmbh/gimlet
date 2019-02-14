@@ -151,17 +151,8 @@ func (s *Service) Start() (pid string, err error) {
 	return "-1", errors.New("service.StartService.invalidLanguage")
 }
 
-// Restart if it is in mangaed or attached mode
+// Restart the process
 func (s *Service) Restart() (string, error) {
-	if s.Mode == Planetary {
-		return "-1", errors.New("Service.RestartProcess.inPlanetaryMode")
-	}
-
-	if s.Mode == Remote {
-		return s.Remote.RestartProcess()
-	}
-
-	// s.Mode == Managed
 	pid, err := s.Process.Restart(false)
 	if err != nil {
 		return "-1", err

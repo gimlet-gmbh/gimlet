@@ -21,7 +21,6 @@ import (
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/service"
-	"github.com/gmbh-micro/service/process"
 )
 
 type remote struct {
@@ -31,6 +30,9 @@ type remote struct {
 
 	// registration with data from core
 	reg *registration
+
+	// the id as assigned by core
+	id string
 
 	// the connection handler to gmbh over control server
 	con *rpc.Connection
@@ -123,6 +125,7 @@ func (r *remote) Start() {
 	r.serviceManager.Shutdown()
 
 	// todo: send message to core of shutdown
+	r.notifyCore()
 
 	notify.StdMsgBlue("shutdown, time=" + time.Now().Format(time.Stamp))
 
@@ -172,6 +175,7 @@ func (r *remote) connect() {
 
 	r.mu.Lock()
 	r.reg = reg
+	r.id = reg.id
 	r.con = rpc.NewRemoteConnection(reg.address, &remoteServer{})
 	ph := newPingHelper()
 	r.pingHelpers = append(r.pingHelpers, ph)
@@ -246,7 +250,7 @@ func (r *remote) sendPing(ph *pingHelper) {
 				r.failed()
 			}
 
-			_, err = client.Alive(ctx, &cabal.Ping{Time: time.Now().Format(time.Stamp)})
+			_, err = client.Alive(ctx, &cabal.Ping{FromID: r.id, Time: time.Now().Format(time.Stamp)})
 			can()
 			if err == nil {
 				notify.StdMsgBlue("<- pong")
@@ -269,7 +273,7 @@ func (r *remote) makeCoreConnectRequest() (*registration, error) {
 	request := &cabal.ServiceUpdate{
 		Sender:  "gmbh-remote",
 		Target:  "core",
-		Message: "announce",
+		Message: "",
 		Action:  "remote.register",
 	}
 
@@ -307,6 +311,50 @@ func (r *remote) AddService(configPath string) (pid string, err error) {
 // GetService returns all service pointers attached to the remote
 func (r *remote) GetServices() []*service.Service {
 	return r.serviceManager.GetAllServices()
+}
+
+// RestartAll services attached
+func (r *remote) RestartAll() {
+	r.serviceManager.RestartAll()
+}
+
+// Restart service with id
+func (r *remote) Restart(id string) (pid string, err error) {
+	return r.serviceManager.Restart(id)
+}
+
+// LookupService returns the service with the id or returns error
+func (r *remote) LookupService(id string) (*service.Service, error) {
+	service, err := r.serviceManager.LookupByID(id)
+	if err != nil {
+		return nil, err
+	}
+	return service, nil
+}
+
+// notifyCore of shutdown
+func (r *remote) notifyCore() {
+	notify.StdMsgBlue("sending notify to core")
+	if r.id == "" {
+		notify.StdMsgBlue("invalid id")
+		return
+	}
+
+	client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second)
+	if err != nil {
+		return
+	}
+	defer can()
+
+	request := &cabal.ServiceUpdate{
+		Sender:  "gmbh-remote",
+		Target:  "gmbh-core",
+		Message: r.id,
+		Action:  "shutdown.notification",
+	}
+	client.UpdateServiceRegistration(ctx, request)
+	notify.StdMsgBlue("notice sent")
+	return
 }
 
 /**********************************************************************************
@@ -366,16 +414,12 @@ func (s *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.
 func (s *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action) (*cabal.Action, error) {
 	notify.StdMsgBlue(fmt.Sprintf("-> Request Remote Action; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
-	if in.GetAction() == "request.info" {
+	if in.GetAction() == "request.info.all" {
 
 		services := r.GetServices()
 		rpcServices := []*cabal.Service{}
 		for _, service := range services {
-			rpcService := &cabal.Service{
-				Id:   service.ID,
-				Name: service.Static.Name,
-			}
-			rpcServices = append(rpcServices, rpcService)
+			rpcServices = append(rpcServices, serviceToRPC(service))
 		}
 		response := &cabal.Action{
 			Sender:   r.reg.id,
@@ -384,6 +428,24 @@ func (s *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 			Services: rpcServices,
 		}
 		return response, nil
+	} else if in.GetAction() == "request.info.one" {
+
+		service, err := r.LookupService(in.GetMessage())
+		if err != nil {
+			notify.StdMsgBlue("not found")
+			return &cabal.Action{Message: "not found"}, nil
+		}
+
+		response := &cabal.Action{
+			Sender:  r.id,
+			Target:  "gmbh-core",
+			Message: "response.info",
+
+			ServiceInfo: serviceToRPC(service),
+		}
+		notify.StdMsgBlue("returning service info " + service.ID)
+		return response, nil
+
 	} else if in.GetAction() == "service.restart" {
 
 		response := &cabal.Action{
@@ -391,13 +453,16 @@ func (s *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action
 			Target:  "gmbh-core",
 			Message: "action.completed",
 		}
-
-		// pid, err := r.service.Restart()
-		// if err != nil {
-		// 	response.Status = err.Error()
-		// } else {
-		// 	response.Status = pid
-		// }
+		if in.GetMessage() == "all" {
+			go r.RestartAll()
+		} else if in.GetMessage() != "" {
+			pid, err := r.serviceManager.Restart(in.GetMessage())
+			if err != nil {
+				response.Status = err.Error()
+			} else {
+				response.Status = pid
+			}
+		}
 
 		notify.StdMsgBlue(fmt.Sprintf("<- Message=(%s); Status=(%s)", response.Message, response.Status))
 		return response, nil
@@ -411,11 +476,13 @@ func (s *remoteServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong
 }
 
 func serviceToRPC(s *service.Service) *cabal.Service {
-	procRuntime := c.serv.Process.GetInfo()
+
+	procRuntime := s.Process.GetInfo()
 
 	si := &cabal.Service{
-		Id:        c.serv.ID,
-		Name:      c.serv.Static.Name,
+		Id:        r.id + "-" + s.ID,
+		Name:      s.Static.Name,
+		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
 		LogPath:   "-",
 		Pid:       0,
@@ -423,20 +490,10 @@ func serviceToRPC(s *service.Service) *cabal.Service {
 		Restarts:  int32(procRuntime.Restarts),
 		StartTime: procRuntime.StartTime.Format(time.RFC3339),
 		FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
-		Errors:    c.serv.Process.GetErrors(),
+		Errors:    s.Process.GetErrors(),
 		Mode:      "remote",
 	}
 
-	switch c.serv.Process.GetStatus() {
-	case process.Stable:
-		si.Status = "Stable"
-	case process.Running:
-		si.Status = "Running"
-	case process.Failed:
-		si.Status = "Failed"
-	case process.Killed:
-		si.Status = "Killed"
-	}
 	return si
 }
 
@@ -534,12 +591,42 @@ func (s *ServiceManager) GetAllServices() []*service.Service {
 	return ret
 }
 
+// LookupByID returns the service with id or else error
+func (s *ServiceManager) LookupByID(id string) (*service.Service, error) {
+	service := s.services[id]
+	if service == nil {
+		return nil, errors.New("serviceManager.lookup.notFound")
+	}
+	return service, nil
+}
+
 // Shutdown kills all attached processes
 func (s *ServiceManager) Shutdown() {
 	for _, s := range s.services {
 		notify.StdMsgBlue("sending shutdown to " + s.ID)
 		s.Kill()
 	}
+}
+
+// RestartAll attached processes
+func (s *ServiceManager) RestartAll() {
+	for _, s := range s.services {
+		notify.StdMsgBlue("sending restart to " + s.ID)
+		pid, err := s.Restart()
+		if err != nil {
+			notify.StdMsgErr("could not restart; err=" + err.Error())
+		}
+		notify.StdMsgBlue("Pid=" + pid)
+	}
+}
+
+// Restart attached processe with id
+func (s *ServiceManager) Restart(id string) (pid string, err error) {
+	service := s.services[id]
+	if service == nil {
+		return "-1", errors.New("serviceManager.Restart.NotFound")
+	}
+	return service.Restart()
 }
 
 // addToMap adds the service to the map or returns error

@@ -14,7 +14,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gmbh-micro/cabal"
-	"github.com/gmbh-micro/notify"
 )
 
 func reportOne(p *cabal.Service, h string) {
@@ -85,52 +84,17 @@ func getBoxLine(data string) string {
 	return fmt.Sprintf(" \u2502 %-38s %s", data, end)
 }
 
-func pprintListOne(managed []*cabal.Service, remote []*cabal.ProcessManager, planetary []*cabal.Service) {
-
-	if len(managed) != 0 {
-		for _, s := range managed {
-			reportOne(s, "")
-		}
-	}
-
-	if len(remote) != 0 {
-		for _, r := range remote {
-			reportCluster(r)
-		}
-	}
-
-	if len(planetary) != 0 {
-		for _, s := range planetary {
-			reportOne(s, "")
-		}
+func pprintListOne(pm []*cabal.ProcessManager) {
+	for _, r := range pm {
+		reportCluster(r)
 	}
 }
 
-func pprintListAll(managed []*cabal.Service, remote []*cabal.ProcessManager, planetary []*cabal.Service) {
-
-	if len(managed) != 0 {
-		fmt.Println("Managed Services")
-		fmt.Println(reportProcessHeader())
-		for _, s := range managed {
-			fmt.Println(reportProcess(s))
-		}
-	}
-
-	if len(remote) != 0 {
-		fmt.Println("\nRemote Services")
-		fmt.Println(reportRemoteHeader())
-		for _, p := range remote {
-			for _, s := range p.GetServices() {
-				fmt.Println(reportRemote(s, p.ID))
-			}
-		}
-	}
-
-	if len(planetary) != 0 {
-		notify.StdMsgNoPrompt("\nPlanetary Services")
-		for _, p := range planetary {
-			fmt.Println(reportRemoteHeader())
-			fmt.Println(reportRemote(p, "----"))
+func pprintListAll(remote []*cabal.ProcessManager) {
+	fmt.Println(reportRemoteHeader())
+	for _, p := range remote {
+		for _, s := range p.GetServices() {
+			fmt.Println(reportRemote(s, p.ID))
 		}
 	}
 }

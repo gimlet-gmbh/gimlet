@@ -350,10 +350,13 @@ message Action {
     string Action = 5;
     Service ServiceInfo = 6 ;
     repeated Service Services = 7;
+    
+    repeated ProcessManager remotes = 8;
 }
 
 message Ping {
     string Time = 1;
+    string FromID = 2;
 }
 
 message Pong {

@@ -12,17 +12,31 @@ type Status int
 
 const (
 	// Stable ; the process is running and without error for x amunt of time
-	Stable Status = 1
+	Stable Status = 1 + iota
 
 	// Running ; the process is running but not yet stable
-	Running Status = 2
+	Running
 
 	// Failed ; the process has ran and failed
-	Failed Status = 4
+	Failed
 
 	// Killed ; the process has been killed
-	Killed Status = 5
+	Killed
 )
+
+var statuses = [...]string{
+	"Stable",
+	"Running",
+	"Failed",
+	"Killed",
+}
+
+func (s Status) String() string {
+	if Stable <= s && s <= Killed {
+		return statuses[s-1]
+	}
+	return "%!Status()"
+}
 
 // Type is the enumerated type of command for the process
 type Type int

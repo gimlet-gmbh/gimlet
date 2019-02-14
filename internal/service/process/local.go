@@ -85,7 +85,7 @@ func (m *LocalManager) Restart(fromFailed bool) (pid int, err error) {
 		m.mu.Lock()
 		m.restartCounter = 0
 		m.info.Restarts++
-		m.userKilled = false
+		m.userKilled = true
 		m.mu.Unlock()
 
 		if m.info.Status == Running || m.info.Status == Stable {

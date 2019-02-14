@@ -195,9 +195,10 @@ func (p *ProcessManager) sendRestart(remote *RemoteServer) error {
 		return err
 	}
 	action := &cabal.Action{
-		Sender: "gmbh-core",
-		Target: remote.ID,
-		Action: "service.restart",
+		Sender:  "gmbh-core",
+		Target:  remote.ID,
+		Action:  "service.restart",
+		Message: "all",
 	}
 	_, err = client.RequestRemoteAction(ctx, action)
 	if err != nil {
@@ -214,7 +215,6 @@ func (p *ProcessManager) sendShutdown() {
 		notify.StdMsgBlue("sending shutdown notice to " + r.ID)
 		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
 		if err != nil {
-			notify.StdMsgErr("shutdown error=" + err.Error())
 			return
 		}
 		update := &cabal.ServiceUpdate{
@@ -224,11 +224,15 @@ func (p *ProcessManager) sendShutdown() {
 		}
 		_, err = client.UpdateServiceRegistration(ctx, update)
 		if err != nil {
-			notify.StdMsgErr("shutdown error=" + err.Error())
 			return
 		}
 		can()
 	}
+}
+
+// MarkShutdown marks the remote as having shutdown and being inactive
+func (p *ProcessManager) MarkShutdown(id string) {
+	p.router.Shutdown(id)
 }
 
 // Shutdown starts shutdown procedures. If remote it indicates tat the signal came from the control
@@ -259,7 +263,7 @@ type Router struct {
 
 // NewRouter initializes and returns a new Router struct
 func NewRouter() *Router {
-	return &Router{
+	r := &Router{
 		remotes:   make(map[string]*RemoteServer),
 		idCounter: 100,
 		addressing: &addressHandler{
@@ -270,6 +274,10 @@ func NewRouter() *Router {
 		mu:      &sync.Mutex{},
 		Verbose: true,
 	}
+	// start the ping handler
+	go r.pingHandler()
+
+	return r
 }
 
 // LookupRemote scans through the remote map and returns if a match is found, otherwise an
@@ -306,6 +314,19 @@ func (r *Router) GetAllAttached() []*RemoteServer {
 	return ret
 }
 
+// Shutdown marks the remoteServer as shutdown
+func (r *Router) Shutdown(id string) {
+	r.verbose("marking shutdown; id=" + id)
+	remote := r.remotes[id]
+	if remote == nil {
+		return
+	}
+	r.mu.Lock()
+	remote.State = Shutdown
+	r.mu.Unlock()
+}
+
+// addToMap the remote server, otherwise return error
 func (r *Router) addToMap(rm *RemoteServer) error {
 	if _, ok := r.remotes[rm.ID]; ok {
 		r.verbose("could not add to map, id error")
@@ -320,6 +341,40 @@ func (r *Router) addToMap(rm *RemoteServer) error {
 	return nil
 }
 
+// pingHandler looks through each of the remotes in the map. if it has been more than n amount of
+// time since a remote has sent a ping, it will be pinged. If the ping is not retured after n more
+// seconds, the remote will be marked as Failed After n amount of time, failed remotes will
+// be removed from the map
+func (r *Router) pingHandler() {
+	for {
+		time.Sleep(time.Second * 45)
+		notify.StdMsgBlue("checking for pings")
+		for _, v := range r.GetAllAttached() {
+			if v.State == Failed {
+				if time.Since(v.StateUpdate) > time.Second*30 {
+					r.removeRemote(v.ID)
+				}
+
+			} else if v.State == Shutdown {
+				if time.Since(v.StateUpdate) > time.Second*90 {
+					r.removeRemote(v.ID)
+				}
+			} else if v.State == Running {
+				if time.Since(v.LastPing) > time.Second*90 {
+					v.UpdateState(Failed)
+				}
+			}
+		}
+	}
+}
+
+// removeRemote from the map
+func (r *Router) removeRemote(remoteID string) {
+	r.verbose("removing " + remoteID)
+	delete(r.remotes, remoteID)
+}
+
+// assignID returns the next ID and then increments the counter
 func (r *Router) assignID() string {
 	defer func() {
 		r.mu.Lock()
@@ -336,18 +391,71 @@ func (r *Router) verbose(msg string) {
 	}
 }
 
+// State controls the state of a remote server
+type State int
+
+const (
+	// Running as normal
+	Running State = 1 + iota
+
+	// Shutdown notice received from remote
+	Shutdown
+
+	// Failed to return a pong
+	Failed
+)
+
+var states = [...]string{
+	"Running",
+	"Shutdown",
+	"Failed",
+}
+
+func (s State) String() string {
+	if Running <= s && s <= Failed {
+		return states[s-1]
+	}
+	return "%!State()"
+}
+
 // RemoteServer represents the remote process' server
 type RemoteServer struct {
 	Address string
 	ID      string
+	State   State
+
+	// The time that the state was updated to either Shutdown for Failed
+	StateUpdate time.Time
+
+	// The time that the last ping was recorded
+	LastPing time.Time
+
+	mu *sync.Mutex
 }
 
 // NewRemoteServer returns an instance of a remote server with values set to the parameters
 func NewRemoteServer(id, address string) *RemoteServer {
 	return &RemoteServer{
-		ID:      id,
-		Address: address,
+		ID:       id,
+		Address:  address,
+		State:    Running,
+		LastPing: time.Now().Add(time.Hour),
+		mu:       &sync.Mutex{},
 	}
+}
+
+// UpdateState changes the state of the remote server object
+func (rs *RemoteServer) UpdateState(newState State) {
+	rs.mu.Lock()
+	rs.State = newState
+	rs.mu.Unlock()
+}
+
+// UpdatePing marks the time
+func (rs *RemoteServer) UpdatePing(t time.Time) {
+	rs.mu.Lock()
+	rs.LastPing = t
+	rs.mu.Unlock()
 }
 
 // addressHandler is in charge of assigning addresses to services
