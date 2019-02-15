@@ -14,16 +14,17 @@ import (
 
 // LocalManager ; a process manager
 type LocalManager struct {
-	name           string
-	args           []string
-	env            []string
-	path           string
-	dir            string
-	userKilled     bool
-	userRestarted  bool
-	restartCounter int
-	mu             *sync.Mutex
-	info           Info
+	name             string
+	args             []string
+	env              []string
+	path             string
+	dir              string
+	userKilled       bool
+	userRestarted    bool
+	restartCounter   int
+	gracefulshutdown bool
+	mu               *sync.Mutex
+	info             Info
 }
 
 // NewLocalBinaryManager ; as in new process manager to monitor a binary forked from the shell
@@ -171,6 +172,11 @@ func (m *LocalManager) forkExec(pid chan int) {
 			return
 		}
 
+		if m.gracefulshutdown {
+			m.info.Errors = append(m.info.Errors, errors.New("marked for graceful shutdown"))
+			return
+		}
+
 		m.handleFailure()
 	}
 
@@ -256,4 +262,11 @@ func (m *LocalManager) checkDir(path string) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.Mkdir(path, 0755)
 	}
+}
+
+// GracefulShutdown blocks restart on failure
+func (m *LocalManager) GracefulShutdown() {
+	m.mu.Lock()
+	m.gracefulshutdown = true
+	m.mu.Unlock()
 }

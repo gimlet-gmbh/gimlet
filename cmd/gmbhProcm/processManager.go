@@ -69,6 +69,7 @@ type ProcessManager struct {
 
 	Log     *notify.Log
 	ErrLog  *notify.Log
+	mu      *sync.Mutex
 	verbose bool
 }
 
@@ -94,13 +95,16 @@ func NewProcessManager(configFile string, v bool) *ProcessManager {
 		router:    NewRouter(),
 		mode:      Dev,
 		verbose:   v,
+		mu:        &sync.Mutex{},
 		// Log: notify.NewLogFile()
 	}
 
-	notify.StdMsgBlueNoPrompt("                    _                 ")
-	notify.StdMsgBlueNoPrompt("  _  ._ _  |_  |_| |_) ._ _   _ |\\/| ")
-	notify.StdMsgBlueNoPrompt(" (_| | | | |_) | | |   | (_) (_ |  |  ")
-	notify.StdMsgBlueNoPrompt("  _|                                  ")
+	notify.LnCyanF("                    _                 ")
+	notify.LnCyanF("  _  ._ _  |_  |_| |_) ._ _   _ |\\/| ")
+	notify.LnCyanF(" (_| | | | |_) | | |   | (_) (_ |  |  ")
+	notify.LnCyanF("  _|                                  ")
+
+	notify.SetHeader("[procm]")
 
 	return procm
 }
@@ -129,14 +133,37 @@ func (p *ProcessManager) Start() error {
 // either by the terminal or using the control tool
 func (p *ProcessManager) Wait() {
 
+	go p.gracefulShutdownListener()
+
+	// set up the listener for shutdown
+	sig := make(chan os.Signal, 1)
+	if os.Getenv("PMMODE") == "PMManaged" {
+		notify.StdMsgBlue("overriding sigusr2")
+		notify.StdMsgBlue("ignoring sigint")
+		signal.Notify(sig, syscall.SIGUSR2)
+		signal.Ignore(syscall.SIGINT)
+	} else {
+		notify.StdMsgBlue("overriding sigint")
+		signal.Notify(sig, syscall.SIGINT)
+	}
+
 	notify.StdMsgBlue("main thread waiting...")
 
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT)
 	_ = <-sig
 	fmt.Println() // deadline to align output after sigint
 
 	p.Shutdown(false)
+}
+
+// gracefulShutdownListener
+func (p *ProcessManager) gracefulShutdownListener() {
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGUSR1)
+
+	_ = <-shutdown
+	notify.StdMsgBlue("SIGUSR1 reported")
+	p.sendGmbhShutdown()
 }
 
 // RegisterRemote adds the remote to the router and sends back the id and address
@@ -210,6 +237,32 @@ func (p *ProcessManager) sendRestart(remote *RemoteServer) error {
 	return nil
 }
 
+// sendGmbhShutdown sends a message to all remotes to no longer restart their attached
+// processes because gmbh process manager has signaled shutdown time
+func (p *ProcessManager) sendGmbhShutdown() {
+
+	notify.LnBlueF("gmbh shutdown initiated")
+
+	remotes := p.router.GetAllAttached()
+	for _, r := range remotes {
+		notify.StdMsgBlue("sending gmbh shutdown notice to " + r.ID)
+		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
+		if err != nil {
+			return
+		}
+		update := &cabal.ServiceUpdate{
+			Sender: "gmbh-core",
+			Target: r.ID,
+			Action: "gmbh.shutdown",
+		}
+		_, err = client.UpdateServiceRegistration(ctx, update)
+		if err != nil {
+			return
+		}
+		can()
+	}
+}
+
 // sendShutdown notice to all attached remotes
 func (p *ProcessManager) sendShutdown() {
 	remotes := p.router.GetAllAttached()
@@ -243,6 +296,7 @@ func (p *ProcessManager) Shutdown(remote bool) {
 	notify.StdMsgBlue("shutdown signal received")
 	p.con.Disconnect()
 	p.sendShutdown()
+	time.Sleep(time.Second * 3)
 	os.Exit(0)
 }
 
@@ -285,13 +339,13 @@ func NewRouter() *Router {
 // LookupRemote scans through the remote map and returns if a match is found, otherwise an
 // an error is returned
 func (r *Router) LookupRemote(id string) (*RemoteServer, error) {
-	r.verbose("looking up remote with id=" + id)
+	// r.verbose("looking up remote with id=" + id)
 	rm := r.remotes[id]
 	if rm == nil {
-		r.verbose("not found")
+		r.verbose("attempted to lookkup up remote with id=" + id + "; not found")
 		return nil, errors.New("router.LookupRemote.notFound")
 	}
-	r.verbose("found remote")
+	// r.verbose("found remote")
 	return rm, nil
 }
 
@@ -350,7 +404,7 @@ func (r *Router) addToMap(rm *RemoteServer) error {
 func (r *Router) pingHandler() {
 	for {
 		time.Sleep(time.Second * 45)
-		notify.StdMsgBlue("checking for pings")
+		// notify.StdMsgBlue("checking for pings")
 		for _, v := range r.GetAllAttached() {
 			if v.State == Failed {
 				if time.Since(v.StateUpdate) > time.Second*30 {

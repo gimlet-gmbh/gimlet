@@ -1,160 +1,149 @@
 package main
 
-/*
- * cabal.go
- * Implements the gRPC server and client for the gmbhCore Cabal Server
- * Abe Dick
- * Nov 2018
- */
+import (
+	"context"
+	"time"
 
-// import (
-// 	"context"
-// 	"fmt"
-// 	"strings"
-// 	"time"
+	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/rpc"
+)
 
-// 	"github.com/gmbh-micro/cabal"
-// 	"github.com/gmbh-micro/defaults"
-// 	"github.com/gmbh-micro/notify"
-// 	"github.com/gmbh-micro/service"
-// 	"github.com/gmbh-micro/service/process"
-// )
+func v(msg string) {
+	notify.StdMsgBlueNoPrompt(" [cbl] " + msg)
 
-// func v(msg string) {
-// 	notify.StdMsgBlueNoPrompt(" [cbl] " + msg)
+}
 
-// }
+var cnt int
 
-// // cabalServer is for gRPC interface for the gmbhCore service coms server
-// type cabalServer struct{}
+// cabalServer is for gRPC interface for the gmbhCore service coms server
+type cabalServer struct{}
 
-// func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
+func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
 
-// 	v(fmt.Sprintf("ephemeral registration service"))
-// 	v(fmt.Sprintf("name=%s", in.NewServ.GetName()))
-// 	v(fmt.Sprintf("reported mode=%s", in.NewServ.GetMode()))
+	rv("-> Incoming Registration;")
+	rv("   Name=%s; Aliases=%s;", in.GetNewServ().GetName(), in.GetNewServ().GetAliases())
 
-// 	lookupService, err := core.Router.LookupService(in.NewServ.GetName())
-// 	if err != nil {
+	c, err := GetCore()
+	if err != nil {
+		return &cabal.RegServRep{Status: "internal error"}, nil
+	}
 
-// 		if err.Error() == "router.LookupService.NotFound" {
+	ns, err := c.Router.AddService(in.GetNewServ().GetName(), in.GetNewServ().GetAliases())
+	if err != nil {
+		return &cabal.RegServRep{Status: "error=" + err.Error()}, nil
+	}
 
-// 			v("not found in lookup")
+	reply := &cabal.RegServRep{
+		Status: "acknowledged",
 
-// 			if in.NewServ.GetMode() != cabal.NewService_MANAGED {
-// 				v("new service mode is not managed")
-// 				lookupService, err = core.registerPlanetaryService(
-// 					in.GetNewServ().GetName(),
-// 					in.GetNewServ().GetAliases(),
-// 					in.GetNewServ().GetIsClient(),
-// 					in.GetNewServ().GetIsServer())
-// 				if err != nil {
-// 					v("cannot add service")
-// 					return &cabal.RegServRep{Status: err.Error()}, nil
-// 				}
-// 			}
-// 		} else {
-// 			v("other error=" + err.Error())
-// 		}
-// 	}
+		Address:  ns.Address,
+		ID:       ns.ID,
+		CorePath: c.ProjectPath,
+	}
+	return reply, nil
 
-// 	if lookupService == nil {
-// 		v("service should not be nil")
-// 		return &cabal.RegServRep{Status: "error"}, nil
-// 	}
+}
 
-// 	v("passed error")
-// 	v("retrieved service name=" + lookupService.Static.Name)
+func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
+	t := time.Now()
+	defer func() { cnt++ }()
+	request := in.GetReq()
+	rd("-%d-> Data request: %s", cnt, request.String())
 
-// 	if !core.Config.Daemon {
-// 		notify.StdMsgMagentaNoPrompt(fmt.Sprintf("[serv] <(%s)- processing ephem-reg request; name=(%s); aliases=(%s); mode=(%s)", lookupService.ID, in.NewServ.GetName(), strings.Join(in.NewServ.GetAliases(), ","), lookupService.GetMode()))
-// 		if lookupService.Static.IsServer {
-// 			notify.StdMsgMagentaNoPrompt(fmt.Sprintf("       -(%s)> success; address=(%v)", lookupService.ID, lookupService.Address))
-// 		} else {
-// 			notify.StdMsgMagentaNoPrompt(fmt.Sprintf("       -(%s)> success;", lookupService.ID))
-// 		}
-// 	}
+	c, err := GetCore()
+	if err != nil {
+		rd("<-%d- could not get core error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "internal server error"}}, nil
+	}
 
-// 	reply := &cabal.RegServRep{
-// 		Status:   "acknowledged",
-// 		ID:       lookupService.ID,
-// 		Mode:     lookupService.Mode.String(),
-// 		CorePath: core.ProjectPath,
-// 		Address:  lookupService.Address,
-// 	}
+	fwd, err := c.Router.LookupService(request.GetTarget())
+	if err != nil {
+		rd("<-%d- service not found error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "service not found"}}, nil
+	}
 
-// 	return reply, nil
-// }
+	client, ctx, can, err := rpc.GetCabalRequest(fwd.Address, time.Second*2)
+	if err != nil {
+		rd("<-%d- rpc error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "internal server error"}}, nil
+	}
+	defer can()
+	final, err := client.MakeDataRequest(ctx, in)
+	if err != nil {
+		rd("<-%d- could not forward error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "could not forward"}}, nil
+	}
+	rd("<-%d-  elapsed time=%s", cnt, time.Since(t))
+	return final, nil
+}
 
-// func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
+func (s *cabalServer) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
 
-// 	reqHandler := newRequestHandler(in.GetReq())
-// 	reqHandler.Fulfill()
+	rv("-> Unregister Request;")
+	rv("   Name=%s; ID=%s; Address=%s", in.GetName(), in.GetId(), in.GetAddress())
 
-// 	return &cabal.DataResp{Resp: reqHandler.GetResponder()}, nil
-// }
+	c, err := GetCore()
+	if err != nil {
+		return &cabal.UnregisterResp{
+			Ack:    false,
+			Status: &cabal.Status{Sender: "gmbh-core", Target: in.GetId(), Error: "internal server error"},
+		}, nil
+	}
 
-// func (s *cabalServer) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
-// 	reply := &cabal.UnregisterResp{Awk: false}
-// 	return reply, nil
-// }
+	service, err := c.Router.LookupService(in.GetName())
+	if err != nil {
+		return &cabal.UnregisterResp{
+			Ack:    false,
+			Status: &cabal.Status{Sender: "gmbh-core", Target: in.GetId(), Error: "not found"},
+		}, nil
+	}
 
-// func (s *cabalServer) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
-// 	return nil, nil
-// }
+	service.UpdateState(Shutdown)
 
-// func (s *cabalServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-// 	return &cabal.ServiceUpdate{Message: "unimp"}, nil
-// }
+	return &cabal.UnregisterResp{
+		Ack: true,
+		Status: &cabal.Status{
+			Sender: "gmbh-core",
+			Target: in.GetId()},
+	}, nil
+}
 
-// func (s *cabalServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
-// 	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
-// }
+func (s *cabalServer) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
+	return &cabal.QueryResponse{}, nil
+}
 
-// //////////////////////////////////////////////////////////////////////////////////////////
-// // Converters
-// //////////////////////////////////////////////////////////////////////////////////////////
+func (s *cabalServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
 
-// // ServiceToRPC translates one service to cabal form
-// func ServiceToRPC(s service.Service) *cabal.Service {
+	rv("-> Service Registration;")
+	rv("   Sender=%s; Target=%s; Status=%s; Action=%s", in.GetSender(), in.GetTarget(), in.GetAction())
+	rv("   Message=%s", in.GetMessage())
 
-// 	r := &cabal.Service{
-// 		Id:      s.ID,
-// 		Name:    s.Static.Name,
-// 		Path:    s.Path,
-// 		LogPath: s.Path + defaults.SERVICE_LOG_PATH + defaults.SERVICE_LOG_FILE,
-// 	}
+	return &cabal.ServiceUpdate{Message: "unimp"}, nil
+}
 
-// 	if s.Mode == service.Managed {
+func (s *cabalServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
+	id := ping.GetID()
+	c, err := GetCore()
+	if err != nil {
+		return &cabal.Pong{Status: &cabal.Status{Error: "internal server error"}}, nil
+	}
+	err = c.Router.Verify(id.GetName(), id.GetID(), id.GetAddress())
+	if err != nil {
+		rve("could not verify ping from id=%s; err=%s", id.GetID(), err.Error())
+		return &cabal.Pong{Status: &cabal.Status{Sender: "core.NotVerified"}}, nil
+	}
+	return &cabal.Pong{Time: time.Now().Format(time.Stamp), Status: &cabal.Status{Sender: "core.verified"}}, nil
+}
 
-// 		info := s.Process.GetInfo()
+func rv(msg string, a ...interface{}) {
+	notify.LnMagentaF("[rpc] "+msg, a...)
+}
 
-// 		r.Pid = int32(info.PID)
-// 		r.Fails = int32(info.Fails)
-// 		r.Address = s.Address
-// 		r.Restarts = int32(info.Restarts)
-// 		r.StartTime = info.StartTime.Format(time.RFC3339)
-// 		r.FailTime = info.DeathTime.Format(time.RFC3339)
-// 		r.Errors = s.Process.GetErrors()
+func rd(msg string, a ...interface{}) {
+	notify.LnCyanF("[data] "+msg, a...)
+}
 
-// 		r.Mode = "managed"
-// 		switch s.Process.GetStatus() {
-// 		case process.Stable:
-// 			r.Status = "Stable"
-// 		case process.Running:
-// 			r.Status = "Running"
-// 		case process.Failed:
-// 			r.Status = "Failed"
-// 		case process.Killed:
-// 			r.Status = "Killed"
-// 		}
-// 	} else if s.Mode == service.Remote {
-// 		r.Mode = "remote"
-// 		r.Status = "-"
-// 	}
-// 	return r
-// }
-
-// func serviceToStruct() *service.Service {
-// 	return nil
-// }
+func rve(msg string, a ...interface{}) {
+	notify.LnRedF("[rpc] "+msg, a...)
+}

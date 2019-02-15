@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/fatih/color"
@@ -240,6 +241,21 @@ func createFile(pathName string) *os.File {
 	return file
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// REFACTORED BELOW
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var header = ""
+
+// SetHeader is a string that can be set to precede all writes to stdOut
+func SetHeader(s string) {
+	if s[len(s)-1] != ' ' {
+		header = s + " "
+		return
+	}
+	header = s
+}
+
 // LnRedF prints to stdOut a line in red formatted
 func LnRedF(format string, a ...interface{}) {
 	out(color.FgRed, fmt.Sprintf(format, a...))
@@ -313,16 +329,70 @@ func LnBWhiteF(format string, a ...interface{}) {
 func out(c color.Attribute, msg string) {
 	if verbose {
 		color.Set(c)
-		fmt.Printf(msg + "\n")
+		fmt.Printf(header + msg + "\n")
 		color.Unset()
 	}
 }
 func outB(c color.Attribute, msg string) {
 	if verbose {
 		color.Set(c).Add(color.Bold)
-		fmt.Printf(msg + "\n")
+		fmt.Printf(header + msg + "\n")
 		color.Unset()
 	}
+}
+
+/**********************************************************************************
+**** OS Helpers
+**********************************************************************************/
+
+// GetLogFile attempts to add the desired path as an extension to the current
+// directory as reported by os.GetWd(). The file is then opened or created
+// and returned
+func GetLogFile(desiredPathExt, filename string) (*os.File, error) {
+	// get pwd
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	// make sure that the path extension exists or make the directories needed
+	dirPath := filepath.Join(dir, desiredPathExt)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		os.Mkdir(dir, 0755)
+	}
+	// create the file
+	filePath := filepath.Join(dirPath, filename)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+// GetLogFileWithPath attempts to add the desired path as an extension to the current
+// directory as reported by os.GetWd(). The file is then opened or created
+// and returned
+func GetLogFileWithPath(path, filename string) (*os.File, error) {
+	// make sure that the path exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.Mkdir(path, 0755)
+	}
+	// create the file
+	filePath := filepath.Join(path, filename)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+// Getpwd returns the directory that the process was launched from according to the os package
+// Unlike the os package it never returns and error, only an empty string
+func Getpwd() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return dir
 }
 
 // notify.LnBCyanF("                      __                                        ")

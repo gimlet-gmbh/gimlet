@@ -1,8 +1,8 @@
 package defaults
 
 const (
-	VERSION           = "0.8.2"
-	CODE              = "handshake"
+	VERSION           = "0.9.1"
+	CODE              = "divorce"
 	CORE_PATH_MAC     = "/usr/local/bin/gmbhCore"
 	LOG_PATH          = "/gmbh/"
 	CORE_LOG_NAME     = "core.log"

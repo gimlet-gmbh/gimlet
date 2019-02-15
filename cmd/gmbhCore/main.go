@@ -1,55 +1,32 @@
 package main
 
-import "github.com/gmbh-micro/notify"
+import (
+	"flag"
+	"os"
 
-/*
- * main.go
- * Abe Dick
- * January 2019
- */
+	"github.com/gmbh-micro/notify"
+)
 
 func main() {
-	notify.LnBRedF("dep")
+
+	configPath := flag.String("config", "", "the path to the gmbh config file (yaml)")
+	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
+	verbosedata := flag.Bool("verbose-data", false, "print gmbh data output to stdOut and stdErr")
+
+	/*
+		Things that should be paremetrized in Core
+		* Should services be in their own remote or all in one remote?
+	*/
+
+	flag.Parse()
+
+	if *configPath == "" {
+		notify.LnRedF("must specify config file")
+		os.Exit(1)
+	}
+	c, err := NewCore(*configPath, *verbose, *verbosedata)
+	if err != nil {
+		panic(err)
+	}
+	c.Start()
 }
-
-// func main() {
-
-// 	path := flag.String("path", "", "the path to the directory of the gmbh Config")
-// 	// container := flag.String("c", false, "")
-// 	flag.Parse()
-
-// 	if *path == "" {
-// 		notify.StdMsgErr("cannot start gmbhCore without path argument")
-// 		os.Exit(1)
-// 	}
-
-// 	core, err := StartCore(*path)
-// 	if err != nil {
-// 		core.Log.Err("could not start gmbhCore; error=%v", err.Error())
-// 		return
-// 	}
-
-// 	notify.StdMsgBlueNoPrompt(notify.CORE)
-// 	notify.StdMsgBlue("version=" + core.Version + "; code=" + core.CodeName + "; startTime=" + core.StartTime.Format(time.Stamp))
-
-// 	err = core.StartCabalServer()
-// 	if err != nil {
-// 		notify.StdMsgErr("could not start cabal server")
-// 		return
-// 	}
-
-// 	err = core.StartControlServer()
-// 	if err != nil {
-// 		notify.StdMsgErr("could not start control server")
-// 		return
-// 	}
-
-// 	err = core.ServiceDiscovery()
-// 	if err != nil {
-// 		notify.StdMsgErr("service discovery error")
-// 	}
-
-// 	notify.StdMsgBlueNoPrompt(notify.SEP)
-
-// 	core.Wait()
-// }

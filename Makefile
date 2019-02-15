@@ -7,46 +7,28 @@ GOGET=$(GOCMD) get
 
 CLI_BINARY=gmbh
 CORE_BINARY=gmbhCore
-CTRL_BINARY=gmbhCtrl
-PM_BINARY=gmbhPM
-CONTAINER_BINARY=gmbhContainer
-NC_BINARY=gmbhNC
-NCTRL_BINARY=gmbhProcess
+PROCM_BINARY=gmbhProcm
 
-all: core cli ctrl pm nc np
+all: cli core procm
 
-core: build-core install-core
 cli: build-cli install-cli
-ctrl: build-ctrl install-ctrl
-pm: build-pm install-pm
-nc: build-nc install-nc
-np: build-np install-np
+core: build-core install-core
+procm: build-procm install-procm
 
-build-core:
-	$(GOBUILD) -o ./bin/$(CORE_BINARY) ./cmd/gmbhCore/*.go
 build-cli:
 	$(GOBUILD) -o ./bin/$(CLI_BINARY) ./cmd/gmbh/*.go
-build-ctrl:
-	$(GOBUILD) -o ./bin/$(CTRL_BINARY) ./cmd/gmbhCtrl/*.go
-build-pm:
-	$(GOBUILD) -o ./bin/$(PM_BINARY) ./cmd/gmbh_pm/*.go
-build-nc:
-	$(GOBUILD) -o ./bin/$(NC_BINARY) ./cmd/gmbh_nc/*.go
-build-np:
-	$(GOBUILD) -o ./bin/$(NCTRL_BINARY) ./cmd/gmbh_new_ctrl/*.go
+build-core:
+	$(GOBUILD) -o ./bin/$(CORE_BINARY) ./cmd/gmbhCore/*.go
+build-procm:
+	$(GOBUILD) -o ./bin/$(PROCM_BINARY) ./cmd/gmbhProcm/*.go
 
-install-core:
-	cp bin/$(CORE_BINARY) /usr/local/bin/
 install-cli:
 	cp bin/$(CLI_BINARY) /usr/local/bin/
-install-ctrl:
-	cp bin/$(CTRL_BINARY) /usr/local/bin/
-install-pm:
-	cp bin/$(PM_BINARY) /usr/local/bin/
-install-nc:
-	cp bin/$(NC_BINARY) /usr/local/bin/
-install-np:
-	cp bin/$(NCTRL_BINARY) /usr/local/bin/
+install-core:
+	cp bin/$(CORE_BINARY) /usr/local/bin/
+install-procm:
+	cp bin/$(PROCM_BINARY) /usr/local/bin/
+
 
 deps:
 	$(GOGET) github.com/fatih/color

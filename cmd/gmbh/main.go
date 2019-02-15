@@ -1,11 +1,5 @@
 package main
 
-/**
- * main.go
- * Abe Dick
- * January 2019
- */
-
 import (
 	"flag"
 	"fmt"
@@ -14,7 +8,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"syscall"
 	"time"
 
@@ -22,112 +15,211 @@ import (
 	"github.com/gmbh-micro/notify"
 )
 
-///////////////////////////////////
-// This is garbage. Use the actual process manager...
-
-var cmd *exec.Cmd
-
-var c *container
-
-// type configFlags []string
-
-// func (c *configFlags) String() string {
-// 	return "configPath to gmbh service config"
-// }
-
-// func (c *configFlags) Set(value string) error {
-// 	*c = append(*c, value)
-// 	return nil
-// }
-
-// var configs configFlags
-
-type configFlags []string
-
-func (i *configFlags) String() string {
-	return "config path arrray array"
-}
-
-func (i *configFlags) Set(value string) error {
-	*i = append(*i, value)
-	return nil
-}
-
-var configPaths configFlags
-
 func main() {
 
-	notify.SetTag(defaults.CLI_PROMPT)
-	notify.SetVerbose(defaults.VERBOSE)
-	daemon := flag.Bool("d", defaults.DAEMON, "daemon mode")
+	// modes
+	remote := flag.Bool("remote", false, "begin a gmbhRemote service; must specify a config file")
+	core := flag.Bool("core", false, "begin a gmbhCore instance; must specify a config file")
+
 	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
-	containerMode := flag.Bool("container", false, "container mode")
+	verbosedata := flag.Bool("verbose-data", false, "print gmbhData output to stdOut and stdErr")
+	nolog := flag.Bool("no-log", false, "disable logging")
+	daemon := flag.Bool("daemon", false, "for running the process manager in a container")
 
-	flag.Var(&configPaths, "config", "list to config files")
+	config := flag.String("config", "", "a gmbh configuration file path")
 
-	// configPaths := flag.Var(&configs, "config", "relative path")
-	// managed := flag.Bool("m", false, "run service in managed mode")
-	// embedded := flag.Bool("e", false, "is the service being managed inside of a container")
+	listAllFlag := flag.Bool("list", false, "list all processes")
+	reportFlag := flag.Bool("report", false, "list all processes in report format")
+	restartAllFlag := flag.Bool("restart", false, "restart all processes")
+	listOneFlag := flag.String("list-one", "", "list all processes")
+	restartOneFlag := flag.String("restart-one", "", "list all processes")
+	shutdownFlag := flag.Bool("q", false, "shutdown gmbh")
 
 	flag.Parse()
 
-	if *containerMode {
-		notify.LnBRedF("[remote] env=%s", os.Getenv("GMBHCORE"))
-		startRemote(configPaths, *verbose)
+	if *remote {
+		startRemote(*config)
+	} else if *core {
+		startCore(*config, *verbose, *verbosedata, *daemon, *nolog)
+
+	} else if *listAllFlag {
+		listAll()
+	} else if *reportFlag {
+		runReport()
+	} else if *restartAllFlag {
+		restartAll()
+	} else if *listOneFlag != "" {
+		listOne(*listOneFlag)
+	} else if *restartOneFlag != "" {
+		restartOne(*restartOneFlag)
+	} else if *shutdownFlag {
+		shutdown()
 	} else {
-		startCore(*daemon)
+		notify.LnRedF("rerun with --help to see options")
 	}
+
 }
 
-func startRemote(config configFlags, v bool) {
-	rem, _ := newRemote(defaults.PM_ADDRESS, v)
-	for _, path := range config {
-		pid, err := rem.AddService(path)
-		if err != nil {
-			notify.StdMsgErr("could not start service; err=" + err.Error())
-		} else {
-			notify.StdMsgBlue("service started; pid=" + pid)
+func startRemote(c string) {
+
+}
+
+func startCore(c string, verbose, vdata, daemon, nolog bool) {
+	report()
+
+	installed := checkInstall()
+	if !installed {
+		notify.LnBRedF("gmbhCore does not seem to be installed")
+		os.Exit(1)
+	}
+
+	if c == "" {
+		notify.LnBRedF("must specify a config file using the --config flag")
+		os.Exit(1)
+	}
+
+	exists := checkConfig(c)
+	if !exists {
+		notify.LnBRedF("the specified config file does not seem to exist...")
+		os.Exit(1)
+	}
+
+	var pmlog *os.File
+	var datalog *os.File
+	var err error
+
+	pmCmd := exec.Command("gmbhProcm")
+	gmbhCmd := exec.Command("gmbhCore", "--config="+c)
+
+	if verbose {
+		pmCmd.Stdout = os.Stdout
+		pmCmd.Stderr = os.Stderr
+		pmCmd.Args = append(pmCmd.Args, "--verbose")
+
+		gmbhCmd.Stdout = os.Stdout
+		gmbhCmd.Stderr = os.Stderr
+		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
+	}
+	if vdata {
+		pmlog, err = getLogFile("gmbh", "procm.log")
+		if err == nil {
+			notify.LnYellowF("logs")
+			notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "procm.log"))
+			pmCmd.Stdout = pmlog
+			pmCmd.Stderr = pmlog
+
+			gmbhCmd.Stdout = os.Stdout
+			gmbhCmd.Stderr = os.Stderr
+			gmbhCmd.Args = append(gmbhCmd.Args, "--verbose-data")
 		}
 	}
-	rem.Start()
-}
+	if !verbose && !vdata && !nolog {
+		notify.LnYellowF("logs")
+		pmlog, err = getLogFile("gmbh", "procm.log")
+		if err == nil {
+			notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "procm.log"))
+			pmCmd.Stdout = pmlog
+			pmCmd.Stderr = pmlog
+		} else {
+			panic(err)
+		}
+		datalog, err = getLogFile("gmbh", "data.log")
+		if err == nil {
+			notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "data.log"))
+			gmbhCmd.Stdout = datalog
+			gmbhCmd.Stderr = datalog
+		} else {
+			panic(err)
+		}
+	}
 
-func startCore(daemon bool) {
-	notify.StdMsgMagenta(fmt.Sprintf("cli version: %s", defaults.VERSION))
-	notify.StdMsgMagenta("Starting gmbhCore...")
+	remoteEnv := append(
+		os.Environ(),
+		"PMMODE=PMManaged",
+	)
+	pmCmd.Env = remoteEnv
+	gmbhCmd.Env = remoteEnv
 
-	exists := checkConfig()
-	if !exists {
-		notify.StdMsgErr("could not find config file", 1)
+	err = pmCmd.Start()
+	if err != nil {
+		notify.LnBRedF("could not start gmbh-procm")
 		return
 	}
-	notify.StdMsgMagenta("found config")
-
-	exists = checkInstall()
-	if !exists {
-		notify.StdMsgErr("could not find gmbhCore", 1)
+	err = gmbhCmd.Start()
+	if err != nil {
+		notify.LnBRedF("could not start gmbh-data")
 		return
 	}
-	notify.StdMsgMagenta("found gmbhCore binary", 1)
 
-	// Monitor/ Force Core Shutdown
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	shutdownSignal := make(chan os.Signal, 1)
+	if !daemon {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGINT)
 
-	go startListener(shutdownSignal, wg)
+		notify.LnBBlueF("holding until shutdown signal")
+		_ = <-sig
+		fmt.Println() //dead line to line up output
 
-	// Fork/Exec gmbhCore
-	args := []string{"--path=" + getCurrentDir()}
-	if daemon {
-		args = append(args, "-d")
+		// signal the processes
+		notify.LnBBlueF("signaled sigusr1")
+		pmCmd.Process.Signal(syscall.SIGUSR1)
+
+		// shutdown gmbh
+		time.Sleep(time.Second * 1)
+		gmbhCmd.Process.Signal(syscall.SIGUSR2)
+		gmbhCmd.Wait()
+		notify.LnBYellowF("[cli] gmbh shutdown")
+
+		// shutdown the process manager
+		time.Sleep(time.Second * 1)
+		pmCmd.Process.Signal(syscall.SIGUSR2)
+		pmCmd.Wait()
+		notify.LnBYellowF("[cli] procm shutdown")
+
+		// close the logs
+		if pmlog != nil {
+			pmlog.Close()
+		}
+		if datalog != nil {
+			datalog.Close()
+		}
+
+		notify.LnBYellowF("[cli] shutdown complete")
 	}
-	forkExec(defaults.CORE_PATH_MAC, args, daemon)
-
 }
 
-func checkConfig() bool {
-	if _, err := os.Stat(defaults.PROJECT_CONFIG_FILE); os.IsNotExist(err) {
+// getLogFile attempts to add the desired path as an extension to the current
+// directory as reported by os.GetWd(). The file is then opened or created
+// and returned
+func getLogFile(desiredPathExt, filename string) (*os.File, error) {
+	// get pwd
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	// make sure that the path extension exists or make the directories needed
+	dirPath := filepath.Join(dir, desiredPathExt)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		os.Mkdir(dir, 0755)
+	}
+	// create the file
+	filePath := filepath.Join(dirPath, filename)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func getpwd() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
+func checkConfig(configPath string) bool {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -150,62 +242,10 @@ func checkInstall() bool {
 	return false
 }
 
-func startListener(sig chan os.Signal, wg *sync.WaitGroup) {
-
-	signal.Notify(sig, syscall.SIGINT)
-	signal.Notify(sig, syscall.SIGKILL)
-
-	_ = <-sig
-
-	fmt.Println("")
-	time.Sleep(time.Millisecond * 500)
-
-	kill()
-
-	wg.Done()
-	os.Exit(0)
-}
-
-func forkExec(path string, args []string, daemon bool) {
-	cmd = setCmd(path, args)
-
-	if daemon {
-		err := cmd.Start()
-		if err != nil {
-			notify.StdMsgErr(fmt.Sprintf("Error reported in Core: %s", err.Error()))
-		}
-	} else {
-		err := cmd.Run()
-		if err != nil {
-			notify.StdMsgErr(fmt.Sprintf("Error reported in Core: %s", err.Error()))
-		}
-	}
-}
-
-func kill() {
-	if cmd != nil {
-		err := cmd.Process.Signal(syscall.SIGINT)
-		if err != nil {
-			notify.StdMsgErr(err.Error(), 0)
-		}
-	} else {
-		notify.StdMsgErr("cmd was never set", 0)
-	}
-}
-
-func setCmd(path string, args []string) *exec.Cmd {
-	var cmd *exec.Cmd
-	cmd = exec.Command(path, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd
-}
-
-func getCurrentDir() string {
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		notify.StdMsgErr(fmt.Sprintf("could not get current dir: %s", err.Error()), 0)
-	}
-	return dir
+func report() {
+	notify.LnBCyanF("                   ")
+	notify.LnBCyanF("  _  ._ _  |_  |_| ")
+	notify.LnBCyanF(" (_| | | | |_) | | ")
+	notify.LnBCyanF("  _|               ")
+	notify.LnBCyanF("Version=%s; Code=%s", defaults.VERSION, defaults.CODE)
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -13,50 +12,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
-
-func main() {
-
-	listAllFlag := flag.Bool("list", false, "list all processes")
-	reportFlag := flag.Bool("report", false, "list all processes in report format")
-	restartAllFlag := flag.Bool("restart", false, "restart all processes")
-	listOneFlag := flag.String("list-one", "", "list all processes")
-	restartOneFlag := flag.String("restart-one", "", "list all processes")
-	shutdownFlag := flag.Bool("q", false, "shutdown gmbh")
-
-	cli := flag.Bool("cli", false, "")
-	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
-
-	flag.Parse()
-
-	if !*cli {
-		notify.SetTag("[procm] ")
-		p := NewProcessManager("", *verbose)
-		err := p.Start()
-		if err != nil {
-			panic(err)
-		}
-		p.Wait()
-		return
-	}
-
-	notify.SetTag("[cli] ")
-	notify.StdMsgBlue("procm cli tool")
-
-	if *listAllFlag {
-		listAll()
-	} else if *reportFlag {
-		report()
-	} else if *restartAllFlag {
-		restartAll()
-	} else if *listOneFlag != "" {
-		listOne(*listOneFlag)
-	} else if *restartOneFlag != "" {
-		restartOne(*restartOneFlag)
-	} else if *shutdownFlag {
-		shutdown()
-	}
-
-}
 
 func listAll() {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
@@ -75,7 +30,7 @@ func listAll() {
 	pprintListAll(reply.GetRemotes())
 }
 
-func report() {
+func runReport() {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())

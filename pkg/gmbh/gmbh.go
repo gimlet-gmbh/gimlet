@@ -133,6 +133,11 @@ type Client struct {
 	msgCounter int
 	mu         *sync.Mutex
 
+	// if a log path can be determined from the environment, it will be stored here and
+	// the printer helper will use it instead of stdOut and stdErr
+	outputFile *os.File
+	outputmu   *sync.Mutex
+
 	// closed is set true when shutdown procedures have been started
 	closed bool
 }
@@ -162,8 +167,7 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 	}
 
 	if g.opts.runtime.Verbose {
-		notify.SetVerbose(true)
-		notify.SetTag("[gmbh] ")
+		notify.SetHeader("[gmbh]")
 	}
 
 	var err error
@@ -177,10 +181,27 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		return nil, err
 	}
 
+	if os.Getenv("LOGPATH") != "" && os.Getenv("LOGNAME") != "" {
+		path := os.Getenv("LOGPATH")
+		filename := os.Getenv("LOGNAME") + "-client.log"
+		g.outputFile, err = notify.GetLogFileWithPath(path, filename)
+		g.outputmu = &sync.Mutex{}
+		// os.Stdout = g.outputFile
+		// os.Stderr = g.outputFile
+		if err != nil {
+			g.printer("could not create log at path=%s", filepath.Join(path+filename))
+		}
+		g.printer("log created")
+	} else {
+		g.printer("printing all output to stdOut")
+	}
+
 	// check the environment for an address to core
 	if os.Getenv("GMBHCORE") != "" {
 		g.coreAddress = os.Getenv("GMBHCORE")
-		notify.LnBBlueF("[gmbh] using core address from env=%s", g.coreAddress)
+		g.printer("using core address from env=%s", g.coreAddress)
+	} else {
+		g.printer("using core address=%s", g.coreAddress)
 	}
 
 	return g, nil
@@ -204,33 +225,47 @@ func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
 
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	if os.Getenv("PMMODE") == "PMManaged" {
+		g.printer("PPManaged mode; ignoring sigint")
+		signal.Ignore(syscall.SIGINT)
+	} else {
+		g.printer("using sigint")
+		signal.Notify(sigs, syscall.SIGINT)
+	}
 	go func() {
 		_ = <-sigs
 		done <- true
 	}()
 
-	notify.StdMsgNoPrompt("------------------------------------------------------------")
-	notify.StdMsg("started, time=" + time.Now().Format(time.RFC3339))
+	g.printer("------------------------------------------------------------")
+	g.printer("started, time=" + time.Now().Format(time.RFC3339))
 
 	go g.connect()
 
 	<-done
+	g.Shutdown()
+}
 
+// Shutdown starts shutdown procedures
+func (g *Client) Shutdown() {
 	g.mu.Lock()
 	g.closed = true
+	g.reg = nil
+	g.pingHelpers = []*pingHelper{}
 	g.mu.Unlock()
 
 	g.makeUnregisterRequest()
 
 	g.disconnect()
 
-	notify.StdMsg("shutdown, time=" + time.Now().Format(time.RFC3339))
+	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
+	g.printer("mode=%s", os.Getenv("GMBHMODE"))
 	if os.Getenv("GMBHMODE") == "Managed" {
-		notify.LnBlueF("os.exit")
+		g.printer("os.exit in 3s")
+		time.Sleep(time.Second * 3)
 		os.Exit(0)
 	}
-	notify.LnBlueF("return")
+	g.printer("restarting client")
 	return
 }
 
@@ -242,7 +277,7 @@ func parseConfig(relativePath string) (*userconfig, error) {
 	var stat userconfig
 	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
 	if err != nil {
-		notify.StdMsgErr(path + relativePath)
+		g.printer(path + relativePath)
 		return nil, errors.New("could not find yaml file")
 	}
 	err = yaml.Unmarshal(yamlFile, &stat)
@@ -268,39 +303,39 @@ func validConfig(c *userconfig) error {
 
 // connect to gmbhCore
 func (g *Client) connect() {
-	notify.StdMsgBlue("attempting to connect to gmbh-core")
+	g.printer("attempting to connect to gmbh-core")
 
 	// when failed or disconnected, the registration is wiped to make sure that
 	// legacy data does not get used, thus if g.reg is not nil, then we can assume
 	// that a thread has aready requested and received a valid registration
 	// and the current thread can be closed
 	if g.reg != nil {
-		notify.LnBRedF("cannot (re)connect reg != nil")
+		g.printer("cannot (re)connect reg != nil")
 		return
 	}
 
 	reg, status := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, true, "")
 	for status != nil {
 		if status.Error() != "registration.gmbhUnavailable" {
-			notify.StdMsgErr("gmbh internal error")
+			g.printer("gmbh internal error")
 			return
 		}
 
 		if g.closed || (g.con != nil && g.con.IsConnected()) {
 			return
 		}
-		notify.StdMsgErr("Could not reach gmbh-core, trying again in 5 seconds")
+		g.printer("Could not reach gmbh-core, trying again in 5 seconds")
 		time.Sleep(time.Second * 5)
 		reg, status = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, true, "")
 
 	}
 
-	notify.StdMsgBlue("registration details:")
-	notify.StdMsgBlue("id=" + reg.id + "; address=" + reg.address)
-	notify.StdMsgBlue("mode=" + reg.mode + "; corePath=" + reg.corePath)
+	g.printer("registration details:")
+	g.printer("id=" + reg.id + "; address=" + reg.address)
+	g.printer("mode=" + reg.mode + "; corePath=" + reg.corePath)
 
 	if reg.address == "" {
-		notify.StdMsgErr("address not received")
+		g.printer("address not received")
 		return
 	}
 
@@ -316,10 +351,10 @@ func (g *Client) connect() {
 
 	err := g.con.Connect()
 	if err != nil {
-		notify.StdMsgErr("gmbh connection error=(" + err.Error() + ")")
+		g.printer("gmbh connection error=(" + err.Error() + ")")
 		return
 	}
-	notify.StdMsgGreen("connected; coreAddress=(" + reg.address + ")")
+	g.printer("connected; coreAddress=(" + reg.address + ")")
 
 	go g.sendPing(ph)
 
@@ -328,16 +363,16 @@ func (g *Client) connect() {
 // disconnect from gmbh-core and go back into connecting mode
 func (g *Client) disconnect() {
 
-	notify.StdMsgBlue("disconnecting from gmbh-core")
+	g.printer("disconnecting from gmbh-core")
 
 	g.mu.Lock()
 	if g.con != nil {
-		notify.StdMsgErr("con good")
+		g.printer("con good")
 		g.con.Disconnect()
 		g.con.Server = nil
 		g.con.SetAddress("-")
 	} else {
-		notify.StdMsgErr("con should not be nil in disconnect")
+		g.printer("con should not be nil in disconnect")
 	}
 	g.reg = nil
 	g.mu.Unlock()
@@ -349,7 +384,7 @@ func (g *Client) disconnect() {
 }
 
 func (g *Client) failed() {
-	notify.StdMsg("failed to receive pong; disconnecting")
+	g.printer("failed to receive pong; disconnecting")
 
 	if g.con.IsConnected() {
 		g.con.Disconnect()
@@ -376,11 +411,11 @@ func (g *Client) sendPing(ph *pingHelper) {
 	for {
 
 		time.Sleep(time.Second * 45)
-		notify.StdMsgBlue("-> ping")
+		g.printer("-> ping")
 
 		select {
 		case _ = <-ph.pingChan: // case in which this channel is no longer needed
-			notify.StdMsgBlue("received chan message in sendPing")
+			g.printer("received chan message in sendPing")
 			close(ph.pingChan)
 			ph.mu.Lock()
 			ph.received = true
@@ -394,11 +429,11 @@ func (g *Client) sendPing(ph *pingHelper) {
 
 			client, ctx, can, err := rpc.GetCabalRequest(defaults.CORE_ADDRESS, time.Second*30)
 			if err != nil {
-				notify.StdMsgErr(err.Error())
+				g.printer(err.Error())
 			}
 
 			if g.reg == nil {
-				notify.LnRedF("invalid reg for ping")
+				g.printer("invalid reg for ping")
 				return
 			}
 
@@ -416,7 +451,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 			}
 			if response.Status.Sender == "core.verified" {
 				can()
-				notify.StdMsgBlue("<- pong")
+				g.printer("<- pong")
 			} else {
 				g.failed()
 				return
@@ -432,9 +467,11 @@ func (g *Client) makeUnregisterRequest() {
 	}
 	defer can()
 	request := &cabal.UnregisterReq{
-		Name:    g.conf.ServiceName,
-		Id:      g.reg.id,
-		Address: g.reg.address,
+		Name: g.conf.ServiceName,
+	}
+	if g.reg != nil {
+		request.Id = g.reg.id
+		request.Address = g.reg.address
 	}
 	_, _ = client.UnregisterService(ctx, request)
 }
@@ -578,8 +615,20 @@ func update(phs []*pingHelper) []*pingHelper {
 			c++
 		}
 	}
-	notify.StdMsgBlue("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
+	g.printer("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
 	return n
+}
+
+func (g *Client) printer(msg string, a ...interface{}) {
+	if g.outputFile != nil {
+		g.outputmu.Lock()
+		g.outputFile.WriteString(fmt.Sprintf(msg, a...) + "\n")
+		g.outputmu.Unlock()
+	} else {
+		if g.opts.runtime.Verbose {
+			notify.LnCyanF(msg, a...)
+		}
+	}
 }
 
 /**********************************************************************************
@@ -642,7 +691,8 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool,
 		if grpc.Code(err) == codes.Unavailable {
 			return nil, errors.New("registration.gmbhUnavailable")
 		}
-		panic(err)
+		g.printer(grpc.Code(err).String())
+		return nil, errors.New("registration.gmbhUnavailable")
 	}
 
 	if reply.Status == "acknowledged" {
@@ -676,7 +726,7 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	notify.StdMsgNoPrompt("<==" + mcs + "== target: " + target + ", method: " + method)
+	g.printer("<==" + mcs + "== target: " + target + ", method: " + method)
 
 	reply, err := client.MakeDataRequest(ctx, &request)
 	if err != nil {
@@ -690,8 +740,7 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 		return r, err
 
 	}
-	// notify.StdMsgNoPrompt(" ==" + mcs + "==> result: " + reply.Resp.Result + ", errors?: " + reply.Resp.ErrorString)
-	notify.StdMsgNoPrompt(" ==" + mcs + "==> " + reply.String())
+	g.printer(" ==" + mcs + "==> " + reply.String())
 
 	return responderFromProto(*reply.Resp), nil
 }
@@ -731,7 +780,7 @@ func (s *_server) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*caba
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	notify.StdMsgNoPrompt("==" + mcs + "==> from: " + in.Req.Sender + ", method: " + in.Req.Method)
+	g.printer("==" + mcs + "==> from: " + in.Req.Sender + ", method: " + in.Req.Method)
 
 	responder, err := handleDataRequest(*in.Req)
 	if err != nil {
@@ -755,10 +804,10 @@ func (s *_server) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cab
 
 func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
 
-	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+	g.printer(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
 
 	if in.GetTarget() != g.conf.ServiceName {
-		notify.StdMsgErr("invalid target")
+		g.printer("invalid target")
 		reply := &cabal.ServiceUpdate{
 			Action:  "error",
 			Message: "invalid service name",
@@ -767,11 +816,9 @@ func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.Servi
 	}
 
 	if in.Action == "core.shutdown" {
-		notify.StdMsgBlue("recieved shutdown")
-		fmt.Println(g.closed)
+		g.printer("recieved shutdown")
 
-		notify.StdMsgBlue("sending message over chans to ping")
-		fmt.Println("sending " + strconv.Itoa(len(g.pingHelpers)) + " messages")
+		g.printer("sending message over chans to ping")
 		for _, c := range g.pingHelpers {
 			c.pingChan <- true
 			c.contacted = true
@@ -779,7 +826,11 @@ func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.Servi
 
 		g.pingHelpers = update(g.pingHelpers)
 
-		if !g.closed {
+		// either shutdown for real or disconnect and try and reach again if
+		// the service wasn't forked from gmbh-core
+		if os.Getenv("GMBHMODE") == "Managed" {
+			go g.Shutdown()
+		} else if !g.closed {
 			go func() {
 				g.disconnect()
 				g.connect()

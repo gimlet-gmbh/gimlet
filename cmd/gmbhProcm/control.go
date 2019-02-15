@@ -252,7 +252,7 @@ func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal
 }
 
 func (c *controlServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
-	rpcMessage("<- pong")
+	// rpcMessage("<- pong")
 
 	pm, err := GetProcM()
 	if err != nil {
@@ -262,6 +262,7 @@ func (c *controlServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pon
 
 	r, err := pm.LookupRemote(ping.GetFromID())
 	if err != nil {
+		rpcMessage("<- (nil)pong; could not find: " + ping.GetFromID())
 		return nil, errors.New("")
 	}
 	r.UpdatePing(time.Now())

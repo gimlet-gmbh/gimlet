@@ -128,14 +128,19 @@ func NewPlanetaryService(id string, staticData *static.Static) (*Service, error)
 
 // Start attempts to fork/exec service and returns the pid, else error
 // service must be in managed or remote mode
-func (s *Service) Start() (pid string, err error) {
+func (s *Service) Start(mode string) (pid string, err error) {
+
+	env := os.Environ()
+	if mode == "PMManaged" {
+		env = append(env, "PMMODE=PMManaged")
+	}
 
 	if s.Mode == Planetary || s.Mode == Remote {
 		return "-1", errors.New("service.StartService.invalidServiceMode")
 	}
 	if s.Static.Language == "go" {
 
-		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, os.Environ())
+		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, env)
 		pid, err := s.Process.Start()
 		if err != nil {
 			notify.StdMsgDebug("failed to start")
@@ -166,6 +171,11 @@ func (s *Service) Kill() {
 	if s.Mode == Managed {
 		s.Process.Kill(true)
 	}
+}
+
+// EnableGracefulShutdown tells the process to stop attempting to restart
+func (s *Service) EnableGracefulShutdown() {
+	s.Process.GracefulShutdown()
 }
 
 // StartLog starts the logger for process management information

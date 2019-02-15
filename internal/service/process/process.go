@@ -93,4 +93,5 @@ type Manager interface {
 	GetInfo() Info
 	GetErrors() []string
 	GetStatus() Status
+	GracefulShutdown()
 }

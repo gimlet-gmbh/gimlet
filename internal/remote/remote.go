@@ -1,4 +1,4 @@
-package main
+package remote
 
 /*
  * main.go (gmbhContainer)
@@ -23,7 +23,7 @@ import (
 	"github.com/gmbh-micro/service"
 )
 
-type remote struct {
+type Remote struct {
 
 	// the entry point for services to manage
 	serviceManager *ServiceManager
@@ -42,6 +42,12 @@ type remote struct {
 
 	pingCounter int
 	startTime   time.Time
+
+	// gmbhShutdown is marked true when sigusr1 has been sent to the pm process.
+	// When this flag is true services that exit will not be restarted as it is
+	// to be used in conjunction with the gmbh process launcher for graceful
+	// shutdown
+	gmbhShutdown bool
 
 	// closed is set true when shutdown procedures have been started
 	// either remotely or signaled from core
@@ -75,15 +81,15 @@ type registration struct {
 **** Client Operations
 **********************************************************************************/
 
-var r *remote
+var r *Remote
 
-func newRemote(coreAddress string, verbose bool) (*remote, error) {
+func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 
 	if r != nil {
 		return r, nil
 	}
 
-	r = &remote{
+	r = &Remote{
 		serviceManager: NewServiceManager(),
 		pingHelpers:    make([]*pingHelper, 0),
 		startTime:      time.Now(),
@@ -101,14 +107,22 @@ func newRemote(coreAddress string, verbose bool) (*remote, error) {
 	return r, nil
 }
 
-func (r *remote) Start() {
+func (r *Remote) Start() {
 
-	sigs := make(chan os.Signal, 1)
+	sig := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
 
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	if os.Getenv("PMMODE") == "PMManaged" {
+		notify.StdMsgBlue("overriding sigusr2")
+		notify.StdMsgBlue("ignoring sigint, sigusr1")
+		signal.Notify(sig, syscall.SIGUSR2)
+		signal.Ignore(syscall.SIGINT, syscall.SIGUSR1)
+	} else {
+		notify.StdMsgBlue("overriding sigint")
+		signal.Notify(sig, syscall.SIGINT)
+	}
 	go func() {
-		_ = <-sigs
+		_ = <-sig
 		done <- true
 	}()
 
@@ -121,6 +135,12 @@ func (r *remote) Start() {
 	<-done
 	fmt.Println()
 
+	r.shutdown()
+
+}
+
+// shutdown procedures
+func (r *Remote) shutdown() {
 	r.mu.Lock()
 	r.closed = true
 	r.mu.Unlock()
@@ -130,7 +150,6 @@ func (r *remote) Start() {
 	// shutdown service
 	r.serviceManager.Shutdown()
 
-	// todo: send message to core of shutdown
 	r.notifyCore()
 
 	notify.StdMsgBlue("shutdown, time=" + time.Now().Format(time.Stamp))
@@ -144,7 +163,7 @@ func (r *remote) Start() {
 // connect to core if not already connected. If the error returned from making the requst
 // is that core is unavailable, set a try again for every n seconds. Otherwise start a ping
 // and pong response to keep track of the connection.
-func (r *remote) connect() {
+func (r *Remote) connect() {
 
 	// when failed or disconnected, the registration is wiped to make sure that
 	// legacy data does not get used, thus if g.reg is not nil, then we can assume
@@ -199,7 +218,7 @@ func (r *remote) connect() {
 	go r.sendPing(ph)
 }
 
-func (r *remote) disconnect() {
+func (r *Remote) disconnect() {
 	notify.StdMsgBlue("disconnecting")
 	r.mu.Lock()
 	if r.con != nil {
@@ -210,7 +229,7 @@ func (r *remote) disconnect() {
 	r.mu.Unlock()
 }
 
-func (r *remote) failed() {
+func (r *Remote) failed() {
 	notify.StdMsgBlue("connection to core reporting failure")
 	if r.con.IsConnected() {
 		r.con.Disconnect()
@@ -221,12 +240,16 @@ func (r *remote) failed() {
 
 	if !r.closed {
 		time.Sleep(time.Second * 5)
+		notify.StdMsgBlue("attempting to reconneced")
+		r.mu.Lock()
+		r.reg = nil
+		r.mu.Unlock()
 		r.connect()
 	}
 
 }
 
-func (r *remote) sendPing(ph *pingHelper) {
+func (r *Remote) sendPing(ph *pingHelper) {
 	for {
 
 		time.Sleep(time.Second * 45)
@@ -268,7 +291,7 @@ func (r *remote) sendPing(ph *pingHelper) {
 	}
 }
 
-func (r *remote) makeCoreConnectRequest() (*registration, error) {
+func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second*10)
 	if err != nil {
 		// panic(err)
@@ -302,32 +325,35 @@ func (r *remote) makeCoreConnectRequest() (*registration, error) {
 }
 
 // AddService attaches services to the remote and then attempts to start them
-func (r *remote) AddService(configPath string) (pid string, err error) {
+func (r *Remote) AddService(configPath string) (pid string, err error) {
 	service, err := r.serviceManager.AddServiceFromConfig(configPath)
 	if err != nil {
 		return "-1", errors.New("could not start service; error=" + err.Error())
 	}
-	return service.Start()
 
+	if os.Getenv("PMMODE") == "PMManaged" {
+		return service.Start("PMManaged")
+	}
+	return service.Start("")
 }
 
-// GetService returns all service pointers attached to the remote
-func (r *remote) GetServices() []*service.Service {
+// GetService returns all service pointers attached to the Remote
+func (r *Remote) GetServices() []*service.Service {
 	return r.serviceManager.GetAllServices()
 }
 
 // RestartAll services attached
-func (r *remote) RestartAll() {
+func (r *Remote) RestartAll() {
 	r.serviceManager.RestartAll()
 }
 
 // Restart service with id
-func (r *remote) Restart(id string) (pid string, err error) {
+func (r *Remote) Restart(id string) (pid string, err error) {
 	return r.serviceManager.Restart(id)
 }
 
 // LookupService returns the service with the id or returns error
-func (r *remote) LookupService(id string) (*service.Service, error) {
+func (r *Remote) LookupService(id string) (*service.Service, error) {
 	service, err := r.serviceManager.LookupByID(id)
 	if err != nil {
 		return nil, err
@@ -336,7 +362,7 @@ func (r *remote) LookupService(id string) (*service.Service, error) {
 }
 
 // notifyCore of shutdown
-func (r *remote) notifyCore() {
+func (r *Remote) notifyCore() {
 	notify.StdMsgBlue("sending notify to core")
 	if r.id == "" {
 		notify.StdMsgBlue("invalid id")
@@ -361,30 +387,6 @@ func (r *remote) notifyCore() {
 }
 
 /**********************************************************************************
-**** REFACTORED ABOVE THIS LINE
-**********************************************************************************/
-
-type container struct {
-	serv     *service.Service
-	reg      *registration
-	con      *rpc.Connection
-	to       time.Duration
-	mu       *sync.Mutex
-	coreAddr string
-
-	// closed is set true when shutdown procedures have been started
-	closed bool
-
-	id        string
-	forkError error
-
-	configPath *string
-	managed    *bool
-	embedded   *bool
-	daemon     *bool
-}
-
-/**********************************************************************************
 **** RPC server
 **********************************************************************************/
 
@@ -402,13 +404,21 @@ func (s *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.
 
 		r.pingHelpers = broadcast(r.pingHelpers)
 
-		if !r.closed {
+		if os.Getenv("PMMODE") == "PMManaged" {
+			go r.shutdown()
+		} else if !r.closed {
 			go func() {
 				r.disconnect()
 				r.connect()
 			}()
 		}
 		return response, nil
+	} else if in.GetAction() == "gmbh.shutdown" {
+
+		r.mu.Lock()
+		r.gmbhShutdown = true
+		r.mu.Unlock()
+		go r.serviceManager.NotifyGracefulShutdown()
 	}
 
 	return &cabal.ServiceUpdate{Message: "unimp"}, nil
@@ -583,6 +593,14 @@ func (s *ServiceManager) AddServiceFromConfig(configPath string) (*service.Servi
 	notify.StdMsgBlue("added " + newService.ID)
 
 	return newService, nil
+}
+
+// NotifyGracefulShutdown of all attached services
+func (s *ServiceManager) NotifyGracefulShutdown() {
+	notify.StdMsgBlue("sending graceful shutdown notices")
+	for _, v := range s.services {
+		v.EnableGracefulShutdown()
+	}
 }
 
 // GetAllServices returns the contents of the service map
