@@ -202,6 +202,9 @@ func getLogFile(desiredPathExt, filename string) (*os.File, error) {
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		os.Mkdir(dir, 0755)
 	}
+	if err != nil {
+		notify.LnBRedF("dir err=%s", err.Error())
+	}
 	// create the file
 	filePath := filepath.Join(dirPath, filename)
 	f, err := os.Create(filePath)
