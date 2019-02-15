@@ -229,13 +229,13 @@ func checkConfig(configPath string) bool {
 
 func checkInstall() bool {
 	if runtime.GOOS == "darwin" {
-		if _, err := os.Stat(defaults.CORE_PATH_MAC); os.IsNotExist(err) {
+		if _, err := os.Stat(os.Getenv("GOPATH") + "/bin/gmbhCore"); os.IsNotExist(err) {
 			return false
 		}
 		return true
 	} else if runtime.GOOS == "linux" {
 		notify.StdMsgErr("Linux support is incomplete")
-		if _, err := os.Stat(defaults.CORE_PATH_MAC); os.IsNotExist(err) {
+		if _, err := os.Stat(os.Getenv("GOPATH") + "/bin/gmbhCore"); os.IsNotExist(err) {
 			return false
 		}
 		return true
