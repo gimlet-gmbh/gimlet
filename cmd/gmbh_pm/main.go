@@ -24,12 +24,13 @@ func main() {
 	shutdownFlag := flag.Bool("q", false, "shutdown gmbh")
 
 	cli := flag.Bool("cli", false, "")
+	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
 
 	flag.Parse()
 
 	if !*cli {
 		notify.SetTag("[procm] ")
-		p := NewProcessManager("")
+		p := NewProcessManager("", *verbose)
 		err := p.Start()
 		if err != nil {
 			panic(err)

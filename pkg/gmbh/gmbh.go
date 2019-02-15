@@ -275,6 +275,7 @@ func (g *Client) connect() {
 	// that a thread has aready requested and received a valid registration
 	// and the current thread can be closed
 	if g.reg != nil {
+		notify.LnBRedF("cannot (re)connect reg != nil")
 		return
 	}
 
@@ -360,6 +361,7 @@ func (g *Client) failed() {
 	}
 
 	if !g.closed {
+		g.reg = nil
 		time.Sleep(time.Second * 2)
 		g.connect()
 	}
@@ -395,8 +397,24 @@ func (g *Client) sendPing(ph *pingHelper) {
 				notify.StdMsgErr(err.Error())
 			}
 
-			_, err = client.Alive(ctx, &cabal.Ping{Time: time.Now().Format(time.Stamp)})
-			if err == nil {
+			if g.reg == nil {
+				notify.LnRedF("invalid reg for ping")
+				return
+			}
+
+			response, err := client.Alive(ctx, &cabal.Ping{
+				Time: time.Now().Format(time.Stamp),
+				ID: &cabal.ID{
+					ID:      g.reg.id,
+					Address: g.reg.address,
+					Name:    g.conf.ServiceName,
+				},
+			})
+			if err != nil {
+				g.failed()
+				return
+			}
+			if response.Status.Sender == "core.verified" {
 				can()
 				notify.StdMsgBlue("<- pong")
 			} else {
@@ -672,7 +690,8 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 		return r, err
 
 	}
-	notify.StdMsgNoPrompt(" ==" + mcs + "==> result: " + reply.Resp.Result + ", errors?: " + reply.Resp.ErrorString)
+	// notify.StdMsgNoPrompt(" ==" + mcs + "==> result: " + reply.Resp.Result + ", errors?: " + reply.Resp.ErrorString)
+	notify.StdMsgNoPrompt(" ==" + mcs + "==> " + reply.String())
 
 	return responderFromProto(*reply.Resp), nil
 }

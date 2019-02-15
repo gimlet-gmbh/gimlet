@@ -42,15 +42,17 @@ type Core struct {
 	// Router controls all aspects of data requests & handling in Core
 	Router *Router
 
-	msgCounter int
-	startTime  time.Time
-	log        *notify.Log
-	mu         *sync.Mutex
+	msgCounter  int
+	startTime   time.Time
+	log         *notify.Log
+	mu          *sync.Mutex
+	verbose     bool
+	verboseData bool
 }
 
 // NewCore initializes settings of the core and instantiates the core struct which includes the
 // service router and handlers
-func NewCore(cPath string) (*Core, error) {
+func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 
 	// cannot reinit core once it has been created
 	if core != nil {
@@ -73,6 +75,7 @@ func NewCore(cPath string) (*Core, error) {
 		msgCounter:  1,
 		startTime:   time.Now(),
 		mu:          &sync.Mutex{},
+		verbose:     verbose,
 	}
 
 	if core.ProjectPath == "" {
@@ -211,22 +214,33 @@ func (c *Core) scanForServices(baseDir string) ([]string, error) {
 func (c *Core) launchService(validConfigPath string) {
 	c.vi("launching service")
 
-	cmd := exec.Command("gmbh", "--container", "--config="+validConfigPath)
+	args := []string{"--container", "--config=" + validConfigPath}
+
+	if c.verbose {
+		args = append(args, "--verbose")
+	}
+
+	cmd := exec.Command("gmbh", args...)
 	cmd.Env = append(os.Environ(),
 		"GMBHCORE="+c.con.Address,
 		"GMBHMODE="+"Managed",
 	)
 
-	c.vi("log=%s", c.ProjectPath+"/pm.log")
-	file, err := os.OpenFile(c.ProjectPath+"pm.log", os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
-	if err == nil {
-		cmd.Stdout = file
-		cmd.Stderr = file
-	} else {
-		c.ve("err creating file: %s", err.Error())
+	if c.verbose {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	}
 
-	err = cmd.Start()
+	// c.vi("log=%s", c.ProjectPath+"/pm.log")
+	// file, err := os.OpenFile(c.ProjectPath+"pm.log", os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	// if err == nil {
+	// 	cmd.Stdout = file
+	// 	cmd.Stderr = file
+	// } else {
+	// 	c.ve("err creating file: %s", err.Error())
+	// }
+
+	err := cmd.Start()
 	if err != nil {
 		c.ve("could not start remote")
 	}
@@ -345,7 +359,8 @@ type Router struct {
 
 // NewRouter instantiates and returns a new Router structure
 func NewRouter() *Router {
-	return &Router{
+
+	r := &Router{
 		services:     make(map[string]*GmbhService),
 		serviceNames: make([]string, 0),
 		idCounter:    100,
@@ -357,6 +372,10 @@ func NewRouter() *Router {
 		mu:      &sync.Mutex{},
 		verbose: true,
 	}
+
+	go r.pingHandler()
+
+	return r
 }
 
 // LookupService looks through the services map and returns the service if it exists
@@ -388,6 +407,7 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 		if s.State == Shutdown {
 			r.v("state is reported as shutdown")
 			r.v("acting as if this is the same service")
+			s.UpdateState(Running)
 			return s, nil
 		}
 	}
@@ -401,6 +421,28 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 
 	r.v("added service=%s", newService.String())
 	return newService, nil
+}
+
+// Verify a ping
+func (r *Router) Verify(name, id, address string) error {
+	s := r.services[name]
+	if s == nil {
+		return errors.New("verify.notFound")
+	}
+	if s.ID != id {
+		return errors.New("verify.badID")
+	}
+	if s.Address != address {
+		return errors.New("verify.badAddress")
+	}
+	if s.State == Shutdown {
+		return errors.New("verify.reportedShutdown")
+	}
+	if s.State == Unresponsive {
+		s.UpdateState(Running)
+	}
+	s.LastPing = time.Now()
+	return nil
 }
 
 // addToMap returns an error if there is a name or alias conflict with an existing
@@ -432,6 +474,22 @@ func (r *Router) addToMap(newService *GmbhService) error {
 	r.v("added %s to map", newService.Name)
 
 	return nil
+}
+
+// pingHandler looks through each of the remotes in the map. if it has been more than n amount of
+// time since a remote has sent a ping, it will be pinged. If the ping is not retured after n more
+// seconds, the remote will be marked as Failed After n amount of time, failed remotes will
+// be removed from the map
+func (r *Router) pingHandler() {
+	for {
+		time.Sleep(time.Second * 180)
+		for _, s := range r.serviceNames {
+			if time.Since(r.services[s].LastPing) > time.Second*90 {
+				r.v("marking name=%s; id=%s as Unresponsive", s, r.services[s].ID)
+				r.services[s].UpdateState(Unresponsive)
+			}
+		}
+	}
 }
 
 func (r *Router) assignNextID() string {
@@ -491,6 +549,9 @@ type GmbhService struct {
 	// The last known state of the service
 	State State
 
+	// The last time a ping was received
+	LastPing time.Time
+
 	mu *sync.Mutex
 }
 
@@ -501,22 +562,23 @@ func (g *GmbhService) String() string {
 // NewService returns a gmbhService object with data filled in
 func NewService(id string, name string, aliases []string, address string) *GmbhService {
 	return &GmbhService{
-		ID:      id,
-		Name:    name,
-		Aliases: aliases,
-		Address: address,
-		Added:   time.Now(),
-		State:   Running,
-		mu:      &sync.Mutex{},
+		ID:       id,
+		Name:     name,
+		Aliases:  aliases,
+		Address:  address,
+		Added:    time.Now(),
+		State:    Running,
+		LastPing: time.Now().Add(time.Hour),
+		mu:       &sync.Mutex{},
 	}
 }
 
-// MarkShutdown as the current state of the service
-func (g *GmbhService) MarkShutdown() {
+// UpdateState of the current state of the service
+func (g *GmbhService) UpdateState(s State) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.v("marking %s(%s) as %s", g.Name, g.ID, Shutdown.String())
-	g.State = Shutdown
+	g.v("marking %s(%s) as %s", g.Name, g.ID, s.String())
+	g.State = s
 }
 
 // v verbose printer
@@ -534,6 +596,9 @@ const (
 	// Shutdown notice received from remote
 	Shutdown
 
+	// Unresponsive if the service has not sent a ping in greater than some amount of time
+	Unresponsive
+
 	// Failed to return a pong
 	Failed
 )
@@ -541,6 +606,7 @@ const (
 var states = [...]string{
 	"Running",
 	"Shutdown",
+	"Unresponsive",
 	"Failed",
 }
 

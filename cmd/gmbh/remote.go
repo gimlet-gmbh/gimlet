@@ -92,6 +92,12 @@ func newRemote(coreAddress string, verbose bool) (*remote, error) {
 		mu:             &sync.Mutex{},
 	}
 
+	if verbose {
+		notify.LnBYellowF("                      _                       ")
+		notify.LnBYellowF("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
+		notify.LnBYellowF(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
+		notify.LnBYellowF("  _|                                          ")
+	}
 	return r, nil
 }
 
@@ -282,9 +288,6 @@ func (r *remote) makeCoreConnectRequest() (*registration, error) {
 		// notify.StdMsgErr("updateServiceRegistration err=(" + err.Error() + ")")
 		return nil, errors.New("registration.Unavailable")
 	}
-
-	fmt.Println("reply is")
-	fmt.Println(*reply)
 
 	if reply.GetMessage() != "registered" {
 		return nil, errors.New(reply.GetMessage())
@@ -485,7 +488,7 @@ func serviceToRPC(s *service.Service) *cabal.Service {
 		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
 		LogPath:   "-",
-		Pid:       0,
+		Pid:       int32(procRuntime.PID),
 		Fails:     int32(procRuntime.Fails),
 		Restarts:  int32(procRuntime.Restarts),
 		StartTime: procRuntime.StartTime.Format(time.RFC3339),

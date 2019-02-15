@@ -196,11 +196,13 @@ message S2S {
 message DataReq {
     // The Cabal Request object
     Request Req = 1;
+    Status status = 3;
 }
 
 message DataResp {
     // The Cabal Response object
     Responder Resp = 1;
+    Status status = 3;
 }
 
 message Request{
@@ -364,8 +366,19 @@ message Action {
 message Ping {
     string Time = 1;
     string FromID = 2;
+
+    ID ID = 3;
 }
 
 message Pong {
     string Time = 1;
+    Status Status = 2;
+
+    ID ID = 3;
+}
+
+message ID {
+    string ID = 1;
+    string Address = 2;
+    string Name = 3;
 }

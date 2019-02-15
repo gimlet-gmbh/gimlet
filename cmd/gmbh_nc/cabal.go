@@ -6,12 +6,15 @@ import (
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/rpc"
 )
 
 func v(msg string) {
 	notify.StdMsgBlueNoPrompt(" [cbl] " + msg)
 
 }
+
+var cnt int
 
 // cabalServer is for gRPC interface for the gmbhCore service coms server
 type cabalServer struct{}
@@ -43,12 +46,36 @@ func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.Re
 }
 
 func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
-	return &cabal.DataResp{}, nil
-	// reqHandler := newRequestHandler(in.GetReq())
-	// reqHandler.Fulfill()
+	t := time.Now()
+	defer func() { cnt++ }()
+	request := in.GetReq()
+	rd("-%d-> Data request: %s", cnt, request.String())
 
-	// return &cabal.DataResp{Resp: reqHandler.GetResponder()}, nil
-	return nil, nil
+	c, err := GetCore()
+	if err != nil {
+		rd("<-%d- could not get core error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "internal server error"}}, nil
+	}
+
+	fwd, err := c.Router.LookupService(request.GetTarget())
+	if err != nil {
+		rd("<-%d- service not found error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "service not found"}}, nil
+	}
+
+	client, ctx, can, err := rpc.GetCabalRequest(fwd.Address, time.Second*2)
+	if err != nil {
+		rd("<-%d- rpc error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "internal server error"}}, nil
+	}
+	defer can()
+	final, err := client.MakeDataRequest(ctx, in)
+	if err != nil {
+		rd("<-%d- could not forward error=%s", cnt, err.Error())
+		return &cabal.DataResp{Status: &cabal.Status{Sender: "gmbh-core", Error: "could not forward"}}, nil
+	}
+	rd("<-%d-  elapsed time=%s", cnt, time.Since(t))
+	return final, nil
 }
 
 func (s *cabalServer) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
@@ -72,7 +99,7 @@ func (s *cabalServer) UnregisterService(ctx context.Context, in *cabal.Unregiste
 		}, nil
 	}
 
-	service.MarkShutdown()
+	service.UpdateState(Shutdown)
 
 	return &cabal.UnregisterResp{
 		Ack: true,
@@ -96,7 +123,17 @@ func (s *cabalServer) UpdateServiceRegistration(ctx context.Context, in *cabal.S
 }
 
 func (s *cabalServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
-	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+	id := ping.GetID()
+	c, err := GetCore()
+	if err != nil {
+		return &cabal.Pong{Status: &cabal.Status{Error: "internal server error"}}, nil
+	}
+	err = c.Router.Verify(id.GetName(), id.GetID(), id.GetAddress())
+	if err != nil {
+		rve("could not verify ping from id=%s; err=%s", id.GetID(), err.Error())
+		return &cabal.Pong{Status: &cabal.Status{Sender: "core.NotVerified"}}, nil
+	}
+	return &cabal.Pong{Time: time.Now().Format(time.Stamp), Status: &cabal.Status{Sender: "core.verified"}}, nil
 }
 
 func rv(msg string, a ...interface{}) {
@@ -110,51 +147,3 @@ func rd(msg string, a ...interface{}) {
 func rve(msg string, a ...interface{}) {
 	notify.LnRedF("[rpc] "+msg, a...)
 }
-
-// //////////////////////////////////////////////////////////////////////////////////////////
-// // Converters
-// //////////////////////////////////////////////////////////////////////////////////////////
-
-// // ServiceToRPC translates one service to cabal form
-// func ServiceToRPC(s service.Service) *cabal.Service {
-
-// 	r := &cabal.Service{
-// 		Id:      s.ID,
-// 		Name:    s.Static.Name,
-// 		Path:    s.Path,
-// 		LogPath: s.Path + defaults.SERVICE_LOG_PATH + defaults.SERVICE_LOG_FILE,
-// 	}
-
-// 	if s.Mode == service.Managed {
-
-// 		info := s.Process.GetInfo()
-
-// 		r.Pid = int32(info.PID)
-// 		r.Fails = int32(info.Fails)
-// 		r.Address = s.Address
-// 		r.Restarts = int32(info.Restarts)
-// 		r.StartTime = info.StartTime.Format(time.RFC3339)
-// 		r.FailTime = info.DeathTime.Format(time.RFC3339)
-// 		r.Errors = s.Process.GetErrors()
-
-// 		r.Mode = "managed"
-// 		switch s.Process.GetStatus() {
-// 		case process.Stable:
-// 			r.Status = "Stable"
-// 		case process.Running:
-// 			r.Status = "Running"
-// 		case process.Failed:
-// 			r.Status = "Failed"
-// 		case process.Killed:
-// 			r.Status = "Killed"
-// 		}
-// 	} else if s.Mode == service.Remote {
-// 		r.Mode = "remote"
-// 		r.Status = "-"
-// 	}
-// 	return r
-// }
-
-// func serviceToStruct() *service.Service {
-// 	return nil
-// }

@@ -42,14 +42,29 @@ var c *container
 
 // var configs configFlags
 
+type configFlags []string
+
+func (i *configFlags) String() string {
+	return "config path arrray array"
+}
+
+func (i *configFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
+var configPaths configFlags
+
 func main() {
 
 	notify.SetTag(defaults.CLI_PROMPT)
 	notify.SetVerbose(defaults.VERBOSE)
 	daemon := flag.Bool("d", defaults.DAEMON, "daemon mode")
+	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
 	containerMode := flag.Bool("container", false, "container mode")
 
-	configPath := flag.String("config", "", "relative path to gmbh-service config file")
+	flag.Var(&configPaths, "config", "list to config files")
+
 	// configPaths := flag.Var(&configs, "config", "relative path")
 	// managed := flag.Bool("m", false, "run service in managed mode")
 	// embedded := flag.Bool("e", false, "is the service being managed inside of a container")
@@ -58,19 +73,21 @@ func main() {
 
 	if *containerMode {
 		notify.LnBRedF("[remote] env=%s", os.Getenv("GMBHCORE"))
-		startRemote(*configPath)
+		startRemote(configPaths, *verbose)
 	} else {
 		startCore(*daemon)
 	}
 }
 
-func startRemote(config string) {
-	rem, _ := newRemote(defaults.PM_ADDRESS, true)
-	pid, err := rem.AddService(config)
-	if err != nil {
-		notify.StdMsgErr("could not start service; err=" + err.Error())
-	} else {
-		notify.StdMsgBlue("service started; pid=" + pid)
+func startRemote(config configFlags, v bool) {
+	rem, _ := newRemote(defaults.PM_ADDRESS, v)
+	for _, path := range config {
+		pid, err := rem.AddService(path)
+		if err != nil {
+			notify.StdMsgErr("could not start service; err=" + err.Error())
+		} else {
+			notify.StdMsgBlue("service started; pid=" + pid)
+		}
 	}
 	rem.Start()
 }

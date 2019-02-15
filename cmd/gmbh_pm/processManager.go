@@ -67,8 +67,9 @@ type ProcessManager struct {
 	// Router manages all addresses and instances of remotes
 	router *Router
 
-	Log    *notify.Log
-	ErrLog *notify.Log
+	Log     *notify.Log
+	ErrLog  *notify.Log
+	verbose bool
 }
 
 var procm *ProcessManager
@@ -76,7 +77,7 @@ var procm *ProcessManager
 // NewProcessManager instantiates a new pm if one has not already been created. Note that this
 // should be assigned to a global instance to interface with the rpc server. The rpc server should
 // then use the GetProcM function to ensure that the global has not fallen out of scope.
-func NewProcessManager(configFile string) *ProcessManager {
+func NewProcessManager(configFile string, v bool) *ProcessManager {
 
 	// Make sure that it is never allowed to overrite once already instantiated
 	if procm != nil {
@@ -92,6 +93,7 @@ func NewProcessManager(configFile string) *ProcessManager {
 		Address:   defaults.PM_ADDRESS,
 		router:    NewRouter(),
 		mode:      Dev,
+		verbose:   v,
 		// Log: notify.NewLogFile()
 	}
 
