@@ -31,11 +31,11 @@ install-procm:
 
 
 deps:
-	$(GOGET) github.com/fatih/color
-	$(GOGET) google.golang.org/grpc
-	$(GOGET) gopkg.in/yaml.v2
-	$(GOGET) github.com/golang/protobuf/proto
-	$(GOGET) github.com/golang/protobuf/protoc-gen-go 
+	$(GOGET) -u github.com/golang/protobuf/proto
+	$(GOGET) -u github.com/golang/protobuf/protoc-gen-go 
+	$(GOGET) -u google.golang.org/grpc
+	$(GOGET) -u github.com/fatih/color
+	$(GOGET) -u gopkg.in/yaml.v2
 	
 clean: 
 	rm -f ./bin/$(BINARY_NAME)
