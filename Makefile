@@ -23,11 +23,11 @@ build-procm:
 	$(GOBUILD) -o ./bin/$(PROCM_BINARY) ./cmd/gmbhProcm/*.go
 
 install-cli:
-	cp bin/$(CLI_BINARY) /usr/local/bin/
+	cp bin/$(CLI_BINARY) ${GOPATH}/bin
 install-core:
-	cp bin/$(CORE_BINARY) /usr/local/bin/
+	cp bin/$(CORE_BINARY) ${GOPATH}/bin
 install-procm:
-	cp bin/$(PROCM_BINARY) /usr/local/bin/
+	cp bin/$(PROCM_BINARY) ${GOPATH}/bin
 
 
 deps:

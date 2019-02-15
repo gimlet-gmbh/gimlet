@@ -8,7 +8,7 @@
 
 if [ $GOPATH == ""]; then
     echo "GOPATH must be set before installing gmbh packages."
-    echo "To set to the default GOPATH add \`export GOPATH=\$HOME/go\` to your bash profile"
+    echo "\"\$GOPATH/bin\" must also be set to run gmbh from the command line."
     exit
 fi
 
@@ -32,7 +32,7 @@ echo "building gmbhProcm"
 go build -v -o ./bin/gmbhProcm ./cmd/gmbhProcm/*.go
 
 ## Copy to bin
-echo "copying files to /usr/local/bin"
-cp ./bin/gmbh* /usr/local/bin
+echo "copying files to $GOPATH/bin"
+cp ./bin/gmbh* $GOPATH/bin
 
 echo "done"
