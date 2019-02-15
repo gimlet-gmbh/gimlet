@@ -199,27 +199,11 @@ func getLogFile(desiredPathExt, filename string) (*os.File, error) {
 	}
 	// make sure that the path extension exists or make the directories needed
 	dirPath := filepath.Join(dir, desiredPathExt)
-	_, err = os.Stat(dirPath)
-	if os.IsNotExist(err) {
-
-	}
-	if err != nil {
-		notify.LnBRedF("dir err=%s", err.Error())
-		err2 := os.Mkdir(dir, 0755)
-		if err2 != nil {
-			notify.LnBRedF("mkdir err=%s", err2.Error())
-		} else {
-			notify.LnBRedF("no mkdir err")
-		}
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		os.Mkdir(dirPath, 0755)
 	}
 	// create the file
 	filePath := filepath.Join(dirPath, filename)
-	f, err := os.Create(filePath)
-	if err != nil {
-		notify.LnBRedF("create err=%s", err.Error())
-		return nil, err
-	}
-	return f, nil
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		notify.LnBRedF("openfile err=%s", err.Error())
