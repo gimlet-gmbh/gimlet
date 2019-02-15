@@ -194,6 +194,7 @@ func getLogFile(desiredPathExt, filename string) (*os.File, error) {
 	// get pwd
 	dir, err := os.Getwd()
 	if err != nil {
+		notify.LnBRedF("getlogfile, pwd err=%s", err.Error())
 		return nil, err
 	}
 	// make sure that the path extension exists or make the directories needed
@@ -205,6 +206,7 @@ func getLogFile(desiredPathExt, filename string) (*os.File, error) {
 	filePath := filepath.Join(dirPath, filename)
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		notify.LnBRedF("openfile err=%s", err.Error())
 		return nil, err
 	}
 	return file, nil
