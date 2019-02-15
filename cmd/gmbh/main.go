@@ -204,6 +204,12 @@ func getLogFile(desiredPathExt, filename string) (*os.File, error) {
 	}
 	// create the file
 	filePath := filepath.Join(dirPath, filename)
+	f, err := os.Create(filePath)
+	if err != nil {
+		notify.LnBRedF("create err=%s", err.Error())
+		return nil, err
+	}
+	return f, nil
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		notify.LnBRedF("openfile err=%s", err.Error())
