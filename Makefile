@@ -38,6 +38,6 @@ deps:
 	$(GOGET) -u gopkg.in/yaml.v2
 	
 clean: 
-	rm -f ./bin/$(BINARY_NAME)
+	rm -f ./bin/*
 
 .PONY:

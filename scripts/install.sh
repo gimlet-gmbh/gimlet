@@ -14,14 +14,25 @@ fi
 
 ./link_packages.sh
 cd ../
-make deps
 
+## Install Deps
+echo "installing deps"
+go get github.com/golang/protobuf/proto
+go get github.com/golang/protobuf/protoc-gen-go 
+go get google.golang.org/grpc
+go get github.com/fatih/color
+go get gopkg.in/yaml.v2
 
-## Experiment for protoc
-# cd ../internal/cabal
-# rm cabal.pb.go
-# ./build.sh
-# cd ../../
+## Build Binaries
+echo "building gmbh"
+go build -v -o ./bin/gmbh ./cmd/gmbh/*.go
+echo "building gmbhCore"
+go build -v -o ./bin/gmbhCore ./cmd/gmbhCore/*.go
+echo "building gmbhProcm"
+go build -v -o ./bin/gmbhProcm ./cmd/gmbhProcm/*.go
 
+## Copy to bin
+echo "copying files to /usr/local/bin"
+cp ./bin/gmbh* /usr/local/bin
 
-make
+echo "done"
