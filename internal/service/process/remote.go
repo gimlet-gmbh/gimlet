@@ -3,8 +3,8 @@ package process
 import (
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
 )
 
 // RemoteManager ; remote process manager;  holds data about remote process.Manager
@@ -31,17 +31,16 @@ func (c *RemoteManager) RestartProcess() (string, error) {
 	}
 	defer can()
 
-	request := &cabal.Action{
-		Sender: "gmbh-core",
-		Target: c.Name,
-		Action: "service.restart",
+	request := &intrigue.Action{
+		Request: "service.restart.one",
+		Target:  c.ID,
 	}
 
-	response, err := client.RequestRemoteAction(ctx, request)
+	response, err := client.NotifyAction(ctx, request)
 	if err != nil {
 		return "-1", err
 	}
-	return response.GetStatus(), nil
+	return response.GetMessage(), nil
 }
 
 // GetInfo about the remote process

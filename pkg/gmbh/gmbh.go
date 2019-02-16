@@ -186,8 +186,8 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		filename := os.Getenv("LOGNAME") + "-client.log"
 		g.outputFile, err = notify.GetLogFileWithPath(path, filename)
 		g.outputmu = &sync.Mutex{}
-		// os.Stdout = g.outputFile
-		// os.Stderr = g.outputFile
+		os.Stdout = g.outputFile
+		os.Stderr = g.outputFile
 		if err != nil {
 			g.printer("could not create log at path=%s", filepath.Join(path+filename))
 		}
@@ -223,31 +223,29 @@ func (g *Client) Start() {
 
 func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
 
 	if os.Getenv("PMMODE") == "PMManaged" {
 		g.printer("PPManaged mode; ignoring sigint")
 		signal.Ignore(syscall.SIGINT)
+		signal.Notify(sigs, syscall.SIGUSR2)
 	} else {
 		g.printer("using sigint")
 		signal.Notify(sigs, syscall.SIGINT)
 	}
-	go func() {
-		_ = <-sigs
-		done <- true
-	}()
 
 	g.printer("------------------------------------------------------------")
 	g.printer("started, time=" + time.Now().Format(time.RFC3339))
 
 	go g.connect()
 
-	<-done
-	g.Shutdown()
+	_ = <-sigs
+	g.printer("signal received")
+	g.Shutdown(true)
 }
 
 // Shutdown starts shutdown procedures
-func (g *Client) Shutdown() {
+func (g *Client) Shutdown(forceExit bool) {
+	g.printer("Shutdown procedures started in client")
 	g.mu.Lock()
 	g.closed = true
 	g.reg = nil
@@ -255,17 +253,19 @@ func (g *Client) Shutdown() {
 	g.mu.Unlock()
 
 	g.makeUnregisterRequest()
-
 	g.disconnect()
 
-	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
+	// g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
 	g.printer("mode=%s", os.Getenv("GMBHMODE"))
 	if os.Getenv("GMBHMODE") == "Managed" {
 		g.printer("os.exit in 3s")
 		time.Sleep(time.Second * 3)
 		os.Exit(0)
 	}
-	g.printer("restarting client")
+	if forceExit {
+		g.printer("force os.exit(0)")
+		os.Exit(0)
+	}
 	return
 }
 
@@ -372,7 +372,7 @@ func (g *Client) disconnect() {
 		g.con.Server = nil
 		g.con.SetAddress("-")
 	} else {
-		g.printer("con should not be nil in disconnect")
+		g.printer("con is nil")
 	}
 	g.reg = nil
 	g.mu.Unlock()
@@ -829,7 +829,7 @@ func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.Servi
 		// either shutdown for real or disconnect and try and reach again if
 		// the service wasn't forked from gmbh-core
 		if os.Getenv("GMBHMODE") == "Managed" {
-			go g.Shutdown()
+			go g.Shutdown(true)
 		} else if !g.closed {
 			go func() {
 				g.disconnect()

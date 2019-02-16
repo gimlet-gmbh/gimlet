@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
 )
 
 // Mode controls whether new processes can be attached during runtime or if they must be
@@ -187,12 +187,12 @@ func (p *ProcessManager) LookupRemote(id string) (*RemoteServer, error) {
 }
 
 // RestartRemote restarts a remote with id=id and if not found returns an error
-func (p *ProcessManager) RestartRemote(id string) error {
-	r, err := p.router.LookupRemote(id)
+func (p *ProcessManager) RestartRemote(parent, target string) error {
+	r, err := p.router.LookupRemote(parent)
 	if err != nil {
 		return nil
 	}
-	return p.sendRestart(r)
+	return p.sendRestart(r.Address, r.ID, false)
 }
 
 // RestartAll sends an rpc restart request to all remotes
@@ -200,7 +200,7 @@ func (p *ProcessManager) RestartAll() []error {
 	all := p.router.GetAllAttached()
 	errors := []error{}
 	for _, r := range all {
-		err := p.sendRestart(r)
+		err := p.sendRestart(r.Address, "", true)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -216,20 +216,22 @@ func (p *ProcessManager) RestartAll() []error {
 }
 
 // sendRestart sends a restart request to a remote
-func (p *ProcessManager) sendRestart(remote *RemoteServer) error {
-	notify.StdMsgBlue("sending restart request to " + remote.ID)
+func (p *ProcessManager) sendRestart(address, id string, all bool) error {
+	notify.StdMsgBlue("sending restart request to " + id)
 
-	client, ctx, can, err := rpc.GetRemoteRequest(remote.Address, time.Second*2)
+	client, ctx, can, err := rpc.GetRemoteRequest(address, time.Second*2)
 	if err != nil {
 		return err
 	}
-	action := &cabal.Action{
-		Sender:  "gmbh-core",
-		Target:  remote.ID,
-		Action:  "service.restart",
-		Message: "all",
+
+	action := &intrigue.Action{
+		Request: "service.restart.one",
+		Target:  id,
 	}
-	_, err = client.RequestRemoteAction(ctx, action)
+	if all {
+		action.Request = "service.restart.all"
+	}
+	_, err = client.NotifyAction(ctx, action)
 	if err != nil {
 		return err
 	}
@@ -250,12 +252,10 @@ func (p *ProcessManager) sendGmbhShutdown() {
 		if err != nil {
 			return
 		}
-		update := &cabal.ServiceUpdate{
-			Sender: "gmbh-core",
-			Target: r.ID,
-			Action: "gmbh.shutdown",
+		update := &intrigue.ServiceUpdate{
+			Request: "gmbh.shutdown",
 		}
-		_, err = client.UpdateServiceRegistration(ctx, update)
+		_, err = client.UpdateRegistration(ctx, update)
 		if err != nil {
 			return
 		}
@@ -272,12 +272,10 @@ func (p *ProcessManager) sendShutdown() {
 		if err != nil {
 			return
 		}
-		update := &cabal.ServiceUpdate{
-			Sender: "gmbh-core",
-			Target: r.ID,
-			Action: "core.shutdown",
+		update := &intrigue.ServiceUpdate{
+			Request: "core.shutdown",
 		}
-		_, err = client.UpdateServiceRegistration(ctx, update)
+		_, err = client.UpdateRegistration(ctx, update)
 		if err != nil {
 			return
 		}

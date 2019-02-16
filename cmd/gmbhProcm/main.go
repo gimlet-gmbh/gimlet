@@ -30,6 +30,7 @@ func main() {
 
 	// start a remote process manager
 	if *remoteMode {
+		notify.SetTag("[remote] ")
 		rem, _ := remote.NewRemote(defaults.PM_ADDRESS, *verbose)
 		for _, path := range configPaths {
 			pid, err := rem.AddService(path)

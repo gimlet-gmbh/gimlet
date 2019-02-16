@@ -20,6 +20,7 @@ func main() {
 	// modes
 	remote := flag.Bool("remote", false, "begin a gmbhRemote service; must specify a config file")
 	core := flag.Bool("core", false, "begin a gmbhCore instance; must specify a config file")
+	serviceDiscovery := flag.Bool("sd", false, "start managed processes")
 
 	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
 	verbosedata := flag.Bool("verbose-data", false, "print gmbhData output to stdOut and stdErr")
@@ -40,8 +41,9 @@ func main() {
 	if *remote {
 		startRemote(*config)
 	} else if *core {
-		startCore(*config, *verbose, *verbosedata, *daemon, *nolog)
-
+		startCore(*config, *verbose, *verbosedata, *daemon, *nolog, *serviceDiscovery)
+	} else if *serviceDiscovery {
+		startServiceDiscovery(*config, *verbose, *daemon)
 	} else if *listAllFlag {
 		listAll()
 	} else if *reportFlag {
@@ -60,11 +62,44 @@ func main() {
 
 }
 
+func startServiceDiscovery(config string, verbose, daemon bool) {
+	userConfig, err := ParseUserConfig(config)
+	if err != nil {
+		notify.LnBRedF("could not parse config; err=%s", err.Error())
+		return
+	}
+	path := filepath.Join(basePath(config), userConfig.ServicesDirectory)
+	servicePaths, err := scanForServices(path)
+	if err != nil {
+		notify.LnBRedF("error scanning for services; err=%s", err.Error())
+		return
+	}
+
+	// Create and attach all services that run in Managed mode
+	for _, servicePath := range servicePaths {
+
+		// notify.LnBYellowF("scanning dir=%s", servicePath)
+		configPath := filepath.Join(servicePath, "gmbh.yaml")
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			notify.LnBYellowF("could not find config file, skipping")
+			continue
+		}
+		launchService(servicePath, configPath, defaults.DEFAULT_HOST+defaults.DEFAULT_PORT, verbose)
+	}
+	// sig := make(chan os.Signal, 1)
+	// signal.Notify(sig, syscall.SIGINT)
+
+	// notify.LnBBlueF("holding until shutdown signal")
+	// _ = <-sig
+	// fmt.Println() //dead line to line up output
+
+}
+
 func startRemote(c string) {
 
 }
 
-func startCore(c string, verbose, vdata, daemon, nolog bool) {
+func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 	report()
 
 	installed := checkInstall()
@@ -149,6 +184,10 @@ func startCore(c string, verbose, vdata, daemon, nolog bool) {
 	if err != nil {
 		notify.LnBRedF("could not start gmbh-data")
 		return
+	}
+
+	if serviceDiscovery {
+		go startServiceDiscovery(c, verbose, daemon)
 	}
 
 	if !daemon {
@@ -245,9 +284,13 @@ func checkInstall() bool {
 }
 
 func report() {
-	notify.LnBCyanF("                   ")
-	notify.LnBCyanF("  _  ._ _  |_  |_| ")
-	notify.LnBCyanF(" (_| | | | |_) | | ")
-	notify.LnBCyanF("  _|               ")
+	// notify.LnBCyanF("                   ")
+	// notify.LnBCyanF("  _  ._ _  |_  |_| ")
+	// notify.LnBCyanF(" (_| | | | |_) | | ")
+	// notify.LnBCyanF("  _|               ")
+	notify.LnBCyanF("                    __                                                ")
+	notify.LnBCyanF("  _  ._ _  |_  |_  (_   _  ._   o  _  _  |   _.     ._   _ |_   _  ._ ")
+	notify.LnBCyanF(" (_| | | | |_) | | __) (/_ | \\/ | (_ (/_ |_ (_| |_| | | (_ | | (/_ |  ")
+	notify.LnBCyanF("  _|                                                                  ")
 	notify.LnBCyanF("Version=%s; Code=%s", defaults.VERSION, defaults.CODE)
 }

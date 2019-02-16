@@ -14,9 +14,10 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gmbh-micro/cabal"
+	"github.com/gmbh-micro/rpc/intrigue"
 )
 
-func reportOne(p *cabal.Service, h string) {
+func reportOne(p *intrigue.Service, h string) {
 	fmt.Println(h + getBoxTop(p.Name, 38))
 	fmt.Println(h + getBoxLine(formatLine("ID", p.Id, ":")))
 	if p.Pid != 0 {
@@ -53,7 +54,7 @@ func reportOne(p *cabal.Service, h string) {
 	fmt.Println()
 }
 
-func reportCluster(c *cabal.ProcessManager) {
+func reportCluster(c *intrigue.ProcessManager) {
 	fmt.Println(getBoxTop(c.ID, 42))
 	fmt.Println(getBoxLine(formatLine("Address", c.Address, ":")))
 	fmt.Println(getBoxLine(formatLine("Services", "", "")))
@@ -84,13 +85,13 @@ func getBoxLine(data string) string {
 	return fmt.Sprintf(" \u2502 %-38s %s", data, end)
 }
 
-func pprintListOne(pm []*cabal.ProcessManager) {
+func pprintListOne(pm []*intrigue.ProcessManager) {
 	for _, r := range pm {
 		reportCluster(r)
 	}
 }
 
-func pprintListAll(remote []*cabal.ProcessManager) {
+func pprintListAll(remote []*intrigue.ProcessManager) {
 	fmt.Println(reportRemoteHeader())
 	for _, p := range remote {
 		for _, s := range p.GetServices() {
@@ -174,7 +175,7 @@ func reportRemoteHeader() string {
 	))
 }
 
-func reportRemote(p *cabal.Service, nid string) string {
+func reportRemote(p *intrigue.Service, nid string) string {
 	return fmt.Sprintf(" %-8s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s ",
 		p.Id,
 		getStatus(p.Status),

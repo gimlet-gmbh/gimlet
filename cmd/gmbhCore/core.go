@@ -4,14 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -85,10 +81,14 @@ func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 		return nil, errors.New("config path error")
 	}
 
-	notify.LnCyanF("                    _           ")
-	notify.LnCyanF("  _  ._ _  |_  |_| /   _  ._ _  ")
-	notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_")
-	notify.LnCyanF("  _|                            ")
+	// notify.LnCyanF("                    _           ")
+	// notify.LnCyanF("  _  ._ _  |_  |_| /   _  ._ _  ")
+	// notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_")
+	// notify.LnCyanF("  _|                            ")
+	notify.LnCyanF("                    _            _              ")
+	notify.LnCyanF("  _  ._ _  |_  |_| /   _  ._ _  | \\  _. _|_  _. ")
+	notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_ |_/ (_|  |_ (_| ")
+	notify.LnCyanF("  _|                                            ")
 	notify.LnCyanF("version=%v; code=%v; startTime=%s", core.Version, core.Code, core.startTime.Format(time.Stamp))
 
 	return core, nil
@@ -111,7 +111,7 @@ func (c *Core) Start() {
 	}
 	c.v("connected; address=%s", c.con.Address)
 
-	c.serviceDiscovery()
+	// c.serviceDiscovery()
 
 	c.Wait()
 }
@@ -134,132 +134,6 @@ func (c *Core) Wait() {
 	fmt.Println() //dead line to line up output
 
 	c.shutdown(false)
-}
-
-// serviceDiscovery scans all directories in the ./service folder looking for gmbh config files
-func (c *Core) serviceDiscovery() {
-
-	path := c.ProjectPath + "/" + c.config.ServicesDirectory
-	c.vi("path=%s", path)
-
-	servicePaths, err := c.scanForServices(path)
-	if err != nil {
-		c.ve("could not read service directory specified in config file")
-		return
-	}
-
-	// Create and attach all services that run in Managed mode
-	for _, servicePath := range servicePaths {
-
-		c.vi("scanning dir=%s", servicePath)
-		configPath := filepath.Join(servicePath, "gmbh.yaml")
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			c.ve("could not find config file, skipping")
-			continue
-		}
-		c.launchService(servicePath, configPath)
-	}
-
-}
-
-// scanForServices scans for directories (or symbolic links to directories)
-// that containa gmbh config file and returns an array of absolute paths
-// to any found directories that contain the config file
-// TODO: Need to verify that we are getting the correct yaml file
-// if there are several yaml files and if there are no yaml
-func (c *Core) scanForServices(baseDir string) ([]string, error) {
-	servicePaths := []string{}
-
-	baseDirFiles, err := ioutil.ReadDir(baseDir)
-	if err != nil {
-		return servicePaths, errors.New("could not scan base directory: " + err.Error())
-	}
-
-	for _, file := range baseDirFiles {
-
-		// eval symbolic links
-		fpath := baseDir + "/" + file.Name()
-		potentialSymbolic, err := filepath.EvalSymlinks(fpath)
-		if err != nil {
-			notify.StdMsgErr(err.Error(), 0)
-			continue
-		}
-
-		// If it wasn't a symbolic path check if it was a dir, skip if not
-		if fpath == potentialSymbolic {
-			if !file.IsDir() {
-				continue
-			}
-		}
-
-		// Try and open the symbolic link path and check for dir, skip if not
-		newFile, err := os.Stat(potentialSymbolic)
-		if err != nil {
-			notify.StdMsgErr(err.Error())
-			continue
-		}
-
-		if !newFile.IsDir() {
-			continue
-		}
-
-		// Looking through potential gmbH service directory
-		serviceFiles, err := ioutil.ReadDir(baseDir + "/" + file.Name())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		for _, sfile := range serviceFiles {
-			match, err := regexp.MatchString(defaults.CONFIG_FILE_EXT, sfile.Name())
-			if err == nil && match {
-				servicePaths = append(servicePaths, baseDir+file.Name())
-			}
-		}
-	}
-
-	return servicePaths, nil
-}
-
-// launch service fork and exec's using gmbh remote with config path set to the known config path
-func (c *Core) launchService(servicePath, validConfigPath string) {
-	c.vi("launching service")
-
-	args := []string{"--remote", "--config=" + validConfigPath}
-
-	if c.verbose {
-		args = append(args, "--verbose")
-	}
-
-	cmd := exec.Command("gmbhProcm", args...)
-
-	workingEnv := []string{
-		"GMBHCORE=" + c.con.Address,
-		"GMBHMODE=Managed",
-		"PMMODE=PMManaged",
-	}
-
-	if c.verbose {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	} else {
-		dirs := strings.Split(filepath.Dir(validConfigPath), string(filepath.Separator))
-		f, err := getLogFile("gmbh", dirs[len(dirs)-1]+"-remote.log")
-		if err == nil {
-			cmd.Stdout = f
-			cmd.Stderr = f
-		}
-		workingEnv = append(workingEnv, "LOGPATH="+filepath.Join(getpwd(), "gmbh"))
-		workingEnv = append(workingEnv, "LOGNAME="+dirs[len(dirs)-1])
-		notify.LnBYellowF("Log=%s", filepath.Join(getpwd(), "gmbh", dirs[len(dirs)-1]+"-remote.log"))
-	}
-
-	cmd.Env = append(os.Environ(), workingEnv...)
-
-	err := cmd.Start()
-	if err != nil {
-		c.ve("could not start remote")
-	}
-
 }
 
 // shutdown begins graceful shutdown procedures
@@ -427,6 +301,7 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 			s.UpdateState(Running)
 			return s, nil
 		}
+		r.v("state was not reported as shutdown, probable err")
 	}
 
 	err = r.addToMap(newService)

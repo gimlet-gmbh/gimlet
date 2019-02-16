@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/gmbh-micro/service"
 )
 
@@ -141,6 +141,7 @@ func (r *Remote) Start() {
 
 // shutdown procedures
 func (r *Remote) shutdown() {
+	notify.LnBYellowF("Shutdown procedures started in remote")
 	r.mu.Lock()
 	r.closed = true
 	r.mu.Unlock()
@@ -152,11 +153,11 @@ func (r *Remote) shutdown() {
 
 	r.notifyCore()
 
-	notify.StdMsgBlue("shutdown, time=" + time.Now().Format(time.Stamp))
+	notify.LnBYellowF("shutdown, time=" + time.Now().Format(time.Stamp))
 
 	p := int64(time.Since(r.startTime) / (time.Second * 45))
 
-	notify.StdMsgBlue("Ping counter should be around " + strconv.Itoa(int(p)))
+	notify.LnBYellowF("Ping counter should be around " + strconv.Itoa(int(p)))
 	os.Exit(0)
 }
 
@@ -279,7 +280,7 @@ func (r *Remote) sendPing(ph *pingHelper) {
 				r.failed()
 			}
 
-			_, err = client.Alive(ctx, &cabal.Ping{FromID: r.id, Time: time.Now().Format(time.Stamp)})
+			_, err = client.Alive(ctx, &intrigue.Ping{Status: r.id, Time: time.Now().Format(time.Stamp)})
 			can()
 			if err == nil {
 				notify.StdMsgBlue("<- pong")
@@ -294,31 +295,26 @@ func (r *Remote) sendPing(ph *pingHelper) {
 func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second*10)
 	if err != nil {
-		// panic(err)
 		return nil, errors.New("registration.Unavailable")
 	}
 	defer can()
 
-	request := &cabal.ServiceUpdate{
-		Sender:  "gmbh-remote",
-		Target:  "core",
-		Message: "",
-		Action:  "remote.register",
+	request := &intrigue.ServiceUpdate{
+		Request: "remote.register",
 	}
 
-	reply, err := client.UpdateServiceRegistration(ctx, request)
+	reply, err := client.UpdateRegistration(ctx, request)
 	if err != nil {
-		// notify.StdMsgErr("updateServiceRegistration err=(" + err.Error() + ")")
 		return nil, errors.New("registration.Unavailable")
 	}
 
 	if reply.GetMessage() != "registered" {
-		return nil, errors.New(reply.GetMessage())
+		return nil, errors.New(reply.GetError())
 	}
 
 	reg := &registration{
-		id:      reply.GetTarget(),
-		address: reply.GetStatus(),
+		id:      reply.GetServiceInfo().GetID(),
+		address: reply.GetServiceInfo().GetAddress(),
 	}
 
 	return reg, nil
@@ -337,7 +333,7 @@ func (r *Remote) AddService(configPath string) (pid string, err error) {
 	return service.Start("")
 }
 
-// GetService returns all service pointers attached to the Remote
+// GetServices returns all service pointers attached to the Remote
 func (r *Remote) GetServices() []*service.Service {
 	return r.serviceManager.GetAllServices()
 }
@@ -375,15 +371,21 @@ func (r *Remote) notifyCore() {
 	}
 	defer can()
 
-	request := &cabal.ServiceUpdate{
-		Sender:  "gmbh-remote",
-		Target:  "gmbh-core",
+	request := &intrigue.ServiceUpdate{
 		Message: r.id,
-		Action:  "shutdown.notification",
+		Request: "shutdown.notif",
 	}
-	client.UpdateServiceRegistration(ctx, request)
+	client.UpdateRegistration(ctx, request)
 	notify.StdMsgBlue("notice sent")
 	return
+}
+
+// GetRegistration returns the processes registration or an empty reg if nil
+func (r *Remote) GetRegistration() *registration {
+	if r.reg != nil {
+		return r.reg
+	}
+	return &registration{}
 }
 
 /**********************************************************************************
@@ -392,15 +394,14 @@ func (r *Remote) notifyCore() {
 
 type remoteServer struct{}
 
-func (s *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-	notify.StdMsgBlue(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
+	// md, ok := metadata.FromIncomingContext(ctx)
 
-	if in.GetAction() == "core.shutdown" {
-		response := &cabal.ServiceUpdate{
-			Sender:  r.reg.id,
-			Target:  "gmbh-core",
-			Message: "ack",
-		}
+	vrpc("-> %s", in.String())
+
+	request := in.GetRequest()
+
+	if request == "core.shutdown" {
 
 		r.pingHelpers = broadcast(r.pingHelpers)
 
@@ -412,87 +413,125 @@ func (s *remoteServer) UpdateServiceRegistration(ctx context.Context, in *cabal.
 				r.connect()
 			}()
 		}
-		return response, nil
-	} else if in.GetAction() == "gmbh.shutdown" {
 
+		return &intrigue.Receipt{
+			Message: "ack",
+		}, nil
+
+	} else if request == "gmbh.shutdown" {
 		r.mu.Lock()
 		r.gmbhShutdown = true
 		r.mu.Unlock()
 		go r.serviceManager.NotifyGracefulShutdown()
+
+		return &intrigue.Receipt{
+			Message: "ack",
+		}, nil
+
 	}
 
-	return &cabal.ServiceUpdate{Message: "unimp"}, nil
+	return &intrigue.Receipt{Error: "requst.unknown"}, nil
+
 }
 
-func (s *remoteServer) RequestRemoteAction(ctx context.Context, in *cabal.Action) (*cabal.Action, error) {
-	notify.StdMsgBlue(fmt.Sprintf("-> Request Remote Action; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+func (s *remoteServer) NotifyAction(ctx context.Context, in *intrigue.Action) (*intrigue.Action, error) {
+	// md, ok := metadata.FromIncomingContext(ctx)
 
-	if in.GetAction() == "request.info.all" {
+	vrpc("-> %s", in.String())
+
+	request := in.GetRequest()
+	TargetID := in.GetTarget()
+
+	if request == "service.restart.one" {
+
+		service, err := r.LookupService(TargetID)
+		if err != nil {
+			return &intrigue.Action{Error: "service.notFound"}, nil
+		}
+
+		pid, err := service.Restart()
+		if err != nil {
+			return &intrigue.Action{Error: "service.restartError=" + err.Error()}, nil
+		}
+
+		return &intrigue.Action{
+			Message: pid,
+		}, nil
+
+	} else if request == "service.restart.all" {
+		go r.RestartAll()
+		return &intrigue.Action{Message: "success"}, nil
+	}
+
+	return &intrigue.Action{Error: "request.unknown"}, nil
+}
+
+func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
+	// md, ok := metadata.FromIncomingContext(ctx)
+
+	vrpc("-> %s", in.String())
+
+	request := in.GetRequest()
+	targetID := in.GetTarget()
+
+	if request == "request.info.all" {
 
 		services := r.GetServices()
-		rpcServices := []*cabal.Service{}
+		rpcServices := []*intrigue.Service{}
 		for _, service := range services {
 			rpcServices = append(rpcServices, serviceToRPC(service))
 		}
-		response := &cabal.Action{
-			Sender:   r.reg.id,
-			Target:   "gmbh-core",
-			Message:  "response.info",
-			Services: rpcServices,
-		}
-		return response, nil
-	} else if in.GetAction() == "request.info.one" {
 
-		service, err := r.LookupService(in.GetMessage())
+		return &intrigue.SummaryReceipt{
+			Remotes: []*intrigue.ProcessManager{
+				&intrigue.ProcessManager{
+					ID:       r.id,
+					Address:  r.GetRegistration().address,
+					Services: rpcServices,
+				},
+			},
+		}, nil
+
+	} else if request == "request.info.one" {
+
+		service, err := r.LookupService(targetID)
 		if err != nil {
-			notify.StdMsgBlue("not found")
-			return &cabal.Action{Message: "not found"}, nil
+			vrpc("not found")
+			return &intrigue.SummaryReceipt{Error: "service.notFound"}, nil
 		}
 
-		response := &cabal.Action{
-			Sender:  r.id,
-			Target:  "gmbh-core",
-			Message: "response.info",
+		vrpc("returning service info " + service.ID)
 
-			ServiceInfo: serviceToRPC(service),
-		}
-		notify.StdMsgBlue("returning service info " + service.ID)
-		return response, nil
+		return &intrigue.SummaryReceipt{
+			Remotes: []*intrigue.ProcessManager{
+				&intrigue.ProcessManager{
+					ID:       r.id,
+					Address:  r.GetRegistration().address,
+					Services: []*intrigue.Service{serviceToRPC(service)},
+				},
+			},
+		}, nil
 
-	} else if in.GetAction() == "service.restart" {
-
-		response := &cabal.Action{
-			Sender:  r.reg.id,
-			Target:  "gmbh-core",
-			Message: "action.completed",
-		}
-		if in.GetMessage() == "all" {
-			go r.RestartAll()
-		} else if in.GetMessage() != "" {
-			pid, err := r.serviceManager.Restart(in.GetMessage())
-			if err != nil {
-				response.Status = err.Error()
-			} else {
-				response.Status = pid
-			}
-		}
-
-		notify.StdMsgBlue(fmt.Sprintf("<- Message=(%s); Status=(%s)", response.Message, response.Status))
-		return response, nil
 	}
-	return &cabal.Action{Message: "unimp"}, nil
 
+	return &intrigue.SummaryReceipt{Error: "request.unknown"}, nil
 }
 
-func (s *remoteServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
-	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+func (s *remoteServer) Alive(ctx context.Context, in *intrigue.Ping) (*intrigue.Pong, error) {
+	// md, ok := metadata.FromIncomingContext(ctx)
+
+	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
 
-func serviceToRPC(s *service.Service) *cabal.Service {
+func vrpc(format string, a ...interface{}) {
+	notify.LnBlueF("[rpc] "+format, a...)
+}
+
+func serviceToRPC(s *service.Service) *intrigue.Service {
 
 	procRuntime := s.Process.GetInfo()
 
-	si := &cabal.Service{
+	si := &intrigue.Service{
 		Id:        r.id + "-" + s.ID,
 		Name:      s.Static.Name,
 		Status:    s.Process.GetStatus().String(),

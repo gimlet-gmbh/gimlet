@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
 )
 
 /////////////////////////////////////////////////////////////////////////
@@ -17,257 +16,224 @@ import (
 
 type controlServer struct{}
 
-func (c *controlServer) StartService(ctx context.Context, in *cabal.StartRequest) (*cabal.StartReply, error) {
-	// TODO: Implement
-	return &cabal.StartReply{Status: "invalid"}, nil
+func (c *controlServer) StartService(ctx context.Context, in *intrigue.Action) (*intrigue.Receipt, error) {
+	rpcMessage("<- Start; action=" + in.String())
+	return &intrigue.Receipt{Error: "request.action.invalid"}, nil
 }
 
-func (c *controlServer) RestartService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	rpcMessage("<- restart one request")
+func (c *controlServer) KillService(ctx context.Context, in *intrigue.Action) (*intrigue.Receipt, error) {
+	rpcMessage("<- Kill; action=" + in.String())
+	return &intrigue.Receipt{Error: "request.action.invalid"}, nil
+}
 
-	// make sure that sender is gmbh-ctrl
-	if in.GetSender() != "gmbh-ctrl" {
-		rpcMessage("reporting invalid sender")
-		return &cabal.StatusReply{Status: "invalid sender"}, nil
-	}
+func (c *controlServer) RestartService(ctx context.Context, in *intrigue.Action) (*intrigue.Receipt, error) {
+
+	rpcMessage("<- Restart; action=" + in.String())
+
+	request := in.GetRequest()
+	remoteID := in.GetRemoteID()
+	serviceID := in.GetTarget()
 
 	pm, err := GetProcM()
 	if err != nil {
 		rpcMessage("internal system error")
-		return &cabal.StatusReply{Status: "internal server error"}, nil
+		return &intrigue.Receipt{Error: "internal.pmref"}, nil
 	}
 
-	remote, err := pm.LookupRemote(in.GetParentID())
-	if err != nil {
-		notify.StdMsgErr("could not contact " + in.GetParentID())
-		return &cabal.StatusReply{Status: "could not contact remote"}, nil
-	}
+	if request == "restart.all" {
 
-	pid := "-1"
-	{
-		client, ctx, can, err := rpc.GetRemoteRequest(remote.Address, time.Second*15)
+		go pm.RestartAll()
+		return &intrigue.Receipt{Message: "ack"}, nil
+	} else if request == "restart.one" {
+
+		remote, err := pm.LookupRemote(remoteID)
 		if err != nil {
-			notify.StdMsgErr("could not contact " + remote.ID)
+			rpcMessage("could not find remote")
+			return &intrigue.Receipt{Error: "remote.notFound"}, nil
 		}
-		request := &cabal.Action{
-			Sender:  "gmbh-core",
-			Target:  remote.ID,
-			Message: in.GetId(),
-			Action:  "service.restart",
-		}
-		reply, err := client.RequestRemoteAction(ctx, request)
-		if err != nil {
-			notify.StdMsgErr("could not contact " + remote.ID)
-		}
-		pid = reply.GetStatus()
-		can()
-	}
-
-	response := &cabal.StatusReply{Status: "pid=" + pid}
-	return response, nil
-
-}
-
-func (c *controlServer) KillService(ctx context.Context, in *cabal.SearchRequest) (*cabal.StatusReply, error) {
-	return nil, nil
-}
-
-func (c *controlServer) ListAll(ctx context.Context, in *cabal.AllRequest) (*cabal.ListReply, error) {
-
-	rpcMessage("<- list all request")
-
-	// make sure that sender is gmbh-ctrl
-	if in.GetSender() != "gmbh-ctrl" {
-		rpcMessage("reporting invalid sender")
-		return &cabal.ListReply{Status: "invalid sender"}, nil
-	}
-
-	pm, err := GetProcM()
-	if err != nil {
-		rpcMessage("internal system error")
-		return &cabal.ListReply{Status: "internal server error"}, nil
-	}
-
-	rmts := pm.GetAllRemotes()
-	rpcrmts := []*cabal.ProcessManager{}
-	for _, re := range rmts {
-		rpcServices := []*cabal.Service{}
+		rpcMessage("found parent remote")
+		pid := "-1"
 		{
-			client, ctx, can, err := rpc.GetRemoteRequest(re.Address, time.Second*2)
+			client, ctx, can, err := rpc.GetRemoteRequest(remote.Address, time.Second*15)
 			if err != nil {
-				notify.StdMsgErr("could not contact " + re.ID)
-				continue
+				rpcMessage("could not contact " + remote.ID)
 			}
-			request := &cabal.Action{
-				Sender: "gmbh-core",
-				Target: re.ID,
-				Action: "request.info.all",
+			request := &intrigue.Action{
+				Request: "service.restart.one",
+				Target:  serviceID,
 			}
-			reply, err := client.RequestRemoteAction(ctx, request)
+			reply, err := client.NotifyAction(ctx, request)
 			if err != nil {
-				notify.StdMsgErr("could not contact " + re.ID)
-				continue
+				rpcMessage("could not contact " + remote.ID)
 			}
-			rpcServices = append(rpcServices, reply.GetServices()...)
+			pid = reply.GetMessage()
+			can()
+		}
+		rpcMessage("new pid=" + pid)
+		return &intrigue.Receipt{Message: "pid=" + pid}, nil
+	}
+
+	return &intrigue.Receipt{Error: "request.action.unknown"}, nil
+
+}
+
+func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
+
+	rpcMessage("<- summary; action=" + in.String())
+
+	request := in.GetRequest()
+	remoteID := in.GetRemoteID()
+	serviceID := in.GetTarget()
+
+	pm, err := GetProcM()
+	if err != nil {
+		rpcMessage("internal system error")
+		return &intrigue.SummaryReceipt{Error: "internal.pmref"}, nil
+	}
+
+	if request == "summary.all" {
+
+		rpcrmts := []*intrigue.ProcessManager{}
+		for _, re := range pm.GetAllRemotes() {
+			{
+				client, ctx, can, err := rpc.GetRemoteRequest(re.Address, time.Second*2)
+				if err != nil {
+					notify.LnBRedF("failed to contact\nid=%s; address=%s\nerr=%s", re.ID, re.Address, err.Error())
+					continue
+				}
+				request := &intrigue.Action{
+					Request: "request.info.all",
+				}
+				reply, err := client.Summary(ctx, request)
+				if err != nil {
+					notify.LnBRedF("failed to contact\nid=%s; address=%s\nerr=%s", re.ID, re.Address, err.Error())
+					continue
+				}
+
+				rpcrmts = append(rpcrmts, reply.GetRemotes()...)
+				can()
+			}
+		}
+
+		return &intrigue.SummaryReceipt{
+			Remotes: rpcrmts,
+		}, nil
+
+	} else if request == "summary.one" {
+
+		rmt, err := pm.LookupRemote(remoteID)
+		if err != nil {
+			rpcMessage("could not find remote")
+			return &intrigue.SummaryReceipt{Error: "remote.notFound"}, nil
+		}
+
+		rpcRemotes := []*intrigue.ProcessManager{}
+		{
+			client, ctx, can, err := rpc.GetRemoteRequest(rmt.Address, time.Second*5)
+			if err != nil {
+				// TODO add return here
+				notify.StdMsgErr("could not contact " + rmt.ID)
+			}
+			request := &intrigue.Action{
+				Target:  serviceID,
+				Request: "request.info.one",
+			}
+			reply, err := client.Summary(ctx, request)
+			if err != nil {
+				// TODO add return here
+				notify.StdMsgErr("could not contact " + rmt.ID)
+			}
+			rpcRemotes = append(rpcRemotes, reply.GetRemotes()...)
 			can()
 		}
 
-		rpcrmts = append(rpcrmts, remoteToRPC(re, rpcServices))
+		return &intrigue.SummaryReceipt{
+			Remotes: rpcRemotes,
+		}, nil
 	}
 
-	response := &cabal.ListReply{
-		Status:  "ack",
-		Remotes: rpcrmts,
-	}
-	return response, nil
+	return &intrigue.SummaryReceipt{Error: "request.action.unknown"}, nil
 
 }
-func (c *controlServer) ListOne(ctx context.Context, in *cabal.SearchRequest) (*cabal.ListReply, error) {
 
-	rpcMessage("<- list one request")
+func (c *controlServer) StopServer(ctx context.Context, in *intrigue.EmptyRequest) (*intrigue.Receipt, error) {
 
-	// make sure that sender is gmbh-ctrl
-	if in.GetSender() != "gmbh-ctrl" {
-		rpcMessage("reporting invalid sender")
-		return &cabal.ListReply{Status: "invalid sender"}, nil
-	}
+	rpcMessage("<- stop server request; action=" + in.String())
 
 	pm, err := GetProcM()
 	if err != nil {
 		rpcMessage("internal system error")
-		return &cabal.ListReply{Status: "internal server error"}, nil
+		return &intrigue.Receipt{Error: "internal.pmref"}, nil
 	}
 
-	rmt, err := pm.LookupRemote(in.GetParentID())
-	if err != nil {
-		return &cabal.ListReply{Status: "Not Found"}, nil
-	}
-	rpcServices := []*cabal.Service{}
-	{
-		client, ctx, can, err := rpc.GetRemoteRequest(rmt.Address, time.Second*5)
-		if err != nil {
-			notify.StdMsgErr("could not contact " + rmt.ID)
-		}
-		request := &cabal.Action{
-			Sender:  "gmbh-core",
-			Target:  rmt.ID,
-			Message: in.GetId(),
-			Action:  "request.info.one",
-		}
-		reply, err := client.RequestRemoteAction(ctx, request)
-		if err != nil {
-			notify.StdMsgErr("could not contact " + rmt.ID)
-		}
-		rpcServices = []*cabal.Service{reply.GetServiceInfo()}
-		can()
-	}
-
-	response := &cabal.ListReply{Status: "ack", Remotes: []*cabal.ProcessManager{remoteToRPC(rmt, rpcServices)}}
-	return response, nil
-
-}
-
-func (c *controlServer) RestartAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
-	rpcMessage("<- restart all request")
-
-	// make sure that sender is gmbh-ctrl
-	if in.GetSender() != "gmbh-ctrl" {
-		rpcMessage("reporting invalid sender")
-		return &cabal.StatusReply{Status: "invalid sender"}, nil
-	}
-
-	pm, err := GetProcM()
-	if err != nil {
-		rpcMessage("internal system error")
-		return &cabal.StatusReply{Status: "internal server error"}, nil
-	}
-
-	pm.RestartAll()
-
-	response := &cabal.StatusReply{Status: "ack"}
-	return response, nil
-}
-
-func (c *controlServer) KillAll(ctx context.Context, in *cabal.AllRequest) (*cabal.StatusReply, error) {
-	rpcMessage("<- restart all request")
-	return &cabal.StatusReply{Status: "invalid"}, nil
-}
-
-func (c *controlServer) StopServer(ctx context.Context, in *cabal.StopRequest) (*cabal.StatusReply, error) {
-	pm, err := GetProcM()
-	if err != nil {
-		rpcMessage("internal system error")
-		return &cabal.StatusReply{Status: "internal server error"}, nil
-	}
 	go func() {
 		time.Sleep(time.Second * 2)
 		pm.Shutdown(true)
 	}()
-	return &cabal.StatusReply{Status: "shutdown procedure started"}, nil
+	return &intrigue.Receipt{Message: "ack"}, nil
+
 }
 
-func (c *controlServer) ServerStatus(ctx context.Context, in *cabal.StatusRequest) (*cabal.StatusReply, error) {
-	return &cabal.StatusReply{Status: "ack"}, nil
-}
+func (c *controlServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 
-func (c *controlServer) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+	rpcMessage("<- UpdateRegistration; serviceUpdate=" + in.String())
 
-	rpcMessage("<- update service request; action=" + in.GetAction())
-	rpcMessage(fmt.Sprintf("   details; sender=%s; target=%s; message=%s", in.GetSender(), in.GetTarget(), in.GetMessage()))
-
-	// make sure that sender is gmbh-remote
-	if in.GetSender() != "gmbh-remote" {
-		rpcMessage("reporting invalid sender")
-		return &cabal.ServiceUpdate{Message: "invalid sender"}, nil
-	}
+	request := in.GetRequest()
+	message := in.GetMessage()
 
 	pm, err := GetProcM()
 	if err != nil {
 		rpcMessage("internal system error")
-		return &cabal.ServiceUpdate{Message: "internal server error"}, nil
+		return &intrigue.Receipt{Error: "internal.pmref"}, nil
 	}
 
-	if in.GetAction() == "remote.register" {
+	if request == "remote.register" {
+
 		id, address, err := pm.RegisterRemote()
 		if err != nil {
-			rpcMessage("Could not add; err=" + err.Error())
-			return &cabal.ServiceUpdate{Message: "router error=" + err.Error()}, nil
+			rpcMessage("router.err=" + err.Error())
+			return &intrigue.Receipt{Error: "router.err=" + err.Error()}, nil
 		}
-		update := &cabal.ServiceUpdate{
-			Sender:  "core",
-			Action:  "register",
-			Target:  id,
-			Status:  address,
-			Message: "registered",
-		}
+
 		rpcMessage("sent registration response")
-		return update, nil
+		return &intrigue.Receipt{
+			Message: "registered",
+			ServiceInfo: &intrigue.ServiceSummary{
+				Address: address,
+				ID:      id,
+			},
+		}, nil
+
+	} else if request == "shutdown.notif" {
+		pm.MarkShutdown(message)
+		return &intrigue.Receipt{
+			Message: "ack",
+		}, nil
 	}
 
-	if in.GetAction() == "shutdown.notification" {
-		pm.MarkShutdown(in.GetMessage())
-	}
-
-	return &cabal.ServiceUpdate{Message: "invalid request"}, nil
+	return &intrigue.Receipt{Error: "request.action.unknown"}, nil
 }
 
-func (c *controlServer) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
-	// rpcMessage("<- pong")
+func (c *controlServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
+	rpcMessage("<- pong")
+
+	fromID := ping.GetStatus()
 
 	pm, err := GetProcM()
 	if err != nil {
 		rpcMessage("internal system error")
-		return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+		return &intrigue.Pong{Error: "internal.pmref"}, nil
 	}
 
-	r, err := pm.LookupRemote(ping.GetFromID())
+	r, err := pm.LookupRemote(fromID)
 	if err != nil {
-		rpcMessage("<- (nil)pong; could not find: " + ping.GetFromID())
-		return nil, errors.New("")
+		rpcMessage("<- (nil)pong; could not find: " + fromID)
+		return &intrigue.Pong{Error: "not.found"}, nil
 	}
+
 	r.UpdatePing(time.Now())
 
-	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
 
 func remoteToRPC(r *RemoteServer, services []*cabal.Service) *cabal.ProcessManager {

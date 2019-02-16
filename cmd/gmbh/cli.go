@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -20,8 +20,10 @@ func listAll() {
 	}
 	defer can()
 
-	request := cabal.AllRequest{Sender: "gmbh-ctrl"}
-	reply, err := client.ListAll(ctx, &request)
+	request := intrigue.Action{
+		Request: "summary.all",
+	}
+	reply, err := client.Summary(ctx, &request)
 	if err != nil {
 		notify.StdMsgBlue("Could not contact gmbhServer")
 		notify.StdMsgErr("error: "+err.Error(), 1)
@@ -37,15 +39,14 @@ func runReport() {
 	}
 	defer can()
 
-	request := cabal.AllRequest{Sender: "gmbh-ctrl"}
-	reply, err := client.ListAll(ctx, &request)
+	request := intrigue.Action{
+		Request: "summary.all",
+	}
+	reply, err := client.Summary(ctx, &request)
 	if err != nil {
 		notify.StdMsgBlue("Could not contact gmbhServer")
 		notify.StdMsgErr("error: "+err.Error(), 1)
 		return
-	}
-	if reply.Length == 0 {
-		notify.StdMsgBlue("no services to list")
 	}
 
 	pprintListOne(reply.GetRemotes())
@@ -58,13 +59,15 @@ func restartAll() {
 	}
 	defer can()
 
-	request := cabal.AllRequest{Sender: "gmbh-ctrl"}
-	reply, err := client.RestartAll(ctx, &request)
+	request := &intrigue.Action{
+		Request: "restart.all",
+	}
+	reply, err := client.RestartService(ctx, request)
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 		return
 	}
-	notify.StdMsgBlue(reply.GetStatus())
+	notify.StdMsgBlue(reply.GetMessage())
 }
 
 func listOne(id string) {
@@ -80,20 +83,25 @@ func listOne(id string) {
 		return
 	}
 
-	request := cabal.SearchRequest{Sender: "gmbh-ctrl", ParentID: splitID[0], Id: splitID[1]}
-	reply, err := client.ListOne(ctx, &request)
+	request := &intrigue.Action{
+		Request:  "summary.one",
+		Target:   splitID[1],
+		RemoteID: splitID[0],
+	}
+	reply, err := client.Summary(ctx, request)
 	if err != nil {
 		notify.StdMsgErr(handleErr(err))
 		return
 	}
 
-	if reply.GetStatus() != "ack" {
+	if reply.GetError() != "" {
 		notify.StdMsgErr("could not find service with id: " + id)
-		notify.StdMsgErr("report from core=" + reply.GetStatus())
+		notify.StdMsgErr("report from core=" + reply.GetError())
 		return
 	}
 	pprintListOne(reply.GetRemotes())
 }
+
 func restartOne(id string) {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*20)
 	if err != nil {
@@ -107,15 +115,19 @@ func restartOne(id string) {
 		return
 	}
 
-	request := cabal.SearchRequest{Sender: "gmbh-ctrl", ParentID: splitID[0], Id: splitID[1]}
-	reply, err := client.RestartService(ctx, &request)
+	request := &intrigue.Action{
+		Request:  "restart.one",
+		Target:   splitID[1],
+		RemoteID: splitID[0],
+	}
+	reply, err := client.RestartService(ctx, request)
 	if err != nil {
 		fmt.Println(err)
 		notify.StdMsgErr("send error: " + err.Error())
 		return
 	}
 
-	notify.StdMsgBlue(reply.GetStatus())
+	notify.StdMsgBlue(reply.String())
 }
 
 func shutdown() {
@@ -125,13 +137,12 @@ func shutdown() {
 	}
 	defer can()
 
-	request := cabal.StopRequest{}
-	reply, err := client.StopServer(ctx, &request)
+	reply, err := client.StopServer(ctx, &intrigue.EmptyRequest{})
 	if err != nil {
 		notify.StdMsgErr("error: " + err.Error())
 		return
 	}
-	notify.StdMsgBlue(reply.Status)
+	notify.StdMsgBlue(reply.String())
 }
 
 func handleErr(err error) string {

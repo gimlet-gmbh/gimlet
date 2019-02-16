@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/gmbh-micro/defaults"
@@ -139,8 +140,12 @@ func (s *Service) Start(mode string) (pid string, err error) {
 		return "-1", errors.New("service.StartService.invalidServiceMode")
 	}
 	if s.Static.Language == "go" {
-
-		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, env)
+		ssignal := syscall.SIGINT
+		if mode == "PMManaged" {
+			notify.StdMsgDebug("using sigusr2 as shutdown signal")
+			ssignal = syscall.SIGUSR2
+		}
+		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, env, ssignal)
 		pid, err := s.Process.Start()
 		if err != nil {
 			notify.StdMsgDebug("failed to start")
