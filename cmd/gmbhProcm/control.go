@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
+	"google.golang.org/grpc/metadata"
 )
 
 /////////////////////////////////////////////////////////////////////////
@@ -188,7 +190,7 @@ func (c *controlServer) UpdateRegistration(ctx context.Context, in *intrigue.Ser
 
 	if request == "remote.register" {
 
-		id, address, err := pm.RegisterRemote()
+		id, address, fingerprint, err := pm.RegisterRemote()
 		if err != nil {
 			rpcMessage("router.err=" + err.Error())
 			return &intrigue.Receipt{Error: "router.err=" + err.Error()}, nil
@@ -198,8 +200,9 @@ func (c *controlServer) UpdateRegistration(ctx context.Context, in *intrigue.Ser
 		return &intrigue.Receipt{
 			Message: "registered",
 			ServiceInfo: &intrigue.ServiceSummary{
-				Address: address,
-				ID:      id,
+				Address:     address,
+				ID:          id,
+				Fingerprint: fingerprint,
 			},
 		}, nil
 
@@ -214,9 +217,12 @@ func (c *controlServer) UpdateRegistration(ctx context.Context, in *intrigue.Ser
 }
 
 func (c *controlServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
-	rpcMessage("<- pong")
+	// rpcMessage("<- pong")
 
-	fromID := ping.GetStatus()
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		rpcMessage("Could not get metadata")
+	}
 
 	pm, err := GetProcM()
 	if err != nil {
@@ -224,13 +230,14 @@ func (c *controlServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrig
 		return &intrigue.Pong{Error: "internal.pmref"}, nil
 	}
 
-	r, err := pm.LookupRemote(fromID)
-	if err != nil {
-		rpcMessage("<- (nil)pong; could not find: " + fromID)
-		return &intrigue.Pong{Error: "not.found"}, nil
-	}
+	id := strings.Join(md.Get("sender"), "")
+	fp := strings.Join(md.Get("fingerprint"), "")
 
-	r.UpdatePing(time.Now())
+	verified := pm.Verify(id, fp)
+	if !verified {
+		rpcMessage("<- (nil)pong; could not verify: " + id)
+		return &intrigue.Pong{Error: "verification.error"}, nil
+	}
 
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }

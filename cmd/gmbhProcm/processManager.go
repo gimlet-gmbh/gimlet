@@ -14,6 +14,7 @@ import (
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
+	"github.com/rs/xid"
 )
 
 // Mode controls whether new processes can be attached during runtime or if they must be
@@ -167,13 +168,13 @@ func (p *ProcessManager) gracefulShutdownListener() {
 }
 
 // RegisterRemote adds the remote to the router and sends back the id and address
-func (p *ProcessManager) RegisterRemote() (id, address string, err error) {
+func (p *ProcessManager) RegisterRemote() (id, address, fingerprint string, err error) {
 	notify.StdMsgBlue("registering new remote")
 	rm, err := p.router.AttachNewRemote()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return rm.ID, rm.Address, nil
+	return rm.ID, rm.Address, rm.fingerprint, nil
 }
 
 // GetAllRemotes returns a reference to all attached remotes in an array
@@ -193,6 +194,20 @@ func (p *ProcessManager) RestartRemote(parent, target string) error {
 		return nil
 	}
 	return p.sendRestart(r.Address, r.ID, false)
+}
+
+// Verify ; as in verifyPingInfo; checks the fingerprint against the one on file, if it is a match
+// it marks now as the last ping time;
+func (p *ProcessManager) Verify(id, fp string) bool {
+	r, e := p.LookupRemote(id)
+	if e != nil {
+		return false
+	}
+	if r.fingerprint != fp {
+		return false
+	}
+	r.LastPing = time.Now()
+	return true
 }
 
 // RestartAll sends an rpc restart request to all remotes
@@ -402,7 +417,7 @@ func (r *Router) addToMap(rm *RemoteServer) error {
 func (r *Router) pingHandler() {
 	for {
 		time.Sleep(time.Second * 45)
-		// notify.StdMsgBlue("checking for pings")
+		notify.StdMsgBlue("checking pings")
 		for _, v := range r.GetAllAttached() {
 			if v.State == Failed {
 				if time.Since(v.StateUpdate) > time.Second*30 {
@@ -485,16 +500,20 @@ type RemoteServer struct {
 	LastPing time.Time
 
 	mu *sync.Mutex
+
+	// fingerprint is assigned and used for ping/pong
+	fingerprint string
 }
 
 // NewRemoteServer returns an instance of a remote server with values set to the parameters
 func NewRemoteServer(id, address string) *RemoteServer {
 	return &RemoteServer{
-		ID:       id,
-		Address:  address,
-		State:    Running,
-		LastPing: time.Now().Add(time.Hour),
-		mu:       &sync.Mutex{},
+		ID:          id,
+		Address:     address,
+		State:       Running,
+		LastPing:    time.Now().Add(time.Hour),
+		fingerprint: xid.New().String(),
+		mu:          &sync.Mutex{},
 	}
 }
 

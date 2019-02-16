@@ -16,6 +16,7 @@ import (
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
+	"github.com/rs/xid"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -316,16 +317,13 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 }
 
 // Verify a ping
-func (r *Router) Verify(name, id, address string) error {
+func (r *Router) Verify(name, fp string) error {
 	s := r.services[name]
 	if s == nil {
 		return errors.New("verify.notFound")
 	}
-	if s.ID != id {
-		return errors.New("verify.badID")
-	}
-	if s.Address != address {
-		return errors.New("verify.badAddress")
+	if r.services[name].Fingerprint != fp {
+		return errors.New("verify.fingerprintMismatch")
 	}
 	if s.State == Shutdown {
 		return errors.New("verify.reportedShutdown")
@@ -468,6 +466,9 @@ type GmbhService struct {
 	// The last time a ping was received
 	LastPing time.Time
 
+	// assigned by the server, the fingerprint is sent with each ping to verify id
+	Fingerprint string
+
 	mu *sync.Mutex
 }
 
@@ -478,14 +479,15 @@ func (g *GmbhService) String() string {
 // NewService returns a gmbhService object with data filled in
 func NewService(id string, name string, aliases []string, address string) *GmbhService {
 	return &GmbhService{
-		ID:       id,
-		Name:     name,
-		Aliases:  aliases,
-		Address:  address,
-		Added:    time.Now(),
-		State:    Running,
-		LastPing: time.Now().Add(time.Hour),
-		mu:       &sync.Mutex{},
+		ID:          id,
+		Name:        name,
+		Aliases:     aliases,
+		Address:     address,
+		Added:       time.Now(),
+		State:       Running,
+		LastPing:    time.Now().Add(time.Hour),
+		Fingerprint: xid.New().String(),
+		mu:          &sync.Mutex{},
 	}
 }
 

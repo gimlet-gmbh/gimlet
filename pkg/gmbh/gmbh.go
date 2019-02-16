@@ -28,6 +28,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 
 	yaml "gopkg.in/yaml.v2"
@@ -89,6 +90,8 @@ type registration struct {
 
 	// filesystem path back to core
 	corePath string
+
+	fingerprint string
 }
 
 var defaultOptions = options{
@@ -127,6 +130,8 @@ type Client struct {
 	// pingHelper keeps track of channels
 	pingHelpers []*pingHelper
 
+	PongTime time.Duration
+
 	// coreAddress is the address back to core
 	coreAddress string
 
@@ -159,6 +164,7 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		coreAddress:         defaults.CORE_ADDRESS,
 		mu:                  &sync.Mutex{},
 		pingHelpers:         []*pingHelper{},
+		PongTime:            time.Second * 45,
 	}
 
 	g.opts = defaultOptions
@@ -331,8 +337,7 @@ func (g *Client) connect() {
 	}
 
 	g.printer("registration details:")
-	g.printer("id=" + reg.id + "; address=" + reg.address)
-	g.printer("mode=" + reg.mode + "; corePath=" + reg.corePath)
+	g.printer("id=" + reg.id + "; address=" + reg.address + "; fingerprint=" + reg.fingerprint)
 
 	if reg.address == "" {
 		g.printer("address not received")
@@ -410,7 +415,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 	// Loop forever
 	for {
 
-		time.Sleep(time.Second * 45)
+		time.Sleep(g.PongTime)
 		g.printer("-> ping")
 
 		select {
@@ -437,22 +442,25 @@ func (g *Client) sendPing(ph *pingHelper) {
 				return
 			}
 
-			response, err := client.Alive(ctx, &intrigue.Ping{
+			ctx = metadata.AppendToOutgoingContext(
+				ctx,
+				"sender", g.conf.ServiceName,
+				"target", "procm",
+				"fingerprint", g.reg.fingerprint,
+			)
+
+			pong, err := client.Alive(ctx, &intrigue.Ping{
 				Time: time.Now().Format(time.Stamp),
-				// ID: &cabal.ID{
-				// 	ID:      g.reg.id,
-				// 	Address: g.reg.address,
-				// 	Name:    g.conf.ServiceName,
-				// },
 			})
 			if err != nil {
 				g.failed()
 				return
 			}
-			if response.GetStatus() == "core.verified" {
+			if pong.GetStatus() == "core.verified" {
 				can()
-				g.printer("<- pong")
+				// g.printer("<- pong")
 			} else {
+				g.printer("<- pong err=" + pong.GetError())
 				g.failed()
 				return
 			}
@@ -700,8 +708,9 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool,
 		reg := reply.GetServiceInfo()
 
 		r := &registration{
-			id:      reg.GetID(),
-			address: reg.GetAddress(),
+			id:          reg.GetID(),
+			address:     reg.GetAddress(),
+			fingerprint: reg.GetFingerprint(),
 		}
 		return r, nil
 	}

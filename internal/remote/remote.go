@@ -21,6 +21,7 @@ import (
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/gmbh-micro/service"
+	"google.golang.org/grpc/metadata"
 )
 
 type Remote struct {
@@ -41,6 +42,7 @@ type Remote struct {
 	pingHelpers []*pingHelper
 
 	pingCounter int
+	PongDelay   time.Duration
 	startTime   time.Time
 
 	// gmbhShutdown is marked true when sigusr1 has been sent to the pm process.
@@ -75,6 +77,9 @@ type registration struct {
 
 	// filesystem path back to core
 	corePath string
+
+	// an id given from core to send ping requests with
+	fingerprint string
 }
 
 /**********************************************************************************
@@ -92,6 +97,7 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 	r = &Remote{
 		serviceManager: NewServiceManager(),
 		pingHelpers:    make([]*pingHelper, 0),
+		PongDelay:      time.Second * 45,
 		startTime:      time.Now(),
 		coreAddress:    coreAddress,
 		verbose:        verbose,
@@ -192,9 +198,6 @@ func (r *Remote) connect() {
 		reg, status = r.makeCoreConnectRequest()
 	}
 
-	notify.StdMsgBlue("registration details")
-	notify.StdMsgBlue("id=" + reg.id + "; address=" + reg.address)
-
 	if reg.address == "" {
 		return
 	}
@@ -253,7 +256,7 @@ func (r *Remote) failed() {
 func (r *Remote) sendPing(ph *pingHelper) {
 	for {
 
-		time.Sleep(time.Second * 45)
+		time.Sleep(r.PongDelay)
 
 		r.mu.Lock()
 		r.pingCounter++
@@ -280,11 +283,24 @@ func (r *Remote) sendPing(ph *pingHelper) {
 				r.failed()
 			}
 
-			_, err = client.Alive(ctx, &intrigue.Ping{Status: r.id, Time: time.Now().Format(time.Stamp)})
+			ctx = metadata.AppendToOutgoingContext(
+				ctx,
+				"sender", r.id,
+				"target", "procm",
+				"fingerprint", r.reg.fingerprint,
+			)
+
+			pong, err := client.Alive(ctx, &intrigue.Ping{Status: r.id, Time: time.Now().Format(time.Stamp)})
 			can()
-			if err == nil {
+			if err != nil {
+				notify.StdMsgErr("did not receive pong response")
+				r.failed()
+				return
+			}
+			if pong.GetError() == "" {
 				notify.StdMsgBlue("<- pong")
 			} else {
+				notify.StdMsgBlue("<- pong error=" + pong.GetError())
 				r.failed()
 				return
 			}
@@ -313,9 +329,12 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	}
 
 	reg := &registration{
-		id:      reply.GetServiceInfo().GetID(),
-		address: reply.GetServiceInfo().GetAddress(),
+		id:          reply.GetServiceInfo().GetID(),
+		address:     reply.GetServiceInfo().GetAddress(),
+		fingerprint: reply.GetServiceInfo().GetFingerprint(),
 	}
+
+	notify.StdMsgBlue("registration; id=" + reg.id + "; address=" + reg.address + "; fingerprint=" + reg.fingerprint)
 
 	return reg, nil
 }
@@ -518,8 +537,6 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 }
 
 func (s *remoteServer) Alive(ctx context.Context, in *intrigue.Ping) (*intrigue.Pong, error) {
-	// md, ok := metadata.FromIncomingContext(ctx)
-
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
 

@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
+	"google.golang.org/grpc/metadata"
 )
 
 func v(msg string) {
@@ -38,8 +40,9 @@ func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServi
 	return &intrigue.Receipt{
 		Message: "acknowledged",
 		ServiceInfo: &intrigue.ServiceSummary{
-			Address: ns.Address,
-			ID:      ns.ID,
+			Address:     ns.Address,
+			ID:          ns.ID,
+			Fingerprint: ns.Fingerprint,
 		},
 	}, nil
 
@@ -113,20 +116,26 @@ func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrig
 
 func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
 
-	// id := ping.GetStatus()
+	rv("<- pong")
 
-	// c, err := GetCore()
-	// if err != nil {
-	// 	return &intrigue.Pong{Error: "core.ref"}, nil
-	// }
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		rv("Could not get metadata")
+	}
 
-	// TODO Need to verify ping info in meta data
-	// err = c.Router.Verify(id.GetName(), id.GetID(), id.GetAddress())
-	// if err != nil {
-	// 	rve("could not verify ping from id=%s; err=%s", id.GetID(), err.Error())
-	// 	return &cabal.Pong{Status: &cabal.Status{Sender: "core.NotVerified"}}, nil
-	// }
+	c, err := GetCore()
+	if err != nil {
+		return &intrigue.Pong{Error: "core.ref"}, nil
+	}
 
+	name := strings.Join(md.Get("sender"), "")
+	fp := strings.Join(md.Get("fingerprint"), "")
+
+	verified := c.Router.Verify(name, fp)
+	if verified != nil {
+		rve("could not verify; err=%s", verified.Error())
+		return &intrigue.Pong{Error: verified.Error()}, nil
+	}
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp), Status: "core.verified"}, nil
 }
 

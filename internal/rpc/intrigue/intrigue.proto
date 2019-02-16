@@ -105,6 +105,7 @@ message NewService {
 message ServiceSummary {
     string Address = 1;
     string ID = 2;
+    string Fingerprint = 3;
 }
 
 message Service {

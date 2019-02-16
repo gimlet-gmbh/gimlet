@@ -1,7 +1,7 @@
 
 ### Roadmap
 
-- [ ] Control Cabal are getting divorced
+- [x] Control Cabal are getting divorced
     * Control
         * Become a standalone process manager
         * Core is the brain w/ remote servers that host processes
@@ -18,7 +18,7 @@
                     * Only services defined in docker-compose
             * launching remote services
             * generating docker-compose for cluster
-- [ ] Protobuffers need refactored badly!
+- [x] Protobuffers need refactored badly!
 - [ ] Module Support
     * No more GOPATH, hopefully makes installation easier for everybody
 - [ ] Language Support 
@@ -34,7 +34,7 @@
     * **For Deployment mode, need to set a flag that reads things like core and cabal addresses from environment variables**
 - [ ] Docker Support
     * Testing, testing, testing
-- [ ] Move away from Makefile
+- [x] Move away from Makefile
 - [ ] Custom data channels
     * How to enforce it at both ends?
     * Interface w/ enforcement functions
