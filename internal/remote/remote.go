@@ -21,6 +21,7 @@ import (
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/gmbh-micro/service"
+
 	"google.golang.org/grpc/metadata"
 )
 

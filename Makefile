@@ -36,6 +36,7 @@ deps:
 	$(GOGET) -u google.golang.org/grpc
 	$(GOGET) -u github.com/fatih/color
 	$(GOGET) -u gopkg.in/yaml.v2
+	$(GOGET) -u github.com/rs/xid
 	
 clean: 
 	rm -f ./bin/*

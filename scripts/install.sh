@@ -22,6 +22,7 @@ go get github.com/golang/protobuf/protoc-gen-go
 go get google.golang.org/grpc
 go get github.com/fatih/color
 go get gopkg.in/yaml.v2
+go get github.com/rs/xid
 
 ## Build Binaries
 echo "building gmbh"
