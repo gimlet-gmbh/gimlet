@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/rpc/intrigue"
 )
 
@@ -152,7 +151,7 @@ func reportProcessHeader() string {
 	))
 }
 
-func reportProcess(p *cabal.Service) string {
+func reportProcess(p *intrigue.Service) string {
 	return fmt.Sprintf(" %-3s \u2502 %5s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %s",
 		p.Id,
 		getPid(p.Pid),

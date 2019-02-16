@@ -47,10 +47,12 @@ message Receipt {
 
 message DataRequest{
     Request Request = 1;
+    string Error = 2;
 }
 
 message DataResponse{
     Responder Responder = 2;
+    string Error = 3;
 }
 
 message EmptyRequest{}//empty

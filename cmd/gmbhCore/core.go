@@ -12,10 +12,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -379,14 +379,15 @@ func (r *Router) sendShutdownNotices() {
 			can()
 			continue
 		}
-		req := &cabal.ServiceUpdate{
-			Sender: "gmbh-core",
-			Target: service.Name,
-			Action: "core.shutdown",
+		req := &intrigue.ServiceUpdate{
+			Request: "core.shutdown",
+			Message: service.Name,
 		}
-		_, err = client.UpdateServiceRegistration(ctx, req)
+		_, err = client.UpdateRegistration(ctx, req)
 		if err != nil {
-			r.v("error contacting service; err=%s", err.Error())
+			if service.State != Shutdown {
+				r.v("error contacting service; id=%s; err=%s", service.ID, err.Error())
+			}
 		}
 	}
 }

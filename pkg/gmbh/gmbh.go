@@ -21,10 +21,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -367,7 +367,7 @@ func (g *Client) disconnect() {
 
 	g.mu.Lock()
 	if g.con != nil {
-		g.printer("con good")
+		g.printer("con exists; can send formal disconnect")
 		g.con.Disconnect()
 		g.con.Server = nil
 		g.con.SetAddress("-")
@@ -437,19 +437,19 @@ func (g *Client) sendPing(ph *pingHelper) {
 				return
 			}
 
-			response, err := client.Alive(ctx, &cabal.Ping{
+			response, err := client.Alive(ctx, &intrigue.Ping{
 				Time: time.Now().Format(time.Stamp),
-				ID: &cabal.ID{
-					ID:      g.reg.id,
-					Address: g.reg.address,
-					Name:    g.conf.ServiceName,
-				},
+				// ID: &cabal.ID{
+				// 	ID:      g.reg.id,
+				// 	Address: g.reg.address,
+				// 	Name:    g.conf.ServiceName,
+				// },
 			})
 			if err != nil {
 				g.failed()
 				return
 			}
-			if response.Status.Sender == "core.verified" {
+			if response.GetStatus() == "core.verified" {
 				can()
 				g.printer("<- pong")
 			} else {
@@ -466,14 +466,20 @@ func (g *Client) makeUnregisterRequest() {
 		panic(err)
 	}
 	defer can()
-	request := &cabal.UnregisterReq{
-		Name: g.conf.ServiceName,
+	request := &intrigue.ServiceUpdate{
+		Request: "shutdown.notif",
+		Message: g.conf.ServiceName,
 	}
-	if g.reg != nil {
-		request.Id = g.reg.id
-		request.Address = g.reg.address
+	_, _ = client.UpdateRegistration(ctx, request)
+}
+
+// getReg gets the registration or an empty one, keeps from causing a panic
+func (g *Client) getReg() *registration {
+	if g.reg == nil {
+		g.printer("nil reg err")
+		return &registration{}
 	}
-	_, _ = client.UnregisterService(ctx, request)
+	return g.reg
 }
 
 /**********************************************************************************
@@ -497,7 +503,7 @@ func (g *Client) MakeRequest(target, method, data string) (Responder, error) {
 	return resp, nil
 }
 
-func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
+func handleDataRequest(req intrigue.Request) (*intrigue.Responder, error) {
 
 	var request Request
 	request = requestFromProto(req)
@@ -534,8 +540,8 @@ type Request struct {
 
 // ToProto returns the gproto Request object corresponding to the current
 // Request object
-func (r *Request) toProto() *cabal.Request {
-	return &cabal.Request{
+func (r *Request) toProto() *intrigue.Request {
+	return &intrigue.Request{
 		Sender: r.Sender,
 		Target: r.Target,
 		Method: r.Method,
@@ -558,8 +564,8 @@ type Responder struct {
 
 // ToProto returns the gproto Request object corresponding to the current
 // Responder object
-func (r *Responder) toProto() *cabal.Responder {
-	return &cabal.Responder{
+func (r *Responder) toProto() *intrigue.Responder {
+	return &intrigue.Responder{
 		Result:      r.Result,
 		ErrorString: r.ErrorString,
 		HadError:    r.HadError,
@@ -568,7 +574,7 @@ func (r *Responder) toProto() *cabal.Responder {
 
 // requestFromProto takes a gproto request and returns the corresponding
 // Request object
-func requestFromProto(r cabal.Request) Request {
+func requestFromProto(r intrigue.Request) Request {
 	return Request{
 		Sender: r.Sender,
 		Target: r.Target,
@@ -579,7 +585,7 @@ func requestFromProto(r cabal.Request) Request {
 
 // ResponderFromProto takes a gproto Responder and returns the corresponding
 // Responder object
-func responderFromProto(r cabal.Responder) Responder {
+func responderFromProto(r intrigue.Responder) Responder {
 	return Responder{
 		Result:      r.Result,
 		ErrorString: r.ErrorString,
@@ -639,12 +645,12 @@ func (g *Client) printer(msg string, a ...interface{}) {
 ** RPCClient
 **********************************************************************************/
 
-func getRPCClient() (cabal.CabalClient, error) {
+func getRPCClient() (intrigue.CabalClient, error) {
 	con, err := grpc.Dial(g.coreAddress, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
-	return cabal.NewCabalClient(con), nil
+	return intrigue.NewCabalClient(con), nil
 
 }
 
@@ -653,7 +659,7 @@ func getContextCancel() (context.Context, context.CancelFunc) {
 	return ctx, can
 }
 
-func makeRequest() (cabal.CabalClient, context.Context, context.CancelFunc, error) {
+func makeRequest() (intrigue.CabalClient, context.Context, context.CancelFunc, error) {
 	client, err := getRPCClient()
 	if err != nil {
 		return nil, nil, nil, err
@@ -671,8 +677,8 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool,
 	}
 	defer can()
 
-	request := cabal.RegServReq{
-		NewServ: &cabal.NewService{
+	request := intrigue.NewServiceRequest{
+		Service: &intrigue.NewService{
 			Name:     name,
 			Aliases:  []string{},
 			IsClient: isClient,
@@ -680,13 +686,7 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool,
 		},
 	}
 
-	if mode == "remote" {
-		request.NewServ.Mode = cabal.NewService_REMOTE
-	} else {
-		request.NewServ.Mode = cabal.NewService_PLANETARY
-	}
-
-	reply, err := client.EphemeralRegisterService(ctx, &request)
+	reply, err := client.RegisterService(ctx, &request)
 	if err != nil {
 		if grpc.Code(err) == codes.Unavailable {
 			return nil, errors.New("registration.gmbhUnavailable")
@@ -695,16 +695,17 @@ func makeEphemeralRegistrationRequest(name string, isClient bool, isServer bool,
 		return nil, errors.New("registration.gmbhUnavailable")
 	}
 
-	if reply.Status == "acknowledged" {
+	if reply.Message == "acknowledged" {
+
+		reg := reply.GetServiceInfo()
+
 		r := &registration{
-			id:       reply.ID,
-			mode:     reply.Mode,
-			address:  reply.Address,
-			corePath: reply.CorePath,
+			id:      reg.GetID(),
+			address: reg.GetAddress(),
 		}
 		return r, nil
 	}
-	return nil, errors.New(reply.GetStatus())
+	return nil, errors.New(reply.GetMessage())
 }
 
 func makeDataRequest(target string, method string, data string) (Responder, error) {
@@ -715,9 +716,9 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 	}
 	defer can()
 
-	request := cabal.DataReq{
-		Req: &cabal.Request{
-			Sender: "test",
+	request := intrigue.DataRequest{
+		Request: &intrigue.Request{
+			Sender: g.conf.ServiceName,
 			Target: target,
 			Method: method,
 			Data1:  data,
@@ -728,7 +729,7 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 	g.msgCounter++
 	g.printer("<==" + mcs + "== target: " + target + ", method: " + method)
 
-	reply, err := client.MakeDataRequest(ctx, &request)
+	reply, err := client.Data(ctx, &request)
 	if err != nil {
 		// panic(err)
 		fmt.Println(fmt.Errorf("%v", err.Error()))
@@ -741,8 +742,10 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 
 	}
 	g.printer(" ==" + mcs + "==> " + reply.String())
-
-	return responderFromProto(*reply.Resp), nil
+	if reply.Responder == nil {
+		return responderFromProto(intrigue.Responder{}), nil
+	}
+	return responderFromProto(*reply.Responder), nil
 }
 
 /**********************************************************************************
@@ -759,7 +762,7 @@ func rpcConnect(address string) {
 	}
 
 	s := grpc.NewServer()
-	cabal.RegisterCabalServer(s, &_server{})
+	intrigue.RegisterCabalServer(s, &_server{})
 
 	reflection.Register(s)
 	if err := s.Serve(list); err != nil {
@@ -768,54 +771,18 @@ func rpcConnect(address string) {
 
 }
 
-func (s *_server) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
-	return &cabal.RegServRep{Status: "invalid operation"}, nil
+func (s *_server) RegisterService(ctx context.Context, in *intrigue.NewServiceRequest) (*intrigue.Receipt, error) {
+	return &intrigue.Receipt{Message: "operation.invalid"}, nil
 }
 
-func (s *_server) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
-	return &cabal.UnregisterResp{Ack: false}, nil
-}
+func (s *_server) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 
-func (s *_server) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
+	g.printer(fmt.Sprintf("-> Update Registration; Message=%s", in.String()))
 
-	mcs := strconv.Itoa(g.msgCounter)
-	g.msgCounter++
-	g.printer("==" + mcs + "==> from: " + in.Req.Sender + ", method: " + in.Req.Method)
+	request := in.GetRequest()
+	// target := in.GetMessage()
 
-	responder, err := handleDataRequest(*in.Req)
-	if err != nil {
-		panic(err)
-	}
-
-	reply := &cabal.DataResp{Resp: responder}
-	return reply, nil
-}
-
-func (s *_server) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
-
-	response := cabal.QueryResponse{
-		Awk:     true,
-		Status:  true,
-		Details: make(map[string]string),
-	}
-
-	return &response, nil
-}
-
-func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-
-	g.printer(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
-
-	if in.GetTarget() != g.conf.ServiceName {
-		g.printer("invalid target")
-		reply := &cabal.ServiceUpdate{
-			Action:  "error",
-			Message: "invalid service name",
-		}
-		return reply, nil
-	}
-
-	if in.Action == "core.shutdown" {
+	if request == "core.shutdown" {
 		g.printer("recieved shutdown")
 
 		g.printer("sending message over chans to ping")
@@ -832,16 +799,78 @@ func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.Servi
 			go g.Shutdown(true)
 		} else if !g.closed {
 			go func() {
+
+				g.mu.Lock()
+				g.reg = nil
+				g.mu.Unlock()
+
 				g.disconnect()
 				g.connect()
 			}()
 		}
 	}
 
-	reply := &cabal.ServiceUpdate{Action: "acknowledged"}
-	return reply, nil
+	return &intrigue.Receipt{Error: "unknown.request"}, nil
 }
 
-func (s *_server) Alive(ctx context.Context, ping *cabal.Ping) (*cabal.Pong, error) {
-	return &cabal.Pong{Time: time.Now().Format(time.Stamp)}, nil
+func (s *_server) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue.DataResponse, error) {
+
+	mcs := strconv.Itoa(g.msgCounter)
+	g.msgCounter++
+	g.printer("==" + mcs + "==> from: " + in.GetRequest().GetSender() + "; method: " + in.GetRequest().GetMethod())
+
+	responder, err := handleDataRequest(*in.GetRequest())
+	if err != nil {
+		panic(err)
+	}
+
+	return &intrigue.DataResponse{Responder: responder}, nil
+}
+
+func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
+	return &intrigue.SummaryReceipt{Error: "unimp"}, nil
+}
+
+// func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
+
+// 	g.printer(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
+
+// 	if in.GetTarget() != g.conf.ServiceName {
+// 		g.printer("invalid target")
+// 		reply := &cabal.ServiceUpdate{
+// 			Action:  "error",
+// 			Message: "invalid service name",
+// 		}
+// 		return reply, nil
+// 	}
+
+// 	if in.Action == "core.shutdown" {
+// 		g.printer("recieved shutdown")
+
+// 		g.printer("sending message over chans to ping")
+// 		for _, c := range g.pingHelpers {
+// 			c.pingChan <- true
+// 			c.contacted = true
+// 		}
+
+// 		g.pingHelpers = update(g.pingHelpers)
+
+// 		// either shutdown for real or disconnect and try and reach again if
+// 		// the service wasn't forked from gmbh-core
+// 		if os.Getenv("GMBHMODE") == "Managed" {
+// 			go g.Shutdown(true)
+// 		} else if !g.closed {
+// 			go func() {
+// 				g.disconnect()
+// 				g.connect()
+// 			}()
+// 		}
+// 	}
+
+// 	reply := &cabal.ServiceUpdate{Action: "acknowledged"}
+// 	return reply, nil
+// }
+
+func (s *_server) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
+	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }

@@ -8,8 +8,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/gmbh-micro/notify"
 )
 
 // LocalManager ; a process manager
@@ -92,7 +90,6 @@ func (m *LocalManager) Restart(fromFailed bool) (pid int, err error) {
 		m.mu.Unlock()
 
 		if m.info.Status == Running || m.info.Status == Stable {
-			notify.LnBRedF("from running or stable restart")
 			m.Kill(fromFailed)
 			time.Sleep(time.Second * 5)
 		}
@@ -172,13 +169,10 @@ func (m *LocalManager) forkExec(pid chan int) {
 		}
 
 		if m.userKilled {
-			notify.LnBRedF("user killed")
 			return
 		}
 
 		if m.gracefulshutdown {
-			notify.LnBRedF("graceful shutdown")
-
 			m.info.Errors = append(m.info.Errors, errors.New("marked for graceful shutdown"))
 			return
 		}
@@ -205,7 +199,6 @@ func (m *LocalManager) handleFailure() {
 	m.info.Status = Failed
 
 	if !m.userKilled {
-		notify.LnBRedF("failed")
 
 		// Only give up restarting if the process has beeen attempting to restart n times
 		// in the last 30 seconds
@@ -221,13 +214,10 @@ func (m *LocalManager) handleFailure() {
 			m.mu.Unlock()
 			time.Sleep(time.Second * 5)
 			m.Restart(true)
-			notify.LnBRedF("final fail")
 			return
 		}
 		m.info.Errors = append(m.info.Errors, fmt.Errorf("exceeded restart counter; time=%s; last-pid=%d", time.Now().Format(time.Stamp), m.info.PID))
 
-	} else {
-		notify.LnBRedF("user killed")
 	}
 	m.info.PID = -1
 	m.mu.Unlock()

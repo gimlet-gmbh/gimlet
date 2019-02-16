@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -236,8 +235,8 @@ func (c *controlServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrig
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
 
-func remoteToRPC(r *RemoteServer, services []*cabal.Service) *cabal.ProcessManager {
-	return &cabal.ProcessManager{
+func remoteToRPC(r *RemoteServer, services []*intrigue.Service) *intrigue.ProcessManager {
+	return &intrigue.ProcessManager{
 		ID:       r.ID,
 		Address:  r.Address,
 		Services: services,
