@@ -230,28 +230,30 @@ func (g *Client) Start() {
 func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
 
+	src := ""
 	if os.Getenv("PMMODE") == "PMManaged" {
-		g.printer("PPManaged mode; ignoring sigint")
+		g.printer("PMManaged mode; ignoring sigint")
 		signal.Ignore(syscall.SIGINT)
+		src = "sigusr2"
 		signal.Notify(sigs, syscall.SIGUSR2)
 	} else {
 		g.printer("using sigint")
+		src = "sigint"
 		signal.Notify(sigs, syscall.SIGINT)
 	}
 
-	g.printer("------------------------------------------------------------")
 	g.printer("started, time=" + time.Now().Format(time.RFC3339))
 
 	go g.connect()
 
 	_ = <-sigs
 	g.printer("signal received")
-	g.Shutdown(true)
+	g.Shutdown(true, src)
 }
 
 // Shutdown starts shutdown procedures
-func (g *Client) Shutdown(forceExit bool) {
-	g.printer("Shutdown procedures started in client")
+func (g *Client) Shutdown(forceExit bool, src string) {
+	g.printer("Shutdown procedures started in client from " + src)
 	g.mu.Lock()
 	g.closed = true
 	g.reg = nil
@@ -740,9 +742,6 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 
 	reply, err := client.Data(ctx, &request)
 	if err != nil {
-		// panic(err)
-		fmt.Println(fmt.Errorf("%v", err.Error()))
-
 		r := Responder{
 			HadError:    true,
 			ErrorString: err.Error(),
@@ -805,7 +804,7 @@ func (s *_server) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUp
 		// either shutdown for real or disconnect and try and reach again if
 		// the service wasn't forked from gmbh-core
 		if os.Getenv("GMBHMODE") == "Managed" {
-			go g.Shutdown(true)
+			go g.Shutdown(true, "core")
 		} else if !g.closed {
 			go func() {
 

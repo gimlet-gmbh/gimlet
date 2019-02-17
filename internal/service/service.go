@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -148,7 +147,7 @@ func (s *Service) Start(mode string) (pid string, err error) {
 			notify.LnYellowF("using sigusr2 as shutdown signal")
 			ssignal = syscall.SIGUSR2
 		}
-		fmt.Println(s.Static.BinPath)
+
 		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, s.Static.Args, env, ssignal)
 		pid, err := s.Process.Start()
 		if err != nil {

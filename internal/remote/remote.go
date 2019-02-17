@@ -25,6 +25,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+var logfile *os.File
+
 type Remote struct {
 
 	// the entry point for services to manage
@@ -105,12 +107,6 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 		mu:             &sync.Mutex{},
 	}
 
-	if verbose {
-		notify.LnBBlueF("                      _                       ")
-		notify.LnBBlueF("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
-		notify.LnBBlueF(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
-		notify.LnBBlueF("  _|                                          ")
-	}
 	return r, nil
 }
 
@@ -119,13 +115,28 @@ func (r *Remote) Start() {
 	sig := make(chan os.Signal, 1)
 	done := make(chan bool, 1)
 
+	logPath := os.Getenv("REMOTELOG")
+	if logPath != "" {
+		notify.LnCyanF("Remote using logfile at " + logPath)
+		setLog(logPath)
+	}
+
+	println("                      _                       ")
+	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
+	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
+	println("  _|                                          ")
+	print("started, time=" + time.Now().Format(time.Stamp))
+
+	src := ""
 	if os.Getenv("PMMODE") == "PMManaged" {
 		print("overriding sigusr2")
 		print("ignoring sigint, sigusr1")
+		src = "sigusr2"
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT, syscall.SIGUSR1)
 	} else {
 		print("overriding sigint")
+		src = "sigint"
 		signal.Notify(sig, syscall.SIGINT)
 	}
 	go func() {
@@ -133,8 +144,6 @@ func (r *Remote) Start() {
 		done <- true
 	}()
 
-	print("------------------------------------------------------------")
-	print("started, time=" + time.Now().Format(time.Stamp))
 	r.startTime = time.Now()
 
 	go r.connect()
@@ -142,13 +151,13 @@ func (r *Remote) Start() {
 	<-done
 	fmt.Println()
 
-	r.shutdown()
+	r.shutdown(src)
 
 }
 
 // shutdown procedures
-func (r *Remote) shutdown() {
-	notify.LnBYellowF("[remote] Shutdown procedures started in remote")
+func (r *Remote) shutdown(src string) {
+	print("[remote] Shutdown procedures started in remote from " + src)
 	r.mu.Lock()
 	r.closed = true
 	r.mu.Unlock()
@@ -160,11 +169,11 @@ func (r *Remote) shutdown() {
 
 	r.notifyCore()
 
-	notify.LnBYellowF("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
+	print("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
 
 	p := int64(time.Since(r.startTime) / (time.Second * 45))
 
-	notify.LnBYellowF("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
+	print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
 	os.Exit(0)
 }
 
@@ -426,7 +435,7 @@ func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.Serv
 		r.pingHelpers = broadcast(r.pingHelpers)
 
 		if os.Getenv("PMMODE") == "PMManaged" {
-			go r.shutdown()
+			go r.shutdown("procm")
 		} else if !r.closed {
 			go func() {
 				r.disconnect()
@@ -636,7 +645,6 @@ func (s *ServiceManager) AddServiceFromConfig(configPath string) (*service.Servi
 	if configPath == "" {
 		return nil, errors.New("serviceManager.AddServiceFromConfig.unspecified config")
 	}
-	fmt.Println(configPath)
 	newService, err := service.NewService(s.assignID(), configPath)
 	if err != nil {
 		return nil, errors.New("serviceManager.AddServiceFromConfig.serviceErr=" + err.Error())
@@ -731,17 +739,42 @@ func (s *ServiceManager) assignID() string {
 }
 
 func print(format string, a ...interface{}) {
+	tag := "[" + r.id + "] "
 	if r.id == "" {
-		notify.LnBlueF("[remote] "+format, a...)
+		tag = "[remote] "
+	}
+	if logfile != nil {
+		logfile.WriteString(fmt.Sprintf(tag+format+"\n", a...))
 		return
 	}
-	notify.LnBlueF("["+r.id+"] "+format, a...)
+	notify.LnBlueF(tag+format, a...)
+}
+
+func println(format string, a ...interface{}) {
+	if logfile != nil {
+		logfile.WriteString(fmt.Sprintf(format+"\n", a...))
+		return
+	}
+	notify.LnBlueF(format, a...)
 }
 
 func perr(format string, a ...interface{}) {
+	tag := "[" + r.id + "] "
 	if r.id == "" {
-		notify.LnRedF("[remote] "+format, a...)
+		tag = "[remote] "
+	}
+	if logfile != nil {
+		logfile.WriteString(fmt.Sprintf(tag+format+"\n", a...))
 		return
 	}
-	notify.LnRedF("["+r.id+"] "+format, a...)
+	notify.LnRedF(tag+format, a...)
+}
+
+func setLog(fpath string) {
+	file, err := os.OpenFile(fpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		print("creating log file err=%s", err.Error())
+		return
+	}
+	logfile = file
 }
