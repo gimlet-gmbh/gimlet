@@ -106,10 +106,10 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 	}
 
 	if verbose {
-		notify.LnBYellowF("                      _                       ")
-		notify.LnBYellowF("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
-		notify.LnBYellowF(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
-		notify.LnBYellowF("  _|                                          ")
+		notify.LnBBlueF("                      _                       ")
+		notify.LnBBlueF("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
+		notify.LnBBlueF(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
+		notify.LnBBlueF("  _|                                          ")
 	}
 	return r, nil
 }
@@ -120,12 +120,12 @@ func (r *Remote) Start() {
 	done := make(chan bool, 1)
 
 	if os.Getenv("PMMODE") == "PMManaged" {
-		notify.StdMsgBlue("overriding sigusr2")
-		notify.StdMsgBlue("ignoring sigint, sigusr1")
+		print("overriding sigusr2")
+		print("ignoring sigint, sigusr1")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT, syscall.SIGUSR1)
 	} else {
-		notify.StdMsgBlue("overriding sigint")
+		print("overriding sigint")
 		signal.Notify(sig, syscall.SIGINT)
 	}
 	go func() {
@@ -133,8 +133,8 @@ func (r *Remote) Start() {
 		done <- true
 	}()
 
-	notify.StdMsgNoPrompt("------------------------------------------------------------")
-	notify.StdMsg("started, time=" + time.Now().Format(time.Stamp))
+	print("------------------------------------------------------------")
+	print("started, time=" + time.Now().Format(time.Stamp))
 	r.startTime = time.Now()
 
 	go r.connect()
@@ -148,7 +148,7 @@ func (r *Remote) Start() {
 
 // shutdown procedures
 func (r *Remote) shutdown() {
-	notify.LnBYellowF("Shutdown procedures started in remote")
+	notify.LnBYellowF("[remote] Shutdown procedures started in remote")
 	r.mu.Lock()
 	r.closed = true
 	r.mu.Unlock()
@@ -160,11 +160,11 @@ func (r *Remote) shutdown() {
 
 	r.notifyCore()
 
-	notify.LnBYellowF("shutdown, time=" + time.Now().Format(time.Stamp))
+	notify.LnBYellowF("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
 
 	p := int64(time.Since(r.startTime) / (time.Second * 45))
 
-	notify.LnBYellowF("Ping counter should be around " + strconv.Itoa(int(p)))
+	notify.LnBYellowF("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
 	os.Exit(0)
 }
 
@@ -181,12 +181,12 @@ func (r *Remote) connect() {
 		return
 	}
 
-	notify.StdMsgBlue("attempting to connect to core")
+	print("attempting to connect to core")
 
 	reg, status := r.makeCoreConnectRequest()
 	for status != nil {
 		if status.Error() != "registration.Unavailable" {
-			notify.StdMsgErr("internal error=" + status.Error())
+			perr("internal error=" + status.Error())
 			return
 		}
 
@@ -194,7 +194,7 @@ func (r *Remote) connect() {
 			return
 		}
 
-		notify.StdMsgErr("Could not reach core, try again in 5s")
+		perr("Could not reach core, try again in 5s")
 		time.Sleep(time.Second * 5)
 		reg, status = r.makeCoreConnectRequest()
 	}
@@ -213,18 +213,18 @@ func (r *Remote) connect() {
 
 	err := r.con.Connect()
 	if err != nil {
-		notify.StdMsgErr("connection error=" + err.Error())
-		notify.StdMsgErr("handle this; for now return")
+		perr("connection error=" + err.Error())
+		perr("handle this; for now return")
 		r.closed = true
 		return
 	}
-	notify.StdMsgBlue("connected")
+	print("connected")
 
 	go r.sendPing(ph)
 }
 
 func (r *Remote) disconnect() {
-	notify.StdMsgBlue("disconnecting")
+	print("disconnecting")
 	r.mu.Lock()
 	if r.con != nil {
 		r.con.Disconnect()
@@ -235,7 +235,7 @@ func (r *Remote) disconnect() {
 }
 
 func (r *Remote) failed() {
-	notify.StdMsgBlue("connection to core reporting failure")
+	print("connection to core reporting failure")
 	if r.con.IsConnected() {
 		r.con.Disconnect()
 	}
@@ -245,7 +245,7 @@ func (r *Remote) failed() {
 
 	if !r.closed {
 		time.Sleep(time.Second * 5)
-		notify.StdMsgBlue("attempting to reconneced")
+		print("attempting to reconneced")
 		r.mu.Lock()
 		r.reg = nil
 		r.mu.Unlock()
@@ -263,12 +263,12 @@ func (r *Remote) sendPing(ph *pingHelper) {
 		r.pingCounter++
 		r.mu.Unlock()
 
-		notify.StdMsgBlue("-> ping " + strconv.Itoa(r.pingCounter))
+		print("-> ping " + strconv.Itoa(r.pingCounter))
 
 		select {
 		case _ = <-ph.pingChan: // case in which this channel has a message in the buffer
 			close(ph.pingChan)
-			notify.StdMsgBlue("<- buffer")
+			print("<- buffer")
 			ph.mu.Lock()
 			ph.received = true
 			ph.mu.Unlock()
@@ -280,7 +280,7 @@ func (r *Remote) sendPing(ph *pingHelper) {
 
 			client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second*30)
 			if err != nil {
-				notify.StdMsgErr(err.Error())
+				perr(err.Error())
 				r.failed()
 			}
 
@@ -294,14 +294,14 @@ func (r *Remote) sendPing(ph *pingHelper) {
 			pong, err := client.Alive(ctx, &intrigue.Ping{Status: r.id, Time: time.Now().Format(time.Stamp)})
 			can()
 			if err != nil {
-				notify.StdMsgErr("did not receive pong response")
+				perr("did not receive pong response")
 				r.failed()
 				return
 			}
 			if pong.GetError() == "" {
-				notify.StdMsgBlue("<- pong")
+				print("<- pong")
 			} else {
-				notify.StdMsgBlue("<- pong error=" + pong.GetError())
+				print("<- pong error=" + pong.GetError())
 				r.failed()
 				return
 			}
@@ -335,7 +335,7 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 		fingerprint: reply.GetServiceInfo().GetFingerprint(),
 	}
 
-	notify.StdMsgBlue("registration; id=" + reg.id + "; address=" + reg.address + "; fingerprint=" + reg.fingerprint)
+	print("registration; id=" + reg.id + "; address=" + reg.address + "; fingerprint=" + reg.fingerprint)
 
 	return reg, nil
 }
@@ -379,9 +379,9 @@ func (r *Remote) LookupService(id string) (*service.Service, error) {
 
 // notifyCore of shutdown
 func (r *Remote) notifyCore() {
-	notify.StdMsgBlue("sending notify to core")
+	print("sending notify to core")
 	if r.id == "" {
-		notify.StdMsgBlue("invalid id")
+		print("invalid id")
 		return
 	}
 
@@ -396,7 +396,7 @@ func (r *Remote) notifyCore() {
 		Request: "shutdown.notif",
 	}
 	client.UpdateRegistration(ctx, request)
-	notify.StdMsgBlue("notice sent")
+	print("notice sent")
 	return
 }
 
@@ -542,7 +542,7 @@ func (s *remoteServer) Alive(ctx context.Context, in *intrigue.Ping) (*intrigue.
 }
 
 func vrpc(format string, a ...interface{}) {
-	notify.LnBlueF("[rpc] "+format, a...)
+	print("[rpc] "+format, a...)
 }
 
 func serviceToRPC(s *service.Service) *intrigue.Service {
@@ -601,7 +601,7 @@ func update(phs []*pingHelper) []*pingHelper {
 			c++
 		}
 	}
-	notify.StdMsgBlue("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
+	print("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
 	return n
 }
 
@@ -636,7 +636,7 @@ func (s *ServiceManager) AddServiceFromConfig(configPath string) (*service.Servi
 	if configPath == "" {
 		return nil, errors.New("serviceManager.AddServiceFromConfig.unspecified config")
 	}
-
+	fmt.Println(configPath)
 	newService, err := service.NewService(s.assignID(), configPath)
 	if err != nil {
 		return nil, errors.New("serviceManager.AddServiceFromConfig.serviceErr=" + err.Error())
@@ -647,14 +647,14 @@ func (s *ServiceManager) AddServiceFromConfig(configPath string) (*service.Servi
 		return nil, errors.New("serviceManager.AddServiceFromConfig.serviceErr=" + err.Error())
 	}
 
-	notify.StdMsgBlue("added " + newService.ID)
+	print("added " + newService.ID)
 
 	return newService, nil
 }
 
 // NotifyGracefulShutdown of all attached services
 func (s *ServiceManager) NotifyGracefulShutdown() {
-	notify.StdMsgBlue("sending graceful shutdown notices")
+	print("sending graceful shutdown notices")
 	for _, v := range s.services {
 		v.EnableGracefulShutdown()
 	}
@@ -681,7 +681,7 @@ func (s *ServiceManager) LookupByID(id string) (*service.Service, error) {
 // Shutdown kills all attached processes
 func (s *ServiceManager) Shutdown() {
 	for _, s := range s.services {
-		notify.StdMsgBlue("sending shutdown to " + s.ID)
+		print("sending shutdown to " + s.ID)
 		s.Kill()
 	}
 }
@@ -689,12 +689,12 @@ func (s *ServiceManager) Shutdown() {
 // RestartAll attached processes
 func (s *ServiceManager) RestartAll() {
 	for _, s := range s.services {
-		notify.StdMsgBlue("sending restart to " + s.ID)
+		print("sending restart to " + s.ID)
 		pid, err := s.Restart()
 		if err != nil {
-			notify.StdMsgErr("could not restart; err=" + err.Error())
+			perr("could not restart; err=" + err.Error())
 		}
-		notify.StdMsgBlue("Pid=" + pid)
+		print("Pid=" + pid)
 	}
 }
 
@@ -728,4 +728,20 @@ func (s *ServiceManager) assignID() string {
 		s.mu.Unlock()
 	}()
 	return "s" + strconv.Itoa(s.idCounter)
+}
+
+func print(format string, a ...interface{}) {
+	if r.id == "" {
+		notify.LnBlueF("[remote] "+format, a...)
+		return
+	}
+	notify.LnBlueF("["+r.id+"] "+format, a...)
+}
+
+func perr(format string, a ...interface{}) {
+	if r.id == "" {
+		notify.LnRedF("[remote] "+format, a...)
+		return
+	}
+	notify.LnRedF("["+r.id+"] "+format, a...)
 }

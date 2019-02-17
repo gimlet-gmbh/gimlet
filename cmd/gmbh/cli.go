@@ -16,7 +16,7 @@ import (
 func listAll() {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
-		notify.StdMsgErr("error: " + err.Error())
+		notify.LnRedF("error: " + err.Error())
 	}
 	defer can()
 
@@ -25,8 +25,8 @@ func listAll() {
 	}
 	reply, err := client.Summary(ctx, &request)
 	if err != nil {
-		notify.StdMsgBlue("Could not contact gmbhServer")
-		notify.StdMsgErr("error: "+err.Error(), 1)
+		notify.LnBlueF("Could not contact gmbhServer")
+		notify.LnRedF("error: "+err.Error(), 1)
 		return
 	}
 	pprintListAll(reply.GetRemotes())
@@ -35,7 +35,7 @@ func listAll() {
 func runReport() {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
-		notify.StdMsgErr("error: " + err.Error())
+		notify.LnBlueF("error: " + err.Error())
 	}
 	defer can()
 
@@ -44,8 +44,8 @@ func runReport() {
 	}
 	reply, err := client.Summary(ctx, &request)
 	if err != nil {
-		notify.StdMsgBlue("Could not contact gmbhServer")
-		notify.StdMsgErr("error: "+err.Error(), 1)
+		notify.LnBlueF("Could not contact gmbhServer")
+		notify.LnRedF("error: "+err.Error(), 1)
 		return
 	}
 
@@ -55,7 +55,7 @@ func runReport() {
 func restartAll() {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
-		notify.StdMsgErr("error: " + err.Error())
+		notify.LnRedF("error: " + err.Error())
 	}
 	defer can()
 
@@ -64,22 +64,22 @@ func restartAll() {
 	}
 	reply, err := client.RestartService(ctx, request)
 	if err != nil {
-		notify.StdMsgErr("error: " + err.Error())
+		notify.LnRedF("error: " + err.Error())
 		return
 	}
-	notify.StdMsgBlue(reply.GetMessage())
+	notify.LnBlueF(reply.GetMessage())
 }
 
 func listOne(id string) {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*5)
 	if err != nil {
-		notify.StdMsgErr("error: " + err.Error())
+		notify.LnRedF("error: " + err.Error())
 	}
 	defer can()
 
 	splitID := strings.Split(id, "-")
 	if len(splitID) != 2 {
-		notify.StdMsgErr("could not parse id")
+		notify.LnRedF("could not parse id")
 		return
 	}
 
@@ -90,13 +90,13 @@ func listOne(id string) {
 	}
 	reply, err := client.Summary(ctx, request)
 	if err != nil {
-		notify.StdMsgErr(handleErr(err))
+		notify.LnRedF(handleErr(err))
 		return
 	}
 
 	if reply.GetError() != "" {
-		notify.StdMsgErr("could not find service with id: " + id)
-		notify.StdMsgErr("report from core=" + reply.GetError())
+		notify.LnRedF("could not find service with id: " + id)
+		notify.LnRedF("report from core=" + reply.GetError())
 		return
 	}
 	pprintListOne(reply.GetRemotes())
@@ -105,13 +105,13 @@ func listOne(id string) {
 func restartOne(id string) {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*20)
 	if err != nil {
-		notify.StdMsgErr("client error: " + err.Error())
+		notify.LnRedF("client error: " + err.Error())
 	}
 	defer can()
 
 	splitID := strings.Split(id, "-")
 	if len(splitID) != 2 {
-		notify.StdMsgErr("could not parse id")
+		notify.LnRedF("could not parse id")
 		return
 	}
 
@@ -123,26 +123,26 @@ func restartOne(id string) {
 	reply, err := client.RestartService(ctx, request)
 	if err != nil {
 		fmt.Println(err)
-		notify.StdMsgErr("send error: " + err.Error())
+		notify.LnRedF("send error: " + err.Error())
 		return
 	}
 
-	notify.StdMsgBlue(reply.String())
+	notify.LnBlueF(reply.String())
 }
 
 func shutdown() {
 	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
 	if err != nil {
-		notify.StdMsgErr("error: " + err.Error())
+		notify.LnRedF("error: " + err.Error())
 	}
 	defer can()
 
 	reply, err := client.StopServer(ctx, &intrigue.EmptyRequest{})
 	if err != nil {
-		notify.StdMsgErr("error: " + err.Error())
+		notify.LnRedF("error: " + err.Error())
 		return
 	}
-	notify.StdMsgBlue(reply.String())
+	notify.LnBlueF(reply.String())
 }
 
 func handleErr(err error) string {

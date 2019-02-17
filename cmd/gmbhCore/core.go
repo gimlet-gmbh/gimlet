@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -12,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/rs/xid"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // internal reference to core for use rpc
@@ -35,8 +34,8 @@ type Core struct {
 	// con holds the host connection for the cabal server
 	con *rpc.Connection
 
-	// config is the user configurable parameters as read in from file
-	config *UserConfig
+	// conf is the user configurable parameters as read in from file
+	conf *config.Core
 
 	// Router controls all aspects of data requests & handling in Core
 	Router *Router
@@ -58,7 +57,7 @@ func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 		return core, nil
 	}
 
-	userConfig, err := ParseUserConfig(cPath)
+	userConfig, err := config.ParseCore(cPath)
 	if err != nil {
 		notify.LnRedF("could not parse config; err=%v", err.Error())
 		return nil, err
@@ -69,7 +68,7 @@ func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 		Code:        defaults.CODE,
 		ProjectPath: basePath(cPath),
 		con:         rpc.NewCabalConnection(defaults.DEFAULT_HOST+defaults.DEFAULT_PORT, &cabalServer{}),
-		config:      userConfig,
+		conf:        userConfig,
 		Router:      NewRouter(),
 		msgCounter:  1,
 		startTime:   time.Now(),
@@ -82,10 +81,6 @@ func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 		return nil, errors.New("config path error")
 	}
 
-	// notify.LnCyanF("                    _           ")
-	// notify.LnCyanF("  _  ._ _  |_  |_| /   _  ._ _  ")
-	// notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_")
-	// notify.LnCyanF("  _|                            ")
 	notify.LnCyanF("                    _            _              ")
 	notify.LnCyanF("  _  ._ _  |_  |_| /   _  ._ _  | \\  _. _|_  _. ")
 	notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_ |_/ (_|  |_ (_| ")
@@ -121,12 +116,15 @@ func (c *Core) Start() {
 func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 
+	src := ""
 	if os.Getenv("PMMODE") == "PMManaged" {
 		c.vi("overriding sigusr2")
 		signal.Notify(sig, syscall.SIGUSR2)
+		src = "sigusr2"
 		signal.Ignore(syscall.SIGUSR1, syscall.SIGINT)
 	} else {
 		c.vi("overriding sigint")
+		src = "sigint"
 		signal.Notify(sig, syscall.SIGINT)
 	}
 
@@ -134,12 +132,12 @@ func (c *Core) Wait() {
 	_ = <-sig
 	fmt.Println() //dead line to line up output
 
-	c.shutdown(false)
+	c.shutdown(false, src)
 }
 
 // shutdown begins graceful shutdown procedures
-func (c *Core) shutdown(remote bool) {
-	c.v("shutdown procedure started")
+func (c *Core) shutdown(remote bool, source string) {
+	c.v("shutdown procedure started from " + source)
 
 	// send shutdown notification to all services
 	c.Router.sendShutdownNotices()
@@ -177,52 +175,52 @@ func basePath(configPath string) string {
 **** User Config
 **********************************************************************************/
 
-// UserConfig represents the parsable config settings
-type UserConfig struct {
-	Name              string   `yaml:"project_name"`
-	Verbose           bool     `yaml:"verbose"`
-	Daemon            bool     `yaml:"daemon"`
-	DefaultHost       string   `yaml:"default_host"`
-	DefaultPort       string   `yaml:"default_port"`
-	ControlHost       string   `yaml:"control_host"`
-	ControlPort       string   `yaml:"control_port"`
-	ServicesDirectory string   `yaml:"services_directory"`
-	ServicesToAttach  []string `yaml:"services_to_attach"`
-	ServicesDetached  []string `yaml:"services_detached"`
-}
+// // UserConfig represents the parsable config settings
+// type UserConfig struct {
+// 	Name              string   `yaml:"project_name"`
+// 	Verbose           bool     `yaml:"verbose"`
+// 	Daemon            bool     `yaml:"daemon"`
+// 	DefaultHost       string   `yaml:"default_host"`
+// 	DefaultPort       string   `yaml:"default_port"`
+// 	ControlHost       string   `yaml:"control_host"`
+// 	ControlPort       string   `yaml:"control_port"`
+// 	ServicesDirectory string   `yaml:"services_directory"`
+// 	ServicesToAttach  []string `yaml:"services_to_attach"`
+// 	ServicesDetached  []string `yaml:"services_detached"`
+// }
 
-// ParseUserConfig attempts to parse a yaml file at path and return the UserConfigStruct.
-// If not all settings have been defined in user path, the defaults will be used.
-func ParseUserConfig(path string) (*UserConfig, error) {
-	c := UserConfig{Verbose: defaults.VERBOSE, Daemon: defaults.DAEMON}
+// // ParseUserConfig attempts to parse a yaml file at path and return the UserConfigStruct.
+// // If not all settings have been defined in user path, the defaults will be used.
+// func ParseUserConfig(path string) (*UserConfig, error) {
+// 	c := UserConfig{Verbose: defaults.VERBOSE, Daemon: defaults.DAEMON}
 
-	yamlFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, errors.New("could not open yaml file: " + err.Error())
-	}
+// 	yamlFile, err := ioutil.ReadFile(path)
+// 	if err != nil {
+// 		return nil, errors.New("could not open yaml file: " + err.Error())
+// 	}
 
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		return nil, errors.New("could not parse yaml file: " + err.Error())
-	}
+// 	err = yaml.Unmarshal(yamlFile, &c)
+// 	if err != nil {
+// 		return nil, errors.New("could not parse yaml file: " + err.Error())
+// 	}
 
-	if c.Name == "" {
-		c.Name = defaults.PROJECT_NAME
-	}
-	if c.DefaultHost == "" {
-		c.DefaultHost = defaults.DEFAULT_HOST
-	}
-	if c.DefaultPort == "" {
-		c.DefaultPort = defaults.DEFAULT_PORT
-	}
-	if c.ControlHost == "" {
-		c.ControlHost = defaults.CONTROL_HOST
-	}
-	if c.ControlPort == "" {
-		c.ControlPort = defaults.CONTROL_PORT
-	}
-	return &c, nil
-}
+// 	if c.Name == "" {
+// 		c.Name = defaults.PROJECT_NAME
+// 	}
+// 	if c.DefaultHost == "" {
+// 		c.DefaultHost = defaults.DEFAULT_HOST
+// 	}
+// 	if c.DefaultPort == "" {
+// 		c.DefaultPort = defaults.DEFAULT_PORT
+// 	}
+// 	if c.ControlHost == "" {
+// 		c.ControlHost = defaults.CONTROL_HOST
+// 	}
+// 	if c.ControlPort == "" {
+// 		c.ControlPort = defaults.CONTROL_PORT
+// 	}
+// 	return &c, nil
+// }
 
 /**********************************************************************************
 **** Router
@@ -495,8 +493,10 @@ func NewService(id string, name string, aliases []string, address string) *GmbhS
 func (g *GmbhService) UpdateState(s State) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.v("marking %s(%s) as %s", g.Name, g.ID, s.String())
-	g.State = s
+	if s != g.State {
+		g.v("marking %s(%s) as %s", g.Name, g.ID, s.String())
+		g.State = s
+	}
 }
 
 // v verbose printer

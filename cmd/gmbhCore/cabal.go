@@ -12,8 +12,7 @@ import (
 )
 
 func v(msg string) {
-	notify.StdMsgBlueNoPrompt(" [cbl] " + msg)
-
+	notify.LnBlueF(" [cbl] " + msg)
 }
 
 var cnt int
@@ -140,7 +139,7 @@ func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue
 }
 
 func rv(msg string, a ...interface{}) {
-	notify.LnMagentaF("[rpc] "+msg, a...)
+	notify.LnMagentaF("[cabal] "+msg, a...)
 }
 
 func rd(msg string, a ...interface{}) {
@@ -148,5 +147,5 @@ func rd(msg string, a ...interface{}) {
 }
 
 func rve(msg string, a ...interface{}) {
-	notify.LnRedF("[rpc] "+msg, a...)
+	notify.LnRedF("[cabal] "+msg, a...)
 }

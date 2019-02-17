@@ -1,0 +1,49 @@
+##################################################################################
+## gmbH Project
+##################################################################################
+
+
+##################################################################################
+[core]
+##################################################################################
+# 
+mode = ""
+#
+# Print coreData to stdout and stdErr? This can be overriden with the --verbose 
+# command line flag
+verbose = true
+#
+# For instances where gmbh is running in a container
+daemom = false
+#
+# The address to start the coreData server
+address = "localhost:49500"
+#
+# How long between keep alive messages
+keep_alive = "45s"
+#
+
+##################################################################################
+[procm]
+##################################################################################
+# What address should the ProcM be started at
+address = "localhost:59500"
+#
+# How long between keep alive messages
+keep_alive = "45s"
+#
+# Print gmbhProcM to stdout and stdErr
+verbose = false
+#
+
+##################################################################################
+[services]
+##################################################################################
+# This directory will be scanned for subdirectories. The subdirectories will be 
+# scanned for service configuration files. When a config file is found, 
+# gmbhServiceLauncher will attempt to launch the service in managed mode
+services_directory = "managed_services"
+#
+# Link to any other locations on the current host where services configs can be found
+services = [""]
+#

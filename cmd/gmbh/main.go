@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -11,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 )
@@ -22,12 +27,12 @@ func main() {
 	core := flag.Bool("core", false, "begin a gmbhCore instance; must specify a config file")
 	serviceDiscovery := flag.Bool("sd", false, "start managed processes")
 
-	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
-	verbosedata := flag.Bool("verbose-data", false, "print gmbhData output to stdOut and stdErr")
+	verbosedata := flag.Bool("verbose", false, "print gmbhCoreData output to stdOut and stdErr")
+	verbose := flag.Bool("verbose-data", false, "print all output to stdOut and stdErr")
 	nolog := flag.Bool("no-log", false, "disable logging")
 	daemon := flag.Bool("daemon", false, "for running the process manager in a container")
 
-	config := flag.String("config", "", "a gmbh configuration file path")
+	configs := flag.String("config", "", "a gmbh configuration file path")
 
 	listAllFlag := flag.Bool("list", false, "list all processes")
 	reportFlag := flag.Bool("report", false, "list all processes in report format")
@@ -38,12 +43,15 @@ func main() {
 
 	flag.Parse()
 
+	setCore(*configs)
+
 	if *remote {
-		startRemote(*config)
+		startRemote(*configs)
 	} else if *core {
-		startCore(*config, *verbose, *verbosedata, *daemon, *nolog, *serviceDiscovery)
+
+		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *serviceDiscovery)
 	} else if *serviceDiscovery {
-		startServiceDiscovery(*config, *verbose, *daemon)
+		startServiceDiscovery(*configs, *verbose, *daemon)
 	} else if *listAllFlag {
 		listAll()
 	} else if *reportFlag {
@@ -62,13 +70,13 @@ func main() {
 
 }
 
-func startServiceDiscovery(config string, verbose, daemon bool) {
-	userConfig, err := ParseUserConfig(config)
+func startServiceDiscovery(cfile string, verbose, daemon bool) {
+	userConfig, err := config.ParseCoreService(cfile)
 	if err != nil {
 		notify.LnBRedF("could not parse config; err=%s", err.Error())
 		return
 	}
-	path := filepath.Join(basePath(config), userConfig.ServicesDirectory)
+	path := filepath.Join(basePath(cfile), userConfig.ServicesDirectory)
 	servicePaths, err := scanForServices(path)
 	if err != nil {
 		notify.LnBRedF("error scanning for services; err=%s", err.Error())
@@ -78,24 +86,55 @@ func startServiceDiscovery(config string, verbose, daemon bool) {
 	// Create and attach all services that run in Managed mode
 	for _, servicePath := range servicePaths {
 
-		// notify.LnBYellowF("scanning dir=%s", servicePath)
-		configPath := filepath.Join(servicePath, "gmbh.yaml")
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			notify.LnBYellowF("could not find config file, skipping")
+		static, err := config.ParseStaticService(servicePath)
+		if err != nil {
+			notify.LnBRedF("could not open config file")
 			continue
 		}
-		launchService(servicePath, configPath, defaults.DEFAULT_HOST+defaults.DEFAULT_PORT, verbose)
-	}
-	// sig := make(chan os.Signal, 1)
-	// signal.Notify(sig, syscall.SIGINT)
 
-	// notify.LnBBlueF("holding until shutdown signal")
-	// _ = <-sig
-	// fmt.Println() //dead line to line up output
+		if ok := static.Validate(); ok != nil {
+			notify.LnBRedF("could not validate config file")
+			continue
+		}
+		launchService(servicePath, servicePath, defaults.DEFAULT_HOST+defaults.DEFAULT_PORT, verbose)
+	}
 
 }
 
 func startRemote(c string) {
+
+}
+
+func setCore(configPath string) {
+
+	Service := config.Service{
+		StaticData: &config.Static{
+			Name:     "core",
+			Language: "go",
+			BinPath:  "gmbhCore",
+			Args:     []string{"--config=" + configPath, "--verbose"},
+		},
+	}
+
+	dir := filepath.Dir(configPath)
+	coreServiceConfig := filepath.Join(dir, ".core.service")
+
+	buf := new(bytes.Buffer)
+	if err := toml.NewEncoder(buf).Encode(Service); err != nil {
+		log.Fatal(err)
+	}
+
+	f, err := os.Create(coreServiceConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w := bufio.NewWriter(f)
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Flush()
+	f.Close()
 
 }
 
@@ -120,20 +159,29 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 	}
 
 	var pmlog *os.File
-	var datalog *os.File
+	// var datalog *os.File
 	var err error
 
 	pmCmd := exec.Command("gmbhProcm")
-	gmbhCmd := exec.Command("gmbhCore", "--config="+c)
+
+	gmbhCmd := exec.Command("gmbhProcm", "--remote", "--config=./.core.service")
+	gmbhCmd.Stdout = os.Stdout
+	gmbhCmd.Stderr = os.Stderr
+	workingEnv := []string{
+		"GMBHMODE=Managed",
+		"PMMODE=PMManaged",
+	}
+	gmbhCmd.Env = append(os.Environ(), workingEnv...)
+	gmbhCmd.Start()
 
 	if verbose {
 		pmCmd.Stdout = os.Stdout
 		pmCmd.Stderr = os.Stderr
 		pmCmd.Args = append(pmCmd.Args, "--verbose")
 
-		gmbhCmd.Stdout = os.Stdout
-		gmbhCmd.Stderr = os.Stderr
-		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
+		// gmbhCmd.Stdout = os.Stdout
+		// gmbhCmd.Stderr = os.Stderr
+		// gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
 	}
 	if vdata {
 		pmlog, err = getLogFile("gmbh", "procm.log")
@@ -143,9 +191,9 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 			pmCmd.Stdout = pmlog
 			pmCmd.Stderr = pmlog
 
-			gmbhCmd.Stdout = os.Stdout
-			gmbhCmd.Stderr = os.Stderr
-			gmbhCmd.Args = append(gmbhCmd.Args, "--verbose-data")
+			// gmbhCmd.Stdout = os.Stdout
+			// gmbhCmd.Stderr = os.Stderr
+			// gmbhCmd.Args = append(gmbhCmd.Args, "--verbose-data")
 		}
 	}
 	if !verbose && !vdata && !nolog {
@@ -158,14 +206,14 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 		} else {
 			panic(err)
 		}
-		datalog, err = getLogFile("gmbh", "data.log")
-		if err == nil {
-			notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "data.log"))
-			gmbhCmd.Stdout = datalog
-			gmbhCmd.Stderr = datalog
-		} else {
-			panic(err)
-		}
+		// datalog, err = getLogFile("gmbh", "data.log")
+		// if err == nil {
+		// 	notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "data.log"))
+		// 	gmbhCmd.Stdout = datalog
+		// 	gmbhCmd.Stderr = datalog
+		// } else {
+		// 	panic(err)
+		// }
 	}
 
 	remoteEnv := append(
@@ -173,18 +221,18 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 		"PMMODE=PMManaged",
 	)
 	pmCmd.Env = remoteEnv
-	gmbhCmd.Env = remoteEnv
+	// gmbhCmd.Env = remoteEnv
 
 	err = pmCmd.Start()
 	if err != nil {
 		notify.LnBRedF("could not start gmbh-procm")
 		return
 	}
-	err = gmbhCmd.Start()
-	if err != nil {
-		notify.LnBRedF("could not start gmbh-data")
-		return
-	}
+	// err = gmbhCmd.Start()
+	// if err != nil {
+	// 	notify.LnBRedF("could not start gmbh-data")
+	// 	return
+	// }
 
 	if serviceDiscovery {
 		go startServiceDiscovery(c, verbose, daemon)
@@ -203,13 +251,13 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 		pmCmd.Process.Signal(syscall.SIGUSR1)
 
 		// shutdown gmbh
-		time.Sleep(time.Second * 1)
-		gmbhCmd.Process.Signal(syscall.SIGUSR2)
-		gmbhCmd.Wait()
-		notify.LnBYellowF("[cli] gmbh shutdown")
+		// time.Sleep(time.Second * 1)
+		// gmbhCmd.Process.Signal(syscall.SIGUSR2)
+		// gmbhCmd.Wait()
+		// notify.LnBYellowF("[cli] gmbh shutdown")
 
 		// shutdown the process manager
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 3)
 		pmCmd.Process.Signal(syscall.SIGUSR2)
 		pmCmd.Wait()
 		notify.LnBYellowF("[cli] procm shutdown")
@@ -218,12 +266,145 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 		if pmlog != nil {
 			pmlog.Close()
 		}
-		if datalog != nil {
-			datalog.Close()
-		}
+		// if datalog != nil {
+		// 	datalog.Close()
+		// }
 
 		notify.LnBYellowF("[cli] shutdown complete")
 	}
+
+	// report()
+
+	// installed := checkInstall()
+	// if !installed {
+	// 	notify.LnBRedF("gmbhCore does not seem to be installed")
+	// 	os.Exit(1)
+	// }
+
+	// if c == "" {
+	// 	notify.LnBRedF("must specify a config file using the --config flag")
+	// 	os.Exit(1)
+	// }
+
+	// exists := checkConfig(c)
+	// if !exists {
+	// 	notify.LnBRedF("the specified config file does not seem to exist...")
+	// 	os.Exit(1)
+	// }
+
+	// var pmlog *os.File
+	// var datalog *os.File
+	// var err error
+
+	// pmCmd := exec.Command("gmbhProcm")
+	// gmbhCmd := exec.Command("gmbhCore", "--config="+c)
+
+	// if verbose {
+	// 	pmCmd.Stdout = os.Stdout
+	// 	pmCmd.Stderr = os.Stderr
+	// 	pmCmd.Args = append(pmCmd.Args, "--verbose")
+
+	// 	gmbhCmd.Stdout = os.Stdout
+	// 	gmbhCmd.Stderr = os.Stderr
+	// 	gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
+	// }
+	// if vdata {
+	// 	pmlog, err = getLogFile("gmbh", "procm.log")
+	// 	if err == nil {
+	// 		notify.LnYellowF("logs")
+	// 		notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "procm.log"))
+	// 		pmCmd.Stdout = pmlog
+	// 		pmCmd.Stderr = pmlog
+
+	// 		gmbhCmd.Stdout = os.Stdout
+	// 		gmbhCmd.Stderr = os.Stderr
+	// 		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose-data")
+	// 	}
+	// }
+	// if !verbose && !vdata && !nolog {
+	// 	notify.LnYellowF("logs")
+	// 	pmlog, err = getLogFile("gmbh", "procm.log")
+	// 	if err == nil {
+	// 		notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "procm.log"))
+	// 		pmCmd.Stdout = pmlog
+	// 		pmCmd.Stderr = pmlog
+	// 	} else {
+	// 		panic(err)
+	// 	}
+	// 	datalog, err = getLogFile("gmbh", "data.log")
+	// 	if err == nil {
+	// 		notify.LnYellowF(filepath.Join(getpwd(), "gmbh", "data.log"))
+	// 		gmbhCmd.Stdout = datalog
+	// 		gmbhCmd.Stderr = datalog
+	// 	} else {
+	// 		panic(err)
+	// 	}
+	// }
+
+	// remoteEnv := append(
+	// 	os.Environ(),
+	// 	"PMMODE=PMManaged",
+	// )
+	// pmCmd.Env = remoteEnv
+	// gmbhCmd.Env = remoteEnv
+
+	// err = pmCmd.Start()
+	// if err != nil {
+	// 	notify.LnBRedF("could not start gmbh-procm")
+	// 	return
+	// }
+	// err = gmbhCmd.Start()
+	// if err != nil {
+	// 	notify.LnBRedF("could not start gmbh-data")
+	// 	return
+	// }
+
+	// if serviceDiscovery {
+	// 	go startServiceDiscovery(c, verbose, daemon)
+	// }
+
+	// if !daemon {
+	// 	sig := make(chan os.Signal, 1)
+	// 	signal.Notify(sig, syscall.SIGINT)
+
+	// 	notify.LnBBlueF("holding until shutdown signal")
+	// 	_ = <-sig
+	// 	fmt.Println() //dead line to line up output
+
+	// 	// signal the processes
+	// 	notify.LnBBlueF("signaled sigusr1")
+	// 	pmCmd.Process.Signal(syscall.SIGUSR1)
+
+	// 	// shutdown gmbh
+	// 	time.Sleep(time.Second * 1)
+	// 	gmbhCmd.Process.Signal(syscall.SIGUSR2)
+	// 	gmbhCmd.Wait()
+	// 	notify.LnBYellowF("[cli] gmbh shutdown")
+
+	// 	// shutdown the process manager
+	// 	time.Sleep(time.Second * 1)
+	// 	pmCmd.Process.Signal(syscall.SIGUSR2)
+	// 	pmCmd.Wait()
+	// 	notify.LnBYellowF("[cli] procm shutdown")
+
+	// 	// close the logs
+	// 	if pmlog != nil {
+	// 		pmlog.Close()
+	// 	}
+	// 	if datalog != nil {
+	// 		datalog.Close()
+	// 	}
+
+	// 	notify.LnBYellowF("[cli] shutdown complete")
+	// }
+}
+
+func launchProc() {
+
+}
+
+func launchCore() {
+
 }
 
 // getLogFile attempts to add the desired path as an extension to the current
@@ -273,13 +454,13 @@ func checkInstall() bool {
 		}
 		return true
 	} else if runtime.GOOS == "linux" {
-		notify.StdMsgErr("Linux support is incomplete")
+		notify.LnRedF("Linux support is incomplete")
 		if _, err := os.Stat(os.Getenv("GOPATH") + "/bin/gmbhCore"); os.IsNotExist(err) {
 			return false
 		}
 		return true
 	}
-	notify.StdMsgErr(fmt.Sprintf("OS support not yet implemented for %s", runtime.GOOS))
+	notify.LnRedF(fmt.Sprintf("OS support not yet implemented for %s", runtime.GOOS))
 	return false
 }
 

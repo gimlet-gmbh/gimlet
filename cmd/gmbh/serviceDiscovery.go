@@ -94,7 +94,7 @@ func scanForServices(baseDir string) ([]string, error) {
 		fpath := filepath.Join(baseDir, file.Name())
 		potentialSymbolic, err := filepath.EvalSymlinks(fpath)
 		if err != nil {
-			notify.StdMsgErr(err.Error(), 0)
+			notify.LnRedF(err.Error(), 0)
 			continue
 		}
 
@@ -108,7 +108,7 @@ func scanForServices(baseDir string) ([]string, error) {
 		// Try and open the symbolic link path and check for dir, skip if not
 		newFile, err := os.Stat(potentialSymbolic)
 		if err != nil {
-			notify.StdMsgErr(err.Error())
+			notify.LnRedF(err.Error())
 			continue
 		}
 
@@ -123,9 +123,9 @@ func scanForServices(baseDir string) ([]string, error) {
 		}
 
 		for _, sfile := range serviceFiles {
-			match, err := regexp.MatchString(defaults.CONFIG_FILE_EXT, sfile.Name())
+			match, err := regexp.MatchString(".toml", sfile.Name())
 			if err == nil && match {
-				servicePaths = append(servicePaths, filepath.Join(baseDir, file.Name()))
+				servicePaths = append(servicePaths, filepath.Join(baseDir, file.Name(), sfile.Name()))
 			}
 		}
 	}

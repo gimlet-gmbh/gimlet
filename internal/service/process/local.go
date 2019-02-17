@@ -146,6 +146,7 @@ func (m *LocalManager) forkExec(pid chan int) {
 	listener := make(chan error)
 	err := cmd.Start()
 	if err != nil {
+		fmt.Println(err.Error())
 		pid <- -1
 		return
 	}

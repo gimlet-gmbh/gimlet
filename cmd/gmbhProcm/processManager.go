@@ -105,8 +105,6 @@ func NewProcessManager(configFile string, v bool) *ProcessManager {
 	notify.LnCyanF(" (_| | | | |_) | | |   | (_) (_ |  |  ")
 	notify.LnCyanF("  _|                                  ")
 
-	notify.SetHeader("[procm]")
-
 	return procm
 }
 
@@ -126,7 +124,7 @@ func (p *ProcessManager) Start() error {
 	if err != nil {
 		return err
 	}
-	notify.StdMsgBlue("serving at " + p.Address)
+	p.print("serving at " + p.Address)
 	return nil
 }
 
@@ -139,16 +137,16 @@ func (p *ProcessManager) Wait() {
 	// set up the listener for shutdown
 	sig := make(chan os.Signal, 1)
 	if os.Getenv("PMMODE") == "PMManaged" {
-		notify.StdMsgBlue("overriding sigusr2")
-		notify.StdMsgBlue("ignoring sigint")
+		p.print("overriding sigusr2")
+		p.print("ignoring sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT)
 	} else {
-		notify.StdMsgBlue("overriding sigint")
+		p.print("overriding sigint")
 		signal.Notify(sig, syscall.SIGINT)
 	}
 
-	notify.StdMsgBlue("main thread waiting...")
+	p.print("main thread waiting...")
 
 	_ = <-sig
 	fmt.Println() // deadline to align output after sigint
@@ -163,13 +161,13 @@ func (p *ProcessManager) gracefulShutdownListener() {
 	signal.Notify(shutdown, syscall.SIGUSR1)
 
 	_ = <-shutdown
-	notify.StdMsgBlue("SIGUSR1 reported")
+	p.print("SIGUSR1 reported")
 	p.sendGmbhShutdown()
 }
 
 // RegisterRemote adds the remote to the router and sends back the id and address
 func (p *ProcessManager) RegisterRemote() (id, address, fingerprint string, err error) {
-	notify.StdMsgBlue("registering new remote")
+	p.print("registering new remote")
 	rm, err := p.router.AttachNewRemote()
 	if err != nil {
 		return "", "", "", err
@@ -222,17 +220,17 @@ func (p *ProcessManager) RestartAll() []error {
 	}
 	if len(errors) != 0 {
 		for _, e := range errors {
-			notify.StdMsgErr("restart error=" + e.Error())
+			p.perr("restart error=" + e.Error())
 		}
 	} else {
-		notify.StdMsgBlue("sent all restart requests with no errors")
+		p.print("sent all restart requests with no errors")
 	}
 	return errors
 }
 
 // sendRestart sends a restart request to a remote
 func (p *ProcessManager) sendRestart(address, id string, all bool) error {
-	notify.StdMsgBlue("sending restart request to " + id)
+	p.print("sending restart request to " + id)
 
 	client, ctx, can, err := rpc.GetRemoteRequest(address, time.Second*2)
 	if err != nil {
@@ -258,11 +256,11 @@ func (p *ProcessManager) sendRestart(address, id string, all bool) error {
 // processes because gmbh process manager has signaled shutdown time
 func (p *ProcessManager) sendGmbhShutdown() {
 
-	notify.LnBlueF("gmbh shutdown initiated")
+	p.print("gmbh shutdown initiated")
 
 	remotes := p.router.GetAllAttached()
 	for _, r := range remotes {
-		notify.StdMsgBlue("sending gmbh shutdown notice to " + r.ID)
+		p.print("sending gmbh shutdown notice to " + r.ID)
 		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
 		if err != nil {
 			return
@@ -282,7 +280,7 @@ func (p *ProcessManager) sendGmbhShutdown() {
 func (p *ProcessManager) sendShutdown() {
 	remotes := p.router.GetAllAttached()
 	for _, r := range remotes {
-		notify.StdMsgBlue("sending shutdown notice to " + r.ID)
+		p.print("sending shutdown notice to " + r.ID)
 		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
 		if err != nil {
 			return
@@ -306,11 +304,18 @@ func (p *ProcessManager) MarkShutdown(id string) {
 // Shutdown starts shutdown procedures. If remote it indicates tat the signal came from the control
 // tool
 func (p *ProcessManager) Shutdown(remote bool) {
-	notify.StdMsgBlue("shutdown signal received")
+	p.print("shutdown signal received")
 	p.con.Disconnect()
 	p.sendShutdown()
 	time.Sleep(time.Second * 3)
 	os.Exit(0)
+}
+
+func (p *ProcessManager) print(format string, a ...interface{}) {
+	notify.LnCyanF("[proc] "+format, a...)
+}
+func (p *ProcessManager) perr(format string, a ...interface{}) {
+	notify.LnRedF("[proc] "+format, a...)
 }
 
 // Router controls the handling of attached remote servers including assigning addresses
@@ -417,7 +422,7 @@ func (r *Router) addToMap(rm *RemoteServer) error {
 func (r *Router) pingHandler() {
 	for {
 		time.Sleep(time.Second * 45)
-		notify.StdMsgBlue("checking pings")
+		r.verbose("checking pings")
 		for _, v := range r.GetAllAttached() {
 			if v.State == Failed {
 				if time.Since(v.StateUpdate) > time.Second*30 {
@@ -456,7 +461,7 @@ func (r *Router) assignID() string {
 // verbose sends message to notify if in verbose mode
 func (r *Router) verbose(msg string) {
 	if r.Verbose {
-		notify.StdMsgBlueNoPrompt("[rtr] " + msg)
+		notify.LnBlueF("[rtr] " + msg)
 	}
 }
 

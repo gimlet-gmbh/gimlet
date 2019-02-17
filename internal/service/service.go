@@ -2,12 +2,14 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/defaults"
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
 	"github.com/gmbh-micro/service/static"
@@ -56,7 +58,7 @@ type Service struct {
 	Logs    *notify.Log
 
 	// Static data associated with the service
-	Static *static.Static
+	Static *config.Static
 
 	// If managed, Process will hold the process controller
 	Process process.Manager
@@ -67,64 +69,65 @@ type Service struct {
 
 // NewService tries to parse the required info from a config file located at path
 func NewService(id, path string) (*Service, error) {
-	staticData, err := static.ParseData(path)
+
+	staticData, err := config.ParseStaticService(path)
 	if err != nil {
 		return nil, err
 	}
-
-	dir := path[:len(path)-len(defaults.CONFIG_FILE)]
+	valid := staticData.Validate()
+	if valid != nil {
+		return nil, err
+	}
 
 	service := Service{
 		ID:      id,
 		Created: time.Now(),
 		Mode:    Managed,
-		Path:    dir,
+		Path:    filepath.Dir(path),
 		Static:  staticData,
 	}
 
-	ok := static.DataIsValid(staticData)
-	if !ok {
-		return nil, errors.New("invalid config file")
-	}
 	return &service, nil
 }
 
 // NewManagedService tries to parse the required info from a config file located at path
 func NewManagedService(id, path string) (*Service, error) {
-	staticData, err := static.ParseData(path)
-	if err != nil {
-		return nil, err
-	}
+	// staticData, err := static.ParseData(path)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	dir := path[:len(path)-len(defaults.CONFIG_FILE)]
+	// dir := path[:len(path)-len(defaults.CONFIG_FILE)]
 
-	service := Service{
-		ID:      id,
-		Created: time.Now(),
-		Mode:    Managed,
-		Path:    dir,
-		Static:  staticData,
-	}
+	// service := Service{
+	// 	ID:      id,
+	// 	Created: time.Now(),
+	// 	Mode:    Managed,
+	// 	Path:    dir,
+	// 	Static:  staticData,
+	// }
 
-	ok := static.DataIsValid(staticData)
-	if !ok {
-		return nil, errors.New("invalid config file")
-	}
-	return &service, nil
+	// ok := static.DataIsValid(staticData)
+	// if !ok {
+	// 	return nil, errors.New("invalid config file")
+	// }
+	// return &service, nil
+	return nil, errors.New("unimp")
 }
 
 // NewPlanetaryService returns a new service with static data that is passed in
 func NewPlanetaryService(id string, staticData *static.Static) (*Service, error) {
-	if staticData == nil {
-		return nil, errors.New("static data not present")
-	}
-	service := Service{
-		ID:      id,
-		Created: time.Now(),
-		Mode:    Planetary,
-		Static:  staticData,
-	}
-	return &service, nil
+	// if staticData == nil {
+	// 	return nil, errors.New("static data not present")
+	// }
+	// service := Service{
+	// 	ID:      id,
+	// 	Created: time.Now(),
+	// 	Mode:    Planetary,
+	// 	Static:  staticData,
+	// }
+	// return &service, nil
+	return nil, errors.New("unimp")
 }
 
 // Start attempts to fork/exec service and returns the pid, else error
@@ -142,13 +145,14 @@ func (s *Service) Start(mode string) (pid string, err error) {
 	if s.Static.Language == "go" {
 		ssignal := syscall.SIGINT
 		if mode == "PMManaged" {
-			notify.StdMsgDebug("using sigusr2 as shutdown signal")
+			notify.LnYellowF("using sigusr2 as shutdown signal")
 			ssignal = syscall.SIGUSR2
 		}
-		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, []string{}, env, ssignal)
+		fmt.Println(s.Static.BinPath)
+		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, s.Static.Args, env, ssignal)
 		pid, err := s.Process.Start()
 		if err != nil {
-			notify.StdMsgDebug("failed to start")
+			notify.LnYellowF("failed to start; err=%s", err.Error())
 			return "-1", errors.New("service.StartService.couldNotStartNewService")
 		}
 		return strconv.Itoa(pid), nil
@@ -190,11 +194,10 @@ func (s *Service) StartLog(path, filename string) {
 
 // createAbsPathToBin attempts to resolve an absolute path to the binary file to start
 func (s *Service) createAbsPathToBin(path, binPath string) string {
-	absPath := ""
 	if binPath[0] == '.' {
-		absPath = path + binPath[1:]
+		return path + binPath[1:]
 	}
-	return absPath
+	return binPath
 }
 
 // Println adds a log message to the service's log if it has been configured
