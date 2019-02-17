@@ -72,7 +72,8 @@ message Action {
 }
 
 message SummaryReceipt {
-    repeated ProcessManager Remotes = 1;
+    repeated ProcessManager Remotes = 1;  // data from control sever
+    repeated CoreService Services = 4;    // data from cabal server
     string Error = 3;
 }
 
@@ -92,6 +93,9 @@ message ProcessManager {
     string ID = 1;
     string Name = 2;
     string Address = 3;
+    string StartTime = 5;
+    repeated string Errors = 8;
+    string Status = 7;
     repeated Service Services = 4;
 }
 
@@ -123,6 +127,14 @@ message Service {
     string StartTime = 17;
     string FailTime = 18;
     repeated string Errors = 19;
+}
+
+message CoreService {
+    string Name = 1;
+    string Address = 2;
+    string Mode = 3;
+    string ParentID = 5;
+    repeated string Errors = 4;
 }
 
 /*

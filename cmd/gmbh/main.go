@@ -16,16 +16,15 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/gmbh-micro/config"
-	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 )
 
 func main() {
 
 	// modes
-	remote := flag.Bool("remote", false, "begin a gmbhRemote service; must specify a config file")
+	// remote := flag.Bool("remote", false, "begin a gmbhRemote service; must specify a config file")
 	core := flag.Bool("core", false, "begin a gmbhCore instance; must specify a config file")
-	serviceDiscovery := flag.Bool("sd", false, "start managed processes")
+	noServiceDiscovery := flag.Bool("noSDiscovery", false, "do not start managed processes")
 
 	verbosedata := flag.Bool("verbose", false, "print gmbhCoreData output to stdOut and stdErr")
 	verbose := flag.Bool("verbose-data", false, "print all output to stdOut and stdErr")
@@ -45,13 +44,8 @@ func main() {
 
 	setCore(*configs)
 
-	if *remote {
-		startRemote(*configs)
-	} else if *core {
-
-		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *serviceDiscovery)
-	} else if *serviceDiscovery {
-		startServiceDiscovery(*configs, *verbose, *daemon)
+	if *core {
+		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *noServiceDiscovery)
 	} else if *listAllFlag {
 		listAll()
 	} else if *reportFlag {
@@ -65,18 +59,18 @@ func main() {
 	} else if *shutdownFlag {
 		shutdown()
 	} else {
-		notify.LnRedF("rerun with --help to see options")
+		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *noServiceDiscovery)
 	}
 
 }
 
 func startServiceDiscovery(cfile string, verbose, daemon bool) {
-	userConfig, err := config.ParseCoreService(cfile)
+	userConfig, err := config.ParseSystemConfig(cfile)
 	if err != nil {
 		notify.LnBRedF("could not parse config; err=%s", err.Error())
 		return
 	}
-	path := filepath.Join(basePath(cfile), userConfig.ServicesDirectory)
+	path := filepath.Join(basePath(cfile), userConfig.Services.ServicesDirectory)
 	servicePaths, err := scanForServices(path)
 	if err != nil {
 		notify.LnBRedF("error scanning for services; err=%s", err.Error())
@@ -86,7 +80,7 @@ func startServiceDiscovery(cfile string, verbose, daemon bool) {
 	// Create and attach all services that run in Managed mode
 	for _, servicePath := range servicePaths {
 
-		static, err := config.ParseStaticService(servicePath)
+		static, err := config.ParseServiceStatic(servicePath)
 		if err != nil {
 			notify.LnBRedF("could not open config file")
 			continue
@@ -96,19 +90,15 @@ func startServiceDiscovery(cfile string, verbose, daemon bool) {
 			notify.LnBRedF("could not validate config file")
 			continue
 		}
-		launchService(servicePath, servicePath, defaults.DEFAULT_HOST+defaults.DEFAULT_PORT, verbose)
+		launchService(servicePath, servicePath, config.DefaultSystemCore.Address, verbose)
 	}
-
-}
-
-func startRemote(c string) {
 
 }
 
 func setCore(configPath string) {
 
-	Service := config.Service{
-		StaticData: &config.Static{
+	Service := config.ServiceConfig{
+		Static: &config.ServiceStatic{
 			Name:     "core",
 			Language: "go",
 			BinPath:  "gmbhCore",
@@ -138,7 +128,7 @@ func setCore(configPath string) {
 
 }
 
-func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
+func startCore(c string, verbose, vdata, daemon, nolog, noServiceDiscovery bool) {
 	report()
 
 	installed := checkInstall()
@@ -168,8 +158,7 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 	// gmbhCmd.Stdout = os.Stdout
 	// gmbhCmd.Stderr = os.Stderr
 	workingEnv := []string{
-		"GMBHMODE=Managed",
-		"PMMODE=PMManaged",
+		"SERVICEMODE=managed",
 	}
 
 	if verbose {
@@ -222,7 +211,7 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 
 	remoteEnv := append(
 		os.Environ(),
-		"PMMODE=PMManaged",
+		"SERVICEMODE=managed",
 	)
 	pmCmd.Env = remoteEnv
 
@@ -239,7 +228,7 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 		return
 	}
 
-	if serviceDiscovery {
+	if !noServiceDiscovery {
 		go startServiceDiscovery(c, verbose, daemon)
 	}
 
@@ -271,14 +260,6 @@ func startCore(c string, verbose, vdata, daemon, nolog, serviceDiscovery bool) {
 
 		notify.LnBYellowF("[cli] shutdown complete")
 	}
-
-}
-
-func launchProc() {
-
-}
-
-func launchCore() {
 
 }
 
@@ -348,5 +329,5 @@ func report() {
 	notify.LnBCyanF("  _  ._ _  |_  |_  (_   _  ._   o  _  _  |   _.     ._   _ |_   _  ._ ")
 	notify.LnBCyanF(" (_| | | | |_) | | __) (/_ | \\/ | (_ (/_ |_ (_| |_| | | (_ | | (/_ |  ")
 	notify.LnBCyanF("  _|                                                                  ")
-	notify.LnBCyanF("Version=%s; Code=%s", defaults.VERSION, defaults.CODE)
+	notify.LnBCyanF("Version=%s; Code=%s", config.Version, config.Code)
 }

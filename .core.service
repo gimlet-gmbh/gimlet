@@ -1,8 +1,0 @@
-mode = ""
-
-[connecting]
-  name = "core"
-  args = ["--config=", "--verbose", "--sd"]
-  language = "go"
-  bin_path = "gmbhCore"
-  src_path = ""

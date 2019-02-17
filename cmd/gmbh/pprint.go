@@ -90,13 +90,48 @@ func pprintListOne(pm []*intrigue.ProcessManager) {
 	}
 }
 
-func pprintListAll(remote []*intrigue.ProcessManager) {
+func pprintListAll(remotes []*intrigue.ProcessManager, services []*intrigue.CoreService) {
 	fmt.Println(reportRemoteHeader())
-	for _, p := range remote {
-		for _, s := range p.GetServices() {
-			fmt.Println(reportRemote(s, p.ID))
+	rs := matchRemotesCores(remotes, services)
+	for _, pm := range remotes {
+		fmt.Println(reportRemotePM(pm))
+		for _, s := range rs {
+			if s.id == pm.ID {
+				fmt.Println(reportRemote(s.pm, s.s))
+			}
 		}
 	}
+	for _, s := range rs {
+		if s.id == "" {
+			fmt.Println(reportRemote(s.pm, s.s))
+		}
+	}
+}
+
+func matchRemotesCores(remotes []*intrigue.ProcessManager, services []*intrigue.CoreService) []*remoteservice {
+	ret := []*remoteservice{}
+	for _, s := range services {
+		if s.ParentID == "" {
+			ret = append(ret, &remoteservice{s: s})
+			continue
+		}
+		for _, pm := range remotes {
+			for _, pms := range pm.GetServices() {
+				splitID := strings.Split(pms.Id, "-")
+				if s.ParentID == splitID[0] {
+					ret = append(ret, &remoteservice{s: s, pm: pms, id: pm.ID})
+					continue
+				}
+			}
+		}
+	}
+	return ret
+}
+
+type remoteservice struct {
+	pm *intrigue.Service
+	s  *intrigue.CoreService
+	id string
 }
 
 func getStatus(s string) string {
@@ -165,21 +200,33 @@ func reportProcess(p *intrigue.Service) string {
 
 func reportRemoteHeader() string {
 	u := color.New(color.Underline).SprintFunc()
-	return u(fmt.Sprintf(" %-8s \u2502 %-8s \u2502 %-7s \u2502 %-3s \u2502 %-12s ",
+	return u(fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-7s \u2502 %-3s \u2502 %-12s \u2502 %-20s ",
 		"ID",
 		"Status",
 		"Uptime",
 		"Err",
 		"Name",
+		"Address",
 	))
 }
 
-func reportRemote(p *intrigue.Service, nid string) string {
-	return fmt.Sprintf(" %-8s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s ",
+func reportRemote(p *intrigue.Service, c *intrigue.CoreService) string {
+	return fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %-20s ",
 		p.Id,
 		getStatus(p.Status),
 		getUptime(p.StartTime),
 		len(p.Errors),
 		getName(p.Name),
+		c.Address,
+	)
+}
+func reportRemotePM(pm *intrigue.ProcessManager) string {
+	return fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %-20s ",
+		pm.ID,
+		getStatus(pm.Status),
+		getUptime(pm.StartTime),
+		len(pm.Errors),
+		"remoteProcm",
+		pm.Address,
 	)
 }

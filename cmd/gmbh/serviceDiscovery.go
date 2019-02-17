@@ -83,8 +83,6 @@ func scanForServices(baseDir string) ([]string, error) {
 
 // launch service fork and exec's using gmbh remote with config path set to the known config path
 func launchService(servicePath, validConfigPath, coreAddress string, verbose bool) {
-	notify.LnCyanF("launching service")
-
 	args := []string{"--remote", "--config=" + validConfigPath}
 
 	if verbose {
@@ -95,8 +93,8 @@ func launchService(servicePath, validConfigPath, coreAddress string, verbose boo
 
 	workingEnv := []string{
 		"GMBHCORE=" + coreAddress,
-		"GMBHMODE=Managed",
-		"PMMODE=PMManaged",
+		"SERVICEMODE=managed",
+		"CONFIGPATH=" + validConfigPath,
 	}
 
 	if verbose {

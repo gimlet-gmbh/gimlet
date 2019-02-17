@@ -110,12 +110,36 @@ func (s *cabalServer) Data(ctx context.Context, in *intrigue.DataRequest) (*intr
 }
 
 func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
+
+	rv("-> Update Registration; Update=%s", in.String())
+
+	c, err := GetCore()
+	if err != nil {
+		rd("could not get core error=%s", cnt, err.Error())
+		return &intrigue.SummaryReceipt{Error: "core.ref"}, nil
+	}
+
+	// add core itself
+	ccs := &intrigue.CoreService{
+		Name:     "core",
+		Address:  c.conf.Address,
+		ParentID: c.parentID,
+	}
+
+	request := in.GetRequest()
+	if request == "request.info.all" {
+		return &intrigue.SummaryReceipt{
+			Services: c.Router.GetCoreServiceData(ccs),
+			Error:    "",
+		}, nil
+	}
+
 	return &intrigue.SummaryReceipt{Error: "unimp"}, nil
 }
 
 func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
 
-	rv("<- pong")
+	// rv("<- pong")
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {

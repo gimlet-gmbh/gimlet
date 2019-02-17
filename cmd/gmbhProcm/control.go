@@ -250,10 +250,6 @@ func remoteToRPC(r *RemoteServer, services []*intrigue.Service) *intrigue.Proces
 	}
 }
 
-// func rpcMessage(msg string) {
-// 	notify.LnMagentaF("[rpc] " + msg)
-// }
-
 func rpcprint(format string, a ...interface{}) {
 	notify.LnMagentaF("[control] "+format, a...)
 

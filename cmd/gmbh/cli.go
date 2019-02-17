@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gmbh-micro/defaults"
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -14,26 +14,54 @@ import (
 )
 
 func listAll() {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
-	if err != nil {
-		notify.LnRedF("error: " + err.Error())
-	}
-	defer can()
+	remotes := []*intrigue.ProcessManager{}
+	{
+		client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second*2)
+		if err != nil {
+			notify.LnRedF("error: " + err.Error())
+		}
+		defer can()
 
-	request := intrigue.Action{
-		Request: "summary.all",
+		request := intrigue.Action{
+			Request: "summary.all",
+		}
+		resp, err := client.Summary(ctx, &request)
+		if err != nil {
+			notify.LnBlueF("Could not contact gmbhProcm; error=%s", err.Error())
+			return
+		}
+		if resp.Error != "" {
+			notify.LnBlueF("Could not contact gmbhCore; error=%s", resp.Error)
+		}
+		remotes = resp.GetRemotes()
 	}
-	reply, err := client.Summary(ctx, &request)
-	if err != nil {
-		notify.LnBlueF("Could not contact gmbhServer")
-		notify.LnRedF("error: "+err.Error(), 1)
-		return
+
+	services := []*intrigue.CoreService{}
+	{
+		client, ctx, can, err := rpc.GetCabalRequest(config.DefaultSystemCore.Address, time.Second*2)
+		if err != nil {
+			notify.LnRedF("error: " + err.Error())
+		}
+		defer can()
+
+		request := &intrigue.Action{
+			Request: "request.info.all",
+		}
+		resp, err := client.Summary(ctx, request)
+		if err != nil {
+			notify.LnBlueF("Could not contact gmbhCore; error=%s", err.Error())
+		}
+		if resp.GetServices() == nil {
+			notify.LnBlueF("Could not contact gmbhCore; error=%s", resp.Error)
+		}
+		services = resp.GetServices()
 	}
-	pprintListAll(reply.GetRemotes())
+
+	pprintListAll(remotes, services)
 }
 
 func runReport() {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
+	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second)
 	if err != nil {
 		notify.LnBlueF("error: " + err.Error())
 	}
@@ -53,7 +81,7 @@ func runReport() {
 }
 
 func restartAll() {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
+	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second)
 	if err != nil {
 		notify.LnRedF("error: " + err.Error())
 	}
@@ -71,7 +99,7 @@ func restartAll() {
 }
 
 func listOne(id string) {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*5)
+	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second*5)
 	if err != nil {
 		notify.LnRedF("error: " + err.Error())
 	}
@@ -103,7 +131,7 @@ func listOne(id string) {
 }
 
 func restartOne(id string) {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second*20)
+	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second*20)
 	if err != nil {
 		notify.LnRedF("client error: " + err.Error())
 	}
@@ -131,7 +159,7 @@ func restartOne(id string) {
 }
 
 func shutdown() {
-	client, ctx, can, err := rpc.GetControlRequest(defaults.CONTROL_HOST+defaults.CONTROL_PORT, time.Second)
+	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second)
 	if err != nil {
 		notify.LnRedF("error: " + err.Error())
 	}

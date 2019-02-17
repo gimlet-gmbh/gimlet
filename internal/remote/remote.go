@@ -27,6 +27,7 @@ import (
 
 var logfile *os.File
 
+// Remote ; as in remote process manager client; holds the process
 type Remote struct {
 
 	// the entry point for services to manage
@@ -47,6 +48,10 @@ type Remote struct {
 	pingCounter int
 	PongDelay   time.Duration
 	startTime   time.Time
+	errors      []error
+
+	// The mode as read by the environment
+	mode string
 
 	// gmbhShutdown is marked true when sigusr1 has been sent to the pm process.
 	// When this flag is true services that exit will not be restarted as it is
@@ -91,6 +96,7 @@ type registration struct {
 
 var r *Remote
 
+// NewRemote returns a new remote object
 func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 
 	if r != nil {
@@ -104,16 +110,16 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 		startTime:      time.Now(),
 		coreAddress:    coreAddress,
 		verbose:        verbose,
+		mode:           os.Getenv("SERVICEMODE"),
+		errors:         make([]error, 0),
 		mu:             &sync.Mutex{},
 	}
 
 	return r, nil
 }
 
+// Start the remote
 func (r *Remote) Start() {
-
-	sig := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
 
 	logPath := os.Getenv("REMOTELOG")
 	if logPath != "" {
@@ -127,32 +133,21 @@ func (r *Remote) Start() {
 	println("  _|                                          ")
 	print("started, time=" + time.Now().Format(time.Stamp))
 
-	src := ""
-	if os.Getenv("PMMODE") == "PMManaged" {
-		print("overriding sigusr2")
-		print("ignoring sigint, sigusr1")
-		src = "sigusr2"
+	sig := make(chan os.Signal, 1)
+	if r.mode == "managed" {
+		print("remote is in managed mode; using sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT, syscall.SIGUSR1)
 	} else {
-		print("overriding sigint")
-		src = "sigint"
 		signal.Notify(sig, syscall.SIGINT)
 	}
-	go func() {
-		_ = <-sig
-		done <- true
-	}()
 
 	r.startTime = time.Now()
-
 	go r.connect()
 
-	<-done
+	_ = <-sig
 	fmt.Println()
-
-	r.shutdown(src)
-
+	r.shutdown("signal")
 }
 
 // shutdown procedures
@@ -166,13 +161,10 @@ func (r *Remote) shutdown(src string) {
 
 	// shutdown service
 	r.serviceManager.Shutdown()
-
 	r.notifyCore()
 
 	print("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
-
-	p := int64(time.Since(r.startTime) / (time.Second * 45))
-
+	p := int64(time.Since(r.startTime) / r.PongDelay)
 	print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
 	os.Exit(0)
 }
@@ -308,7 +300,7 @@ func (r *Remote) sendPing(ph *pingHelper) {
 				return
 			}
 			if pong.GetError() == "" {
-				print("<- pong")
+				// print("<- pong")
 			} else {
 				print("<- pong error=" + pong.GetError())
 				r.failed()
@@ -350,16 +342,35 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 }
 
 // AddService attaches services to the remote and then attempts to start them
+// EXPERIMENTAL -- in a goroutine wait until the registration has been returned from
+//                 procm before starting the service
 func (r *Remote) AddService(configPath string) (pid string, err error) {
-	service, err := r.serviceManager.AddServiceFromConfig(configPath)
-	if err != nil {
-		return "-1", errors.New("could not start service; error=" + err.Error())
-	}
 
-	if os.Getenv("PMMODE") == "PMManaged" {
-		return service.Start("PMManaged")
-	}
-	return service.Start("")
+	go func() {
+		for {
+			time.Sleep(time.Second * 3)
+			if r.id != "" {
+				service, err := r.serviceManager.AddServiceFromConfig(configPath)
+				if err != nil {
+					perr("could add start service; error=" + err.Error())
+				}
+				service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
+				pid, err := service.Start(r.mode)
+				if err != nil {
+					perr("could not start service; error=" + err.Error())
+				}
+				print("service started with pid=%s", pid)
+				break
+			}
+		}
+	}()
+	return "-1", nil
+	// service, err := r.serviceManager.AddServiceFromConfig(configPath)
+	// if err != nil {
+	// 	return "-1", errors.New("could not start service; error=" + err.Error())
+	// }
+	// service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
+	// return service.Start(r.mode)
 }
 
 // GetServices returns all service pointers attached to the Remote
@@ -434,7 +445,7 @@ func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.Serv
 
 		r.pingHelpers = broadcast(r.pingHelpers)
 
-		if os.Getenv("PMMODE") == "PMManaged" {
+		if r.mode == "managed" {
 			go r.shutdown("procm")
 		} else if !r.closed {
 			go func() {
@@ -460,7 +471,6 @@ func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.Serv
 	}
 
 	return &intrigue.Receipt{Error: "requst.unknown"}, nil
-
 }
 
 func (s *remoteServer) NotifyAction(ctx context.Context, in *intrigue.Action) (*intrigue.Action, error) {
@@ -511,12 +521,24 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 			rpcServices = append(rpcServices, serviceToRPC(service))
 		}
 
+		errs := []string{}
+		for _, e := range r.errors {
+			errs = append(errs, e.Error())
+		}
+		stat := "Stable"
+		if len(errs) != 0 {
+			stat = "Degraded"
+		}
+
 		return &intrigue.SummaryReceipt{
 			Remotes: []*intrigue.ProcessManager{
 				&intrigue.ProcessManager{
-					ID:       r.id,
-					Address:  r.GetRegistration().address,
-					Services: rpcServices,
+					ID:        r.id,
+					Address:   r.GetRegistration().address,
+					StartTime: r.startTime.Format(time.RFC3339),
+					Errors:    errs,
+					Status:    stat,
+					Services:  rpcServices,
 				},
 			},
 		}, nil
@@ -531,12 +553,24 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 
 		vrpc("returning service info " + service.ID)
 
+		errs := []string{}
+		for _, e := range r.errors {
+			errs = append(errs, e.Error())
+		}
+		stat := "Stable"
+		if len(errs) != 0 {
+			stat = "Degraded"
+		}
+
 		return &intrigue.SummaryReceipt{
 			Remotes: []*intrigue.ProcessManager{
 				&intrigue.ProcessManager{
-					ID:       r.id,
-					Address:  r.GetRegistration().address,
-					Services: []*intrigue.Service{serviceToRPC(service)},
+					ID:        r.id,
+					Address:   r.GetRegistration().address,
+					StartTime: r.startTime.Format(time.RFC3339),
+					Errors:    errs,
+					Status:    stat,
+					Services:  []*intrigue.Service{serviceToRPC(service)},
 				},
 			},
 		}, nil

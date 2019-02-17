@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/defaults"
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -62,6 +62,9 @@ type ProcessManager struct {
 	// The mode controls how processes are attached
 	mode Mode
 
+	// signalMode controls how signals are handled
+	signalMode string
+
 	// The connection that hosts the control server
 	con *rpc.Connection
 
@@ -89,14 +92,15 @@ func NewProcessManager(configFile string, v bool) *ProcessManager {
 	// TODO: Need to parse the config, for now using defaults
 
 	procm = &ProcessManager{
-		Version:   defaults.VERSION,
-		CodeName:  defaults.CODE,
-		startTime: time.Now(),
-		Address:   defaults.PM_ADDRESS,
-		router:    NewRouter(),
-		mode:      Dev,
-		verbose:   v,
-		mu:        &sync.Mutex{},
+		Version:    config.Version,
+		CodeName:   config.Code,
+		startTime:  time.Now(),
+		Address:    config.DefaultSystemProcm.Address,
+		router:     NewRouter(),
+		mode:       Dev,
+		verbose:    v,
+		signalMode: os.Getenv("SERVICEMODE"),
+		mu:         &sync.Mutex{},
 		// Log: notify.NewLogFile()
 	}
 
@@ -136,17 +140,13 @@ func (p *ProcessManager) Wait() {
 
 	// set up the listener for shutdown
 	sig := make(chan os.Signal, 1)
-	if os.Getenv("PMMODE") == "PMManaged" {
-		p.print("overriding sigusr2")
-		p.print("ignoring sigint")
+	if p.signalMode == "managed" {
+		p.print("procm is in managed mode; overriding sigusr2; ignoring sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT)
 	} else {
-		p.print("overriding sigint")
 		signal.Notify(sig, syscall.SIGINT)
 	}
-
-	p.print("main thread waiting...")
 
 	_ = <-sig
 	fmt.Println() // deadline to align output after sigint
@@ -259,18 +259,21 @@ func (p *ProcessManager) sendGmbhShutdown() {
 	p.print("gmbh shutdown initiated")
 
 	remotes := p.router.GetAllAttached()
+	p.print(strconv.Itoa(len(remotes)))
 	for _, r := range remotes {
 		p.print("sending gmbh shutdown notice to " + r.ID)
 		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
 		if err != nil {
-			return
+			p.perr("could not get client; err=%s", err.Error())
+			continue
 		}
 		update := &intrigue.ServiceUpdate{
 			Request: "gmbh.shutdown",
 		}
 		_, err = client.UpdateRegistration(ctx, update)
 		if err != nil {
-			return
+			p.perr("could not contact client; err=%s", err.Error())
+			continue
 		}
 		can()
 	}
@@ -283,14 +286,16 @@ func (p *ProcessManager) sendShutdown() {
 		p.print("sending shutdown notice to " + r.ID)
 		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
 		if err != nil {
-			return
+			p.perr("could not get client; err=%s", err.Error())
+			continue
 		}
 		update := &intrigue.ServiceUpdate{
 			Request: "core.shutdown",
 		}
 		_, err = client.UpdateRegistration(ctx, update)
 		if err != nil {
-			return
+			p.perr("could not contact client; err=%s", err.Error())
+			continue
 		}
 		can()
 	}
@@ -341,8 +346,8 @@ func NewRouter() *Router {
 		remotes:   make(map[string]*RemoteServer),
 		idCounter: 100,
 		addressing: &addressHandler{
-			host: defaults.LOCALHOST,
-			port: defaults.PM_START,
+			host: config.Localhost,
+			port: config.RemotePort,
 			mu:   &sync.Mutex{},
 		},
 		mu:      &sync.Mutex{},

@@ -7,7 +7,7 @@
 [core]
 ##################################################################################
 # 
-mode = ""
+mode = "local"
 #
 # Print coreData to stdout and stdErr? This can be overriden with the --verbose 
 # command line flag
@@ -17,11 +17,13 @@ verbose = true
 daemom = false
 #
 # The address to start the coreData server
-address = "localhost:49500"
+address = "localhost:49500" #default is localhost:49500
 #
 # How long between keep alive messages
 keep_alive = "45s"
 #
+# Path to gmbhCore binary
+core_bin = "" #default is $GOPATH/bin/gmbhCore
 
 ##################################################################################
 [procm]
@@ -35,6 +37,8 @@ keep_alive = "45s"
 # Print gmbhProcM to stdout and stdErr
 verbose = false
 #
+# Path to gmbhProcm binary
+procm_bin = "" #default is $GOPATH/bin/gmbhProcm
 
 ##################################################################################
 [services]
@@ -44,6 +48,6 @@ verbose = false
 # gmbhServiceLauncher will attempt to launch the service in managed mode
 services_directory = "managed_services"
 #
-# Link to any other locations on the current host where services configs can be found
+# Path to any other services for gmbhServiceLauncher to attach
 services = [""]
 #

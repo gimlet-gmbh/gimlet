@@ -4,7 +4,7 @@ import (
 	"flag"
 	"path/filepath"
 
-	"github.com/gmbh-micro/defaults"
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/remote"
 )
@@ -31,19 +31,14 @@ func main() {
 
 	// start a remote process manager
 	if *remoteMode {
-		rem, _ := remote.NewRemote(defaults.PM_ADDRESS, *verbose)
+		rem, _ := remote.NewRemote(config.DefaultSystemProcm.Address, *verbose)
 		for _, path := range configPaths {
 			absPath, err := filepath.Abs(path)
 			if err != nil {
 				notify.LnRedF("could not create abs path to %s", path)
 				continue
 			}
-			pid, err := rem.AddService(absPath)
-			if err != nil {
-				notify.LnRedF("could not start service; err=" + err.Error())
-			} else {
-				notify.LnGreenF("service started; pid=" + pid)
-			}
+			rem.AddService(absPath)
 		}
 		rem.Start()
 	} else {

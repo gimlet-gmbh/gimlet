@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/gmbh-micro/defaults"
 )
 
 // TAB is the amount of indent to set
@@ -28,7 +27,7 @@ var TAG string
 var verbose bool
 
 func init() {
-	TAG = defaults.DEFAULT_PROMPT
+	// TAG = defaults.DEFAULT_PROMPT
 	verbose = true
 }
 

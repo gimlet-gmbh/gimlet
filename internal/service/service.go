@@ -11,7 +11,6 @@ import (
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
-	"github.com/gmbh-micro/service/static"
 )
 
 // Mode represents how gmbh interacts with the process of the service
@@ -47,8 +46,6 @@ func (m Mode) String() string {
 
 // Service represents a service including all static and runtime data
 type Service struct {
-	// The ephemeral id of the service. Note that ID is mutable and changes when a
-	// planetary service becomes a remote service
 	ID      string
 	Path    string
 	Created time.Time
@@ -57,7 +54,7 @@ type Service struct {
 	Logs    *notify.Log
 
 	// Static data associated with the service
-	Static *config.Static
+	Static *config.ServiceStatic
 
 	// If managed, Process will hold the process controller
 	Process process.Manager
@@ -69,7 +66,7 @@ type Service struct {
 // NewService tries to parse the required info from a config file located at path
 func NewService(id, path string) (*Service, error) {
 
-	staticData, err := config.ParseStaticService(path)
+	staticData, err := config.ParseServiceStatic(path)
 	if err != nil {
 		return nil, err
 	}
@@ -89,66 +86,23 @@ func NewService(id, path string) (*Service, error) {
 	return &service, nil
 }
 
-// NewManagedService tries to parse the required info from a config file located at path
-func NewManagedService(id, path string) (*Service, error) {
-	// staticData, err := static.ParseData(path)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// dir := path[:len(path)-len(defaults.CONFIG_FILE)]
-
-	// service := Service{
-	// 	ID:      id,
-	// 	Created: time.Now(),
-	// 	Mode:    Managed,
-	// 	Path:    dir,
-	// 	Static:  staticData,
-	// }
-
-	// ok := static.DataIsValid(staticData)
-	// if !ok {
-	// 	return nil, errors.New("invalid config file")
-	// }
-	// return &service, nil
-	return nil, errors.New("unimp")
-}
-
-// NewPlanetaryService returns a new service with static data that is passed in
-func NewPlanetaryService(id string, staticData *static.Static) (*Service, error) {
-	// if staticData == nil {
-	// 	return nil, errors.New("static data not present")
-	// }
-	// service := Service{
-	// 	ID:      id,
-	// 	Created: time.Now(),
-	// 	Mode:    Planetary,
-	// 	Static:  staticData,
-	// }
-	// return &service, nil
-	return nil, errors.New("unimp")
-}
-
 // Start attempts to fork/exec service and returns the pid, else error
 // service must be in managed or remote mode
 func (s *Service) Start(mode string) (pid string, err error) {
 
-	env := os.Environ()
-	if mode == "PMManaged" {
-		env = append(env, "PMMODE=PMManaged")
-	}
+	s.Static.Env = append(s.Static.Env, os.Environ()...)
 
-	if s.Mode == Planetary || s.Mode == Remote {
-		return "-1", errors.New("service.StartService.invalidServiceMode")
-	}
 	if s.Static.Language == "go" {
 		ssignal := syscall.SIGINT
-		if mode == "PMManaged" {
+
+		if mode == "managed" {
 			notify.LnYellowF("using sigusr2 as shutdown signal")
 			ssignal = syscall.SIGUSR2
+		} else {
+			notify.LnYellowF("using sigint as shutdown signal")
 		}
 
-		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, s.Static.Args, env, ssignal)
+		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, s.Static.Args, s.Static.Env, ssignal)
 		pid, err := s.Process.Start()
 		if err != nil {
 			notify.LnYellowF("failed to start; err=%s", err.Error())

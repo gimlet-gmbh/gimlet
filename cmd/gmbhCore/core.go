@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/config"
-	"github.com/gmbh-micro/defaults"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/rs/xid"
+	"google.golang.org/grpc/metadata"
 )
 
 // internal reference to core for use rpc
@@ -35,10 +35,16 @@ type Core struct {
 	con *rpc.Connection
 
 	// conf is the user configurable parameters as read in from file
-	conf *config.Core
+	conf *config.SystemCore
 
 	// Router controls all aspects of data requests & handling in Core
 	Router *Router
+
+	// signalMode controls which signal to use
+	signalMode string
+
+	// parent id is for remote instances of core
+	parentID string
 
 	msgCounter  int
 	startTime   time.Time
@@ -57,21 +63,23 @@ func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 		return core, nil
 	}
 
-	userConfig, err := config.ParseCore(cPath)
+	userConfig, err := config.ParseSystemCore(cPath)
 	if err != nil {
 		notify.LnRedF("could not parse config; err=%v", err.Error())
 		return nil, err
 	}
 
 	core = &Core{
-		Version:     defaults.VERSION,
-		Code:        defaults.CODE,
+		Version:     config.Version,
+		Code:        config.Code,
 		ProjectPath: basePath(cPath),
-		con:         rpc.NewCabalConnection(defaults.DEFAULT_HOST+defaults.DEFAULT_PORT, &cabalServer{}),
+		con:         rpc.NewCabalConnection(userConfig.Address, &cabalServer{}),
 		conf:        userConfig,
 		Router:      NewRouter(),
 		msgCounter:  1,
 		startTime:   time.Now(),
+		signalMode:  os.Getenv("SERVICEMODE"),
+		parentID:    os.Getenv("REMOTE"),
 		mu:          &sync.Mutex{},
 		verbose:     verbose,
 	}
@@ -116,15 +124,11 @@ func (c *Core) Start() {
 func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 
-	src := ""
-	if os.Getenv("PMMODE") == "PMManaged" {
-		c.vi("overriding sigusr2")
+	if c.signalMode == "managed" {
+		c.vi("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
-		src = "sigusr2"
 		signal.Ignore(syscall.SIGUSR1, syscall.SIGINT)
 	} else {
-		c.vi("overriding sigint")
-		src = "sigint"
 		signal.Notify(sig, syscall.SIGINT)
 	}
 
@@ -132,7 +136,8 @@ func (c *Core) Wait() {
 	_ = <-sig
 	fmt.Println() //dead line to line up output
 
-	c.shutdown(false, src)
+	c.shutdown(false, "signal")
+	return
 }
 
 // shutdown begins graceful shutdown procedures
@@ -142,7 +147,7 @@ func (c *Core) shutdown(remote bool, source string) {
 	// send shutdown notification to all services
 	c.Router.sendShutdownNotices()
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 3)
 	os.Exit(0)
 }
 
@@ -170,57 +175,6 @@ func basePath(configPath string) string {
 	}
 	return filepath.Dir(abs)
 }
-
-/**********************************************************************************
-**** User Config
-**********************************************************************************/
-
-// // UserConfig represents the parsable config settings
-// type UserConfig struct {
-// 	Name              string   `yaml:"project_name"`
-// 	Verbose           bool     `yaml:"verbose"`
-// 	Daemon            bool     `yaml:"daemon"`
-// 	DefaultHost       string   `yaml:"default_host"`
-// 	DefaultPort       string   `yaml:"default_port"`
-// 	ControlHost       string   `yaml:"control_host"`
-// 	ControlPort       string   `yaml:"control_port"`
-// 	ServicesDirectory string   `yaml:"services_directory"`
-// 	ServicesToAttach  []string `yaml:"services_to_attach"`
-// 	ServicesDetached  []string `yaml:"services_detached"`
-// }
-
-// // ParseUserConfig attempts to parse a yaml file at path and return the UserConfigStruct.
-// // If not all settings have been defined in user path, the defaults will be used.
-// func ParseUserConfig(path string) (*UserConfig, error) {
-// 	c := UserConfig{Verbose: defaults.VERBOSE, Daemon: defaults.DAEMON}
-
-// 	yamlFile, err := ioutil.ReadFile(path)
-// 	if err != nil {
-// 		return nil, errors.New("could not open yaml file: " + err.Error())
-// 	}
-
-// 	err = yaml.Unmarshal(yamlFile, &c)
-// 	if err != nil {
-// 		return nil, errors.New("could not parse yaml file: " + err.Error())
-// 	}
-
-// 	if c.Name == "" {
-// 		c.Name = defaults.PROJECT_NAME
-// 	}
-// 	if c.DefaultHost == "" {
-// 		c.DefaultHost = defaults.DEFAULT_HOST
-// 	}
-// 	if c.DefaultPort == "" {
-// 		c.DefaultPort = defaults.DEFAULT_PORT
-// 	}
-// 	if c.ControlHost == "" {
-// 		c.ControlHost = defaults.CONTROL_HOST
-// 	}
-// 	if c.ControlPort == "" {
-// 		c.ControlPort = defaults.CONTROL_PORT
-// 	}
-// 	return &c, nil
-// }
 
 /**********************************************************************************
 **** Router
@@ -255,8 +209,8 @@ func NewRouter() *Router {
 		serviceNames: make([]string, 0),
 		idCounter:    100,
 		addressing: &addressHandler{
-			host: defaults.LOCALHOST,
-			port: defaults.CORE_START,
+			host: config.Localhost,
+			port: config.ServicePort,
 			mu:   &sync.Mutex{},
 		},
 		mu:      &sync.Mutex{},
@@ -386,6 +340,45 @@ func (r *Router) sendShutdownNotices() {
 			}
 		}
 	}
+}
+
+// GetCoreServiceData queries each attached client to respond with their information using their
+// fingerprint for validation
+func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.CoreService {
+	ret := []*intrigue.CoreService{core}
+	for _, n := range r.serviceNames {
+		service := r.services[n]
+		r.v("sending summary request to %s at %s", service.Name, service.Address)
+		client, ctx, can, err := rpc.GetCabalRequest(service.Address, time.Second*1)
+		if err != nil {
+			r.v("could not create client")
+			can()
+			continue
+		}
+		ctx = metadata.AppendToOutgoingContext(
+			ctx,
+			"sender", "gmbhCore",
+			"target", n,
+			"fingerprint", service.Fingerprint,
+		)
+		req := &intrigue.Action{
+			Request: "request.info.all",
+		}
+		resp, err := client.Summary(ctx, req)
+		if err != nil {
+			r.v("error contacting service; id=%s; err=%s", service.ID, err.Error())
+			continue
+		}
+		if resp.GetServices() == nil {
+			ret = append(ret, &intrigue.CoreService{
+				Name:   n,
+				Errors: []string{"could not contact, err=" + resp.GetError()},
+			})
+			continue
+		}
+		ret = append(ret, resp.Services...)
+	}
+	return ret
 }
 
 // pingHandler looks through each of the remotes in the map. if it has been more than n amount of

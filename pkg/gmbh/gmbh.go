@@ -10,18 +10,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/defaults"
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -30,8 +29,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 // HandlerFunc is the publically exposed function to register and use the callback functions
@@ -57,24 +54,6 @@ type RuntimeOptions struct {
 	// Should the client run in verbose mode. in Verbose mode, debug information regarding
 	// the gmbh client will be printed to stdOut
 	Verbose bool
-}
-
-// userconfig are determined in the config file of the service
-type userconfig struct {
-	// User assigned name
-	ServiceName string `yaml:"name"`
-
-	// User assigned aliases
-	Aliases []string `yaml:"aliases"`
-
-	// Makes requests to other services
-	IsClient bool `yaml:"is_client"`
-
-	// the address back to core
-	CoreAddress string `yaml:"core_address"`
-
-	// the intended mode
-	Mode string `yaml:"mode"`
 }
 
 // registration contains data that is received from core at registration time
@@ -116,7 +95,7 @@ type Client struct {
 	reg *registration
 
 	// static config data from file
-	conf *userconfig
+	conf *config.ServiceStatic
 
 	// rpc connection handler to gmbhCore over Cabal
 	con *rpc.Connection
@@ -135,8 +114,18 @@ type Client struct {
 	// coreAddress is the address back to core
 	coreAddress string
 
+	// parentID is used only when running inside of a remotepm
+	parentID string
+
 	msgCounter int
 	mu         *sync.Mutex
+
+	// signalMode chooses between signint and sigusr2 for the shutdown listener
+	// depending how how SERVICEMODE environment variable is set
+	//
+	// sigusr 2 is used only if SERVICEMODE=managed and is intended to only be used
+	// in combination with gmbhServiceLauncher
+	signalMode string
 
 	// if a log path can be determined from the environment, it will be stored here and
 	// the printer helper will use it instead of stdOut and stdErr
@@ -161,10 +150,12 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 
 	g = &Client{
 		registeredFunctions: make(map[string]HandlerFunc),
-		coreAddress:         defaults.CORE_ADDRESS,
+		coreAddress:         config.DefaultSystemCore.Address,
 		mu:                  &sync.Mutex{},
 		pingHelpers:         []*pingHelper{},
 		PongTime:            time.Second * 45,
+		signalMode:          os.Getenv("SERVICEMODE"),
+		parentID:            os.Getenv("REMOTE"),
 	}
 
 	g.opts = defaultOptions
@@ -176,17 +167,30 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		notify.SetHeader("[gmbh]")
 	}
 
+	// Parse the config either from the path passed in or the one set by the service
+	// launcher in the environment
 	var err error
-	g.conf, err = parseConfig(configPath)
-	if err != nil {
-		return nil, errors.New("could not parse the config file")
+	envConfPath := os.Getenv("CONFIGPATH")
+	if envConfPath != "" {
+		g.conf, err = config.ParseServiceStatic(envConfPath)
+		if err != nil {
+			return nil, errors.New("could not parse config from env")
+		}
+		print("using config path from env=%s", envConfPath)
+	} else {
+		g.conf, err = config.ParseServiceStatic(configPath)
+		if err != nil {
+			return nil, errors.New("could not parse the config file")
+		}
 	}
 
-	err = validConfig(g.conf)
+	// Validate the data from the config file
+	err = g.conf.Validate()
 	if err != nil {
 		return nil, err
 	}
 
+	// Set the log path if one is given in the environment
 	if os.Getenv("LOGPATH") != "" && os.Getenv("LOGNAME") != "" {
 		path := os.Getenv("LOGPATH")
 		filename := os.Getenv("LOGNAME") + "-client.log"
@@ -197,17 +201,17 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		if err != nil {
 			g.printer("could not create log at path=%s", filepath.Join(path+filename))
 		}
+		g.printer(notify.SEP)
 		g.printer("log created")
 	} else {
 		g.printer("printing all output to stdOut")
 	}
 
-	// check the environment for an address to core
+	// Set the address to the core if it is given as an environment variable
+	// set by the service launcher
 	if os.Getenv("GMBHCORE") != "" {
 		g.coreAddress = os.Getenv("GMBHCORE")
 		g.printer("using core address from env=%s", g.coreAddress)
-	} else {
-		g.printer("using core address=%s", g.coreAddress)
 	}
 
 	return g, nil
@@ -230,15 +234,11 @@ func (g *Client) Start() {
 func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
 
-	src := ""
-	if os.Getenv("PMMODE") == "PMManaged" {
-		g.printer("PMManaged mode; ignoring sigint")
+	if g.signalMode == "managed" {
+		g.printer("managed mode; ignoring siging; listening for sigusr2")
 		signal.Ignore(syscall.SIGINT)
-		src = "sigusr2"
 		signal.Notify(sigs, syscall.SIGUSR2)
 	} else {
-		g.printer("using sigint")
-		src = "sigint"
 		signal.Notify(sigs, syscall.SIGINT)
 	}
 
@@ -247,8 +247,7 @@ func (g *Client) start() {
 	go g.connect()
 
 	_ = <-sigs
-	g.printer("signal received")
-	g.Shutdown(true, src)
+	g.Shutdown(true, "signal")
 }
 
 // Shutdown starts shutdown procedures
@@ -264,8 +263,7 @@ func (g *Client) Shutdown(forceExit bool, src string) {
 	g.disconnect()
 
 	// g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
-	g.printer("mode=%s", os.Getenv("GMBHMODE"))
-	if os.Getenv("GMBHMODE") == "Managed" {
+	if g.signalMode == "managed" {
 		g.printer("os.exit in 3s")
 		time.Sleep(time.Second * 3)
 		os.Exit(0)
@@ -275,34 +273,6 @@ func (g *Client) Shutdown(forceExit bool, src string) {
 		os.Exit(0)
 	}
 	return
-}
-
-func parseConfig(relativePath string) (*userconfig, error) {
-	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
-	}
-	var stat userconfig
-	yamlFile, err := ioutil.ReadFile(path + "/" + relativePath)
-	if err != nil {
-		g.printer(path + relativePath)
-		return nil, errors.New("could not find yaml file")
-	}
-	err = yaml.Unmarshal(yamlFile, &stat)
-	if err != nil {
-		return nil, errors.New("could not unmarshal config")
-	}
-	return &stat, nil
-}
-
-func validConfig(c *userconfig) error {
-	if c.ServiceName == "" {
-		return errors.New("service config must contain name")
-	}
-	if c.CoreAddress == "" {
-		return errors.New("service config must contain address to gmbhCore")
-	}
-	return nil
 }
 
 /**********************************************************************************
@@ -322,7 +292,7 @@ func (g *Client) connect() {
 		return
 	}
 
-	reg, status := makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, true, "")
+	reg, status := makeEphemeralRegistrationRequest(g.conf.Name, true, true, "")
 	for status != nil {
 		if status.Error() != "registration.gmbhUnavailable" {
 			g.printer("gmbh internal error")
@@ -334,7 +304,7 @@ func (g *Client) connect() {
 		}
 		g.printer("Could not reach gmbh-core, trying again in 5 seconds")
 		time.Sleep(time.Second * 5)
-		reg, status = makeEphemeralRegistrationRequest(g.conf.ServiceName, g.conf.IsClient, true, "")
+		reg, status = makeEphemeralRegistrationRequest(g.conf.Name, true, true, "")
 
 	}
 
@@ -351,7 +321,6 @@ func (g *Client) connect() {
 	g.con = rpc.NewCabalConnection(reg.address, &_server{})
 
 	// add a new channel to communicate to this goroutine
-
 	ph := newPingHelper()
 	g.pingHelpers = append(g.pingHelpers, ph)
 	g.mu.Unlock()
@@ -434,7 +403,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 				return
 			}
 
-			client, ctx, can, err := rpc.GetCabalRequest(defaults.CORE_ADDRESS, time.Second*30)
+			client, ctx, can, err := rpc.GetCabalRequest(config.DefaultSystemCore.Address, time.Second*30)
 			if err != nil {
 				g.printer(err.Error())
 			}
@@ -446,7 +415,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 
 			ctx = metadata.AppendToOutgoingContext(
 				ctx,
-				"sender", g.conf.ServiceName,
+				"sender", g.conf.Name,
 				"target", "procm",
 				"fingerprint", g.reg.fingerprint,
 			)
@@ -478,7 +447,7 @@ func (g *Client) makeUnregisterRequest() {
 	defer can()
 	request := &intrigue.ServiceUpdate{
 		Request: "shutdown.notif",
-		Message: g.conf.ServiceName,
+		Message: g.conf.Name,
 	}
 	_, _ = client.UpdateRegistration(ctx, request)
 }
@@ -729,7 +698,7 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 
 	request := intrigue.DataRequest{
 		Request: &intrigue.Request{
-			Sender: g.conf.ServiceName,
+			Sender: g.conf.Name,
 			Target: target,
 			Method: method,
 			Data1:  data,
@@ -803,7 +772,7 @@ func (s *_server) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUp
 
 		// either shutdown for real or disconnect and try and reach again if
 		// the service wasn't forked from gmbh-core
-		if os.Getenv("GMBHMODE") == "Managed" {
+		if g.signalMode == "managed" {
 			go g.Shutdown(true, "core")
 		} else if !g.closed {
 			go func() {
@@ -817,7 +786,6 @@ func (s *_server) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUp
 			}()
 		}
 	}
-
 	return &intrigue.Receipt{Error: "unknown.request"}, nil
 }
 
@@ -831,53 +799,39 @@ func (s *_server) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue
 	if err != nil {
 		panic(err)
 	}
-
 	return &intrigue.DataResponse{Responder: responder}, nil
 }
 
 func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
-	return &intrigue.SummaryReceipt{Error: "unimp"}, nil
+
+	g.printer(fmt.Sprintf("-> Summary Request; Action=%s", in.String()))
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		g.printer("Could not get metadata from summary request")
+		return &intrigue.SummaryReceipt{Error: "unknown.id"}, nil
+	}
+
+	fp := strings.Join(md.Get("fingerprint"), "")
+	if fp != g.getReg().fingerprint {
+		g.printer("Could not match fingerprint from summary request; incoming fp=%s", fp)
+		return &intrigue.SummaryReceipt{Error: "unknown.id"}, nil
+	}
+
+	response := &intrigue.SummaryReceipt{
+		Services: []*intrigue.CoreService{
+			&intrigue.CoreService{
+				Name:     g.conf.Name,
+				Address:  g.getReg().address,
+				Mode:     g.signalMode,
+				ParentID: g.parentID,
+				Errors:   []string{},
+			},
+		},
+	}
+
+	return response, nil
 }
-
-// func (s *_server) UpdateServiceRegistration(ctx context.Context, in *cabal.ServiceUpdate) (*cabal.ServiceUpdate, error) {
-
-// 	g.printer(fmt.Sprintf("-> Update Service Request; sender=(%s); target=(%s); action=(%s); message=(%s);", in.GetSender(), in.GetTarget(), in.GetAction(), in.GetMessage()))
-
-// 	if in.GetTarget() != g.conf.ServiceName {
-// 		g.printer("invalid target")
-// 		reply := &cabal.ServiceUpdate{
-// 			Action:  "error",
-// 			Message: "invalid service name",
-// 		}
-// 		return reply, nil
-// 	}
-
-// 	if in.Action == "core.shutdown" {
-// 		g.printer("recieved shutdown")
-
-// 		g.printer("sending message over chans to ping")
-// 		for _, c := range g.pingHelpers {
-// 			c.pingChan <- true
-// 			c.contacted = true
-// 		}
-
-// 		g.pingHelpers = update(g.pingHelpers)
-
-// 		// either shutdown for real or disconnect and try and reach again if
-// 		// the service wasn't forked from gmbh-core
-// 		if os.Getenv("GMBHMODE") == "Managed" {
-// 			go g.Shutdown(true)
-// 		} else if !g.closed {
-// 			go func() {
-// 				g.disconnect()
-// 				g.connect()
-// 			}()
-// 		}
-// 	}
-
-// 	reply := &cabal.ServiceUpdate{Action: "acknowledged"}
-// 	return reply, nil
-// }
 
 func (s *_server) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
