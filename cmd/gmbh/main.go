@@ -25,6 +25,7 @@ type launcher struct {
 	verbose       *bool
 	verboseAll    *bool
 	daemon        *bool
+	managed       *bool
 	maxRemoteSize *int
 	noLog         *bool
 
@@ -45,6 +46,7 @@ func main() {
 		verbose:       flag.Bool("verbose", false, "Prints all Core data to stdout and stderr"),
 		verboseAll:    flag.Bool("verbose-all", false, "print all output to stdout and stderr"),
 		daemon:        flag.Bool("daemon", false, "for running the process manager in a container"),
+		managed:       flag.Bool("managed", false, "for shutting down gmbh when it was started using the service launcher"),
 		maxRemoteSize: flag.Int("max", 1, "This specifies the maximum number of servies per remote process manager"),
 		noLog:         flag.Bool("no-log", false, "disable logging"),
 
@@ -78,7 +80,6 @@ func main() {
 	} else {
 		startGmbh()
 	}
-
 }
 
 // startGmbh validates that things are installed, config files exist and the core service file
@@ -196,8 +197,12 @@ func launch() {
 		return
 	}
 
-	if !*l.noSD {
+	// if we are in daemon mode, and launching services, use a goroutine otherewise
+	// launch it in the current thread
+	if !*l.noSD && !*l.daemon {
 		go serviceDiscovery()
+	} else if !*l.noSD && *l.daemon {
+		serviceDiscovery()
 	}
 
 	if !*l.daemon {
@@ -286,7 +291,7 @@ func serviceDiscovery() {
 func genCoreServiceConfig() {
 	Service := config.ServiceConfig{
 		Static: &config.ServiceStatic{
-			Name:     "core",
+			Name:     "CoreData",
 			Language: "go",
 			BinPath:  "gmbhCore",
 			Args:     []string{"--config=" + *l.config, "--verbose"},
@@ -345,20 +350,23 @@ func fileExists(path string) bool {
 
 func checkInstall() bool {
 	if runtime.GOOS == "darwin" {
-		if _, err := os.Stat(os.Getenv("GOPATH") + "/bin/gmbhCore"); os.IsNotExist(err) {
+		if _, err := os.Stat(config.ProcmBinPathMac); os.IsNotExist(err) {
 			return false
 		}
-		if _, err := os.Stat(os.Getenv("GOPATH") + "/bin/gmbhProcm"); os.IsNotExist(err) {
+		if _, err := os.Stat(config.CoreBinPathMac); os.IsNotExist(err) {
 			return false
 		}
 		return true
 	} else if runtime.GOOS == "linux" {
-		notify.LnRedF("Linux support is incomplete")
-		if _, err := os.Stat(os.Getenv("GOPATH") + "/bin/gmbhCore"); os.IsNotExist(err) {
+		if _, err := os.Stat(config.ProcmBinPathLinux); os.IsNotExist(err) {
 			return false
 		}
+		if _, err := os.Stat(config.CoreBinPathLinux); os.IsNotExist(err) {
+			return false
+		}
+		notify.LnRedF("Linux support is incomplete")
 		return true
 	}
-	notify.LnRedF(fmt.Sprintf("OS support not yet implemented for %s", runtime.GOOS))
+	notify.LnRedF(fmt.Sprintf("OS support not implemented for %s", runtime.GOOS))
 	return false
 }

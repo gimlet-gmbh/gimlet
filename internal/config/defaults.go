@@ -25,6 +25,20 @@ const (
 	RemotePort = 59502
 )
 
+var (
+	// ProcmBinPathMac runtime.GOOS ==  darwin
+	ProcmBinPathMac = os.Getenv("GOPATH") + "/bin/gmbhProcm"
+
+	// CoreBinPathMac runtime.GOOS == darwin
+	CoreBinPathMac = os.Getenv("GOPATH") + "/bin/gmbhCore"
+
+	// ProcmBinPathLinux runtime.GOOS ==  linux
+	ProcmBinPathLinux = os.Getenv("GOPATH") + "/bin/gmbhProcm"
+
+	// CoreBinPathLinux runtime.GOOS == linux
+	CoreBinPathLinux = os.Getenv("GOPATH") + "/bin/gmbhCore"
+)
+
 // DefaultSystemProcm holds the default procm settings
 var DefaultSystemProcm = &SystemProcm{
 	Address:   "localhost:59500",

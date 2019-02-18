@@ -308,8 +308,9 @@ func (p *ProcessManager) MarkShutdown(id string) {
 // tool
 func (p *ProcessManager) Shutdown(remote bool) {
 	p.print("shutdown signal received")
-	p.con.Disconnect()
 	p.sendShutdown()
+	time.Sleep(time.Second * 3)
+	p.con.Disconnect()
 	time.Sleep(time.Second * 3)
 	os.Exit(0)
 }

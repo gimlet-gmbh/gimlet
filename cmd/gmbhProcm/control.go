@@ -151,6 +151,8 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 		return &intrigue.SummaryReceipt{
 			Remotes: rpcRemotes,
 		}, nil
+	} else if request == "summary.reflect" {
+
 	}
 
 	return &intrigue.SummaryReceipt{Error: "request.action.unknown"}, nil
@@ -166,7 +168,6 @@ func (c *controlServer) StopServer(ctx context.Context, in *intrigue.EmptyReques
 		rpcperr("internal system error")
 		return &intrigue.Receipt{Error: "internal.pmref"}, nil
 	}
-
 	go func() {
 		time.Sleep(time.Second * 2)
 		pm.Shutdown(true)

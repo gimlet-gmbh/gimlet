@@ -209,6 +209,11 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		g.conf.CoreAddress = config.DefaultServiceConfig.CoreAddress
 	}
 
+	// @important
+	if g.conf.Static.Name == "CoreData" {
+		return nil, errors.New("\"CoreData\" is a reserved service name")
+	}
+
 	return g, nil
 }
 
