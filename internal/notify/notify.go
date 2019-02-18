@@ -166,8 +166,3 @@ func Getpwd() string {
 	}
 	return dir
 }
-
-// notify.LnBCyanF("                      __                                        ")
-// notify.LnBCyanF("  _  ._ _  |_  |_|   (_   _  ._   o  _  _  |_|  _  | ._   _  ._ ")
-// notify.LnBCyanF(" (_| | | | |_) | |   __) (/_ | \\/ | (_ (/_ | | (/_ | |_) (/_ |  ")
-// notify.LnBCyanF("  _|                                                 |          ")

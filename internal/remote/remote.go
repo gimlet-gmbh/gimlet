@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -125,6 +126,15 @@ func (r *Remote) Start() {
 	if logPath != "" {
 		notify.LnCyanF("Remote using logfile at " + logPath)
 		setLog(logPath)
+	} else {
+		logName := os.Getenv("LOGFILENAME")
+		if logName != "" {
+			p := filepath.Join(notify.Getpwd(), "logs", logName)
+			setLog(p)
+			notify.LnCyanF("Remote using logfile at " + p)
+		} else {
+			notify.LnYellowF("Warning: Logfile name not specified")
+		}
 	}
 
 	println("                      _                       ")
@@ -806,6 +816,10 @@ func perr(format string, a ...interface{}) {
 }
 
 func setLog(fpath string) {
+	dirPath := filepath.Dir(fpath)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		os.Mkdir(dirPath, 0755)
+	}
 	file, err := os.OpenFile(fpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		print("creating log file err=%s", err.Error())

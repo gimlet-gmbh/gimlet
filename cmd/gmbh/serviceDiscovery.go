@@ -82,7 +82,7 @@ func scanForServices(baseDir string) ([]string, error) {
 }
 
 // launch service fork and exec's using gmbh remote with config path set to the known config path
-func launchService(validConfigPaths []string, coreAddress string, verbose bool) {
+func launchService(validConfigPaths []string, servicesDir string, coreAddress string) {
 	if len(validConfigPaths) == 0 {
 		return
 	}
@@ -91,41 +91,36 @@ func launchService(validConfigPaths []string, coreAddress string, verbose bool) 
 	for _, a := range validConfigPaths {
 		args = append(args, "--config="+a)
 	}
-	if verbose {
+	if *l.verboseAll {
 		args = append(args, "--verbose")
 	}
-	// validConfigPath := validConfigPaths[0]
-	// args = append(args, "--config="+validConfigPath)
 
 	cmd := exec.Command("gmbhProcm", args...)
+	cmd.Dir = servicesDir
 
 	workingEnv := []string{
 		"GMBHCORE=" + coreAddress,
 		"SERVICEMODE=managed",
-		// "CONFIGPATH=" + validConfigPath,
 	}
 
-	if verbose {
+	logName := genLogFileName(validConfigPaths)
+
+	if *l.verboseAll {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	} else {
-		dirName := []string{}
-		for _, c := range validConfigPaths {
-			dirs := strings.Split(filepath.Dir(c), string(filepath.Separator))
-			dirName = append(dirName, dirs[len(dirs)-1])
-		}
 
-		// dirs := strings.Split(filepath.Dir(validConfigPath), string(filepath.Separator))
-		f, err := getLogFile("gmbh", strings.Join(dirName, "_")+"-remote.log")
+		f, err := getLogFile("logs", logName+"-remote.log")
 		if err == nil {
+			notify.LnYellowF("%s", filepath.Join(notify.Getpwd(), "logs", logName+"-remote.log"))
 			cmd.Stdout = f
 			cmd.Stderr = f
+		} else {
+			notify.LnBRedF("could not create log file: " + logName)
 		}
-		workingEnv = append(workingEnv, "LOGPATH="+filepath.Join(getpwd(), "gmbh"))
-		workingEnv = append(workingEnv, "LOGNAME="+strings.Join(dirName, "_"))
-		notify.LnBYellowF("Log=%s", filepath.Join(getpwd(), "gmbh", strings.Join(dirName, "_")+"-remote.log"))
 	}
 
+	workingEnv = append(workingEnv, "LOGFILENAME="+logName+"-data.log")
 	cmd.Env = append(os.Environ(), workingEnv...)
 
 	err := cmd.Start()
@@ -133,4 +128,15 @@ func launchService(validConfigPaths []string, coreAddress string, verbose bool) 
 		notify.LnCyanF("could not start remote")
 	}
 
+}
+
+// genLogFileName generates a filename by discarding everything except the last directory name,
+// joins them together with a _
+func genLogFileName(configPaths []string) string {
+	dirName := []string{}
+	for _, c := range configPaths {
+		dirs := strings.Split(filepath.Dir(c), string(filepath.Separator))
+		dirName = append(dirName, dirs[len(dirs)-1])
+	}
+	return strings.Join(dirName, "_")
 }

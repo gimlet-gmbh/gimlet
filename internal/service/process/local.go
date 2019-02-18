@@ -170,11 +170,6 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 	case error := <-listener:
 		if err != nil {
 			m.info.Errors = append(m.info.Errors, error)
-		} else {
-			m.info.Errors = append(
-				m.info.Errors,
-				errors.New("service shutdown without error; check config; maybe need to turn on blocking"),
-			)
 		}
 
 		if m.userKilled {
@@ -184,6 +179,13 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 		if m.gracefulshutdown {
 			m.info.Errors = append(m.info.Errors, errors.New("marked for graceful shutdown"))
 			return
+		}
+
+		if err == nil {
+			m.info.Errors = append(
+				m.info.Errors,
+				errors.New("service shutdown without error; check config; maybe need to turn on blocking"),
+			)
 		}
 
 		m.handleFailure()
