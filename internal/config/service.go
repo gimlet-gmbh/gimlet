@@ -12,8 +12,9 @@ import (
 
 // ServiceConfig - for configuring gmbh services
 type ServiceConfig struct {
-	Mode   string         `toml:"mode"`
-	Static *ServiceStatic `toml:"connecting"`
+	Mode        string         `toml:"mode"`
+	CoreAddress string         `toml:"core_address"`
+	Static      *ServiceStatic `toml:"connecting"`
 }
 
 // ServiceStatic stores static information needed to start launch a process

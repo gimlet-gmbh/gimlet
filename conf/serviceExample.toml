@@ -4,6 +4,10 @@
 
 mode = ""
 
+# The address to core. This only needs to be specified if the service is NOT
+# intended to be used with gmbh service launcher
+core_address = ""
+
 ##################################################################################
 [connecting]
 ##################################################################################

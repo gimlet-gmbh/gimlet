@@ -55,3 +55,8 @@ var DefaultSystemConfig = SystemConfig{
 	Procm:    DefaultSystemProcm,
 	Services: DefaultSystemServices,
 }
+
+// DefaultServiceConfig is the default configuration for a service
+var DefaultServiceConfig = &ServiceConfig{
+	CoreAddress: DefaultSystemCore.Address,
+}

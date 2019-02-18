@@ -43,11 +43,11 @@ func reportOne(p *intrigue.Service, h string) {
 			if i == 0 {
 				continue
 			}
-			fmt.Println(h + getBoxLine(formatLine("", e, "")))
-			if i > 5 {
-				fmt.Println(h + getBoxLine(formatLine("", "...query individually for more.", "")))
-				break
-			}
+			fmt.Println(h + getBoxLine(formatLine("", " "+e, "")))
+			// if i > 5 {
+			// 	fmt.Println(h + getBoxLine(formatLine("", "...query individually for more.", "")))
+			// 	break
+			// }
 		}
 	}
 	fmt.Println()

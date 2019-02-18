@@ -94,8 +94,8 @@ type Client struct {
 	// registratrion with data from gmbhCore
 	reg *registration
 
-	// static config data from file
-	conf *config.ServiceStatic
+	// config data from file
+	conf *config.ServiceConfig
 
 	// rpc connection handler to gmbhCore over Cabal
 	con *rpc.Connection
@@ -110,9 +110,6 @@ type Client struct {
 	pingHelpers []*pingHelper
 
 	PongTime time.Duration
-
-	// coreAddress is the address back to core
-	coreAddress string
 
 	// parentID is used only when running inside of a remotepm
 	parentID string
@@ -150,7 +147,6 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 
 	g = &Client{
 		registeredFunctions: make(map[string]HandlerFunc),
-		coreAddress:         config.DefaultSystemCore.Address,
 		mu:                  &sync.Mutex{},
 		pingHelpers:         []*pingHelper{},
 		PongTime:            time.Second * 45,
@@ -174,14 +170,14 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 	// Parse the config either from the path passed in or the one set by the service
 	// launcher in the environment
 	var err error
-	g.conf, err = config.ParseServiceStatic(configPath)
+	g.conf, err = config.ParseServiceConfig(configPath)
 	g.printer("config path=" + configPath)
 	if err != nil {
 		return nil, errors.New("could not parse the config file; err=" + err.Error())
 	}
 
 	// Validate the data from the config file
-	err = g.conf.Validate()
+	err = g.conf.Static.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -204,10 +200,13 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 	}
 
 	// Set the address to the core if it is given as an environment variable
-	// set by the service launcher
+	// set by the service launcher or otherwise make sure that the default address is used
 	if os.Getenv("GMBHCORE") != "" {
-		g.coreAddress = os.Getenv("GMBHCORE")
-		g.printer("using core address from env=%s", g.coreAddress)
+		g.conf.CoreAddress = os.Getenv("GMBHCORE")
+		g.printer("using core address from env=%s", g.conf.CoreAddress)
+	} else if g.conf.CoreAddress == "" {
+		g.printer("warning: core_address not set in config, using default=%s", config.DefaultServiceConfig.CoreAddress)
+		g.conf.CoreAddress = config.DefaultServiceConfig.CoreAddress
 	}
 
 	return g, nil
@@ -288,7 +287,7 @@ func (g *Client) connect() {
 		return
 	}
 
-	reg, status := makeEphemeralRegistrationRequest(g.conf.Name, true, true, "")
+	reg, status := makeEphemeralRegistrationRequest(g.conf.Static.Name, true, true, "")
 	for status != nil {
 		if status.Error() != "registration.gmbhUnavailable" {
 			g.printer("gmbh internal error")
@@ -300,7 +299,7 @@ func (g *Client) connect() {
 		}
 		g.printer("Could not reach gmbh-core, trying again in 5 seconds")
 		time.Sleep(time.Second * 5)
-		reg, status = makeEphemeralRegistrationRequest(g.conf.Name, true, true, "")
+		reg, status = makeEphemeralRegistrationRequest(g.conf.Static.Name, true, true, "")
 
 	}
 
@@ -411,7 +410,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 
 			ctx = metadata.AppendToOutgoingContext(
 				ctx,
-				"sender", g.conf.Name,
+				"sender", g.conf.Static.Name,
 				"target", "procm",
 				"fingerprint", g.reg.fingerprint,
 			)
@@ -436,14 +435,14 @@ func (g *Client) sendPing(ph *pingHelper) {
 }
 
 func (g *Client) makeUnregisterRequest() {
-	client, ctx, can, err := rpc.GetCabalRequest(g.coreAddress, time.Second*5)
+	client, ctx, can, err := rpc.GetCabalRequest(g.conf.CoreAddress, time.Second*5)
 	if err != nil {
 		panic(err)
 	}
 	defer can()
 	request := &intrigue.ServiceUpdate{
 		Request: "shutdown.notif",
-		Message: g.conf.Name,
+		Message: g.conf.Static.Name,
 	}
 	_, _ = client.UpdateRegistration(ctx, request)
 }
@@ -621,7 +620,7 @@ func (g *Client) printer(msg string, a ...interface{}) {
 **********************************************************************************/
 
 func getRPCClient() (intrigue.CabalClient, error) {
-	con, err := grpc.Dial(g.coreAddress, grpc.WithInsecure())
+	con, err := grpc.Dial(g.conf.CoreAddress, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +693,7 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 
 	request := intrigue.DataRequest{
 		Request: &intrigue.Request{
-			Sender: g.conf.Name,
+			Sender: g.conf.Static.Name,
 			Target: target,
 			Method: method,
 			Data1:  data,
@@ -817,7 +816,7 @@ func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.S
 	response := &intrigue.SummaryReceipt{
 		Services: []*intrigue.CoreService{
 			&intrigue.CoreService{
-				Name:     g.conf.Name,
+				Name:     g.conf.Static.Name,
 				Address:  g.getReg().address,
 				Mode:     g.signalMode,
 				ParentID: g.parentID,

@@ -148,6 +148,7 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 	listener := make(chan error)
 	err := cmd.Start()
 	if err != nil {
+		m.info.Errors = append(m.info.Errors, err)
 		errChan <- err
 		pid <- -1
 		return
@@ -169,6 +170,11 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 	case error := <-listener:
 		if err != nil {
 			m.info.Errors = append(m.info.Errors, error)
+		} else {
+			m.info.Errors = append(
+				m.info.Errors,
+				errors.New("service shutdown without error; check config; maybe need to turn on blocking"),
+			)
 		}
 
 		if m.userKilled {
