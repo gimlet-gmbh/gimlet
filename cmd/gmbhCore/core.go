@@ -48,7 +48,6 @@ type Core struct {
 
 	msgCounter  int
 	startTime   time.Time
-	log         *notify.Log
 	mu          *sync.Mutex
 	verbose     bool
 	verboseData bool

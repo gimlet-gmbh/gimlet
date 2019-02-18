@@ -1,11 +1,9 @@
 package notify
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/fatih/color"
 )
@@ -41,15 +39,15 @@ func SetTag(tag string) {
 	TAG = tag
 }
 
-// OpenLogFile at path with filename; will create the path if it does not exists
-func OpenLogFile(path, filename string) (*os.File, error) {
-	checkDir(path)
-	file, err := os.OpenFile(path+filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
-	if err != nil {
-		return nil, errors.New("could not create log file")
-	}
-	return file, nil
-}
+// // OpenLogFile at path with filename; will create the path if it does not exists
+// func OpenLogFile(path, filename string) (*os.File, error) {
+// 	checkDir(path)
+// 	file, err := os.OpenFile(path+filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+// 	if err != nil {
+// 		return nil, errors.New("could not create log file")
+// 	}
+// 	return file, nil
+// }
 
 func checkDir(path string) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -57,66 +55,66 @@ func checkDir(path string) {
 	}
 }
 
-// Log is the object that holds onto logging data
-type Log struct {
-	path     string
-	filename string
-	verbose  bool
-	file     *os.File
-	mu       *sync.Mutex
-}
+// // Log is the object that holds onto logging data
+// type Log struct {
+// 	path     string
+// 	filename string
+// 	verbose  bool
+// 	file     *os.File
+// 	mu       *sync.Mutex
+// }
 
-// NewLogFile creates a new log at path with filename name
-func NewLogFile(path, filename string, verbose bool) *Log {
+// // NewLogFile creates a new log at path with filename name
+// func NewLogFile(path, filename string, verbose bool) *Log {
 
-	logger := &Log{
-		path:     path,
-		filename: filename,
-		verbose:  verbose,
-		mu:       &sync.Mutex{},
-	}
+// 	logger := &Log{
+// 		path:     path,
+// 		filename: filename,
+// 		verbose:  verbose,
+// 		mu:       &sync.Mutex{},
+// 	}
 
-	createFilePath(path)
-	file := createFile(path + "/" + filename)
-	logger.file = file
+// 	createFilePath(path)
+// 	file := createFile(path + "/" + filename)
+// 	logger.file = file
 
-	return logger
-}
+// 	return logger
+// }
 
-// Ln writes a message to log
-func (l *Log) Ln(format string, a ...interface{}) {
-	if l.file != nil {
-		l.mu.Lock()
-		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
-		l.mu.Unlock()
-	}
-	if l.verbose {
-		fmt.Println(fmt.Sprintf(format, a...))
-	}
-}
+// // Ln writes a message to log
+// func (l *Log) Ln(format string, a ...interface{}) {
+// 	if l.file != nil {
+// 		l.mu.Lock()
+// 		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
+// 		l.mu.Unlock()
+// 	}
+// 	if l.verbose {
+// 		fmt.Println(fmt.Sprintf(format, a...))
+// 	}
+// }
 
-// Err writes a message to log
-func (l *Log) Err(format string, a ...interface{}) {
-	if l.file != nil {
-		l.mu.Lock()
-		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
-		l.mu.Unlock()
-	}
-	if l.verbose {
-		color.Set(color.FgRed)
-		fmt.Println(fmt.Sprintf(format, a...))
-		color.Unset()
-	}
-}
+// // Err writes a message to log
+// func (l *Log) Err(format string, a ...interface{}) {
+// 	if l.file != nil {
+// 		l.mu.Lock()
+// 		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
+// 		l.mu.Unlock()
+// 	}
+// 	if l.verbose {
+// 		color.Set(color.FgRed)
+// 		fmt.Println(fmt.Sprintf(format, a...))
+// 		color.Unset()
+// 	}
+// }
 
-// Sep writes a seperator message to log
-func (l *Log) Sep() {
-	if l.file != nil {
-		l.mu.Lock()
-		l.file.WriteString(SEP + "\n")
-		l.mu.Unlock()
-	}
-}
+// // Sep writes a seperator message to log
+// func (l *Log) Sep() {
+// 	if l.file != nil {
+// 		l.mu.Lock()
+// 		l.file.WriteString(SEP + "\n")
+// 		l.mu.Unlock()
+// 	}
+// }
 
 func createFilePath(path string) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {

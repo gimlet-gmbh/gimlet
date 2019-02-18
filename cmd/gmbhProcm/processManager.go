@@ -71,8 +71,6 @@ type ProcessManager struct {
 	// Router manages all addresses and instances of remotes
 	router *Router
 
-	Log     *notify.Log
-	ErrLog  *notify.Log
 	mu      *sync.Mutex
 	verbose bool
 }

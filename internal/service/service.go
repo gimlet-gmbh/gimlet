@@ -51,7 +51,7 @@ type Service struct {
 	Created time.Time
 	Address string
 	Mode    Mode
-	Logs    *notify.Log
+	// Logs    *notify.Log
 
 	// Static data associated with the service
 	Static *config.ServiceStatic
@@ -90,19 +90,19 @@ func NewService(id, path string) (*Service, error) {
 // service must be in managed or remote mode
 func (s *Service) Start(mode string) (pid string, err error) {
 
-	s.Static.Env = append(s.Static.Env, os.Environ()...)
+	if s.Static.BinPath != "" {
 
-	if s.Static.Language == "go" {
-		ssignal := syscall.SIGINT
-
-		if mode == "managed" {
-			notify.LnYellowF("using sigusr2 as shutdown signal")
-			ssignal = syscall.SIGUSR2
-		} else {
-			notify.LnYellowF("using sigint as shutdown signal")
+		conf := &process.LocalProcessConfig{
+			Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
+			Dir:    s.Path,
+			Args:   s.Static.Args,
+			Env:    append(os.Environ(), s.Static.Env...),
+			Signal: syscall.SIGINT,
 		}
-		// fmt.Println("using:", s.Path, "as path")
-		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, s.Static.Args, s.Static.Env, ssignal)
+		if mode == "managed" {
+			conf.Signal = syscall.SIGUSR2
+		}
+		s.Process = process.NewLocalBinaryManager(conf)
 		pid, err := s.Process.Start()
 		if err != nil {
 			notify.LnYellowF("failed to start; err=%s", err.Error())
@@ -110,12 +110,13 @@ func (s *Service) Start(mode string) (pid string, err error) {
 		}
 		return strconv.Itoa(pid), nil
 
+	} else if s.Static.Language == "go" {
+		return "-1", errors.New("service.StartService.goNotYetSupported")
 	} else if s.Static.Language == "node" {
 		return "-1", errors.New("service.StartService.nodeNotYetSupported")
 	} else if s.Static.Language == "python" {
 		return "-1", errors.New("service.StartService.pythonNotYetSupported")
 	}
-
 	return "-1", errors.New("service.StartService.invalidLanguage")
 }
 
@@ -142,7 +143,7 @@ func (s *Service) EnableGracefulShutdown() {
 
 // StartLog starts the logger for process management information
 func (s *Service) StartLog(path, filename string) {
-	s.Logs = notify.NewLogFile(path, filename, false)
+	// s.Logs = notify.NewLogFile(path, filename, false)
 }
 
 // createAbsPathToBin attempts to resolve an absolute path to the binary file to start
@@ -155,9 +156,9 @@ func (s *Service) createAbsPathToBin(path, binPath string) string {
 
 // Println adds a log message to the service's log if it has been configured
 func (s *Service) Println(msg string) {
-	if s.Logs != nil {
-		s.Logs.Ln(msg)
-	}
+	// if s.Logs != nil {
+	// 	s.Logs.Ln(msg)
+	// }
 }
 
 // GetMode returns the mode as a string

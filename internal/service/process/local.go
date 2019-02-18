@@ -12,7 +12,6 @@ import (
 
 // LocalManager ; a process manager
 type LocalManager struct {
-	name             string
 	args             []string
 	env              []string
 	path             string
@@ -22,19 +21,29 @@ type LocalManager struct {
 	restartCounter   int
 	gracefulshutdown bool
 	ssignal          syscall.Signal
+	logFile          *os.File
 	mu               *sync.Mutex
 	info             Info
 }
 
+// LocalProcessConfig is used to pass relevant data to the process launcher
+type LocalProcessConfig struct {
+	Path   string
+	Dir    string
+	LogF   *os.File
+	Args   []string
+	Env    []string
+	Signal syscall.Signal
+}
+
 // NewLocalBinaryManager ; as in new process manager to monitor a binary forked from the shell
-func NewLocalBinaryManager(name string, path string, dir string, args []string, env []string, shutdownSignal syscall.Signal) *LocalManager {
+func NewLocalBinaryManager(conf *LocalProcessConfig) *LocalManager {
 	return &LocalManager{
-		name:    name,
-		args:    args,
-		env:     env,
-		path:    path,
-		dir:     dir,
-		ssignal: shutdownSignal,
+		args:    conf.Args,
+		env:     conf.Env,
+		path:    conf.Path,
+		dir:     conf.Dir,
+		ssignal: conf.Signal,
 		mu:      &sync.Mutex{},
 		info: Info{
 			Type:   Binary,
@@ -43,21 +52,21 @@ func NewLocalBinaryManager(name string, path string, dir string, args []string, 
 	}
 }
 
-// NewLocalGoManager ; as in new process manager to monitor bulding from go source code
-func NewLocalGoManager(name string, path string, dir string, args []string, env []string) *LocalManager {
-	return &LocalManager{
-		name: name,
-		args: args,
-		env:  env,
-		path: path,
-		dir:  dir,
-		mu:   &sync.Mutex{},
-		info: Info{
-			Type:   Go,
-			Errors: make([]error, 0),
-		},
-	}
-}
+// // NewLocalGoManager ; as in new process manager to monitor bulding from go source code
+// func NewLocalGoManager(name string, path string, dir string, args []string, env []string) *LocalManager {
+// 	return &LocalManager{
+// 		// name: name,
+// 		args: args,
+// 		env:  env,
+// 		path: path,
+// 		dir:  dir,
+// 		mu:   &sync.Mutex{},
+// 		info: Info{
+// 			Type:   Go,
+// 			Errors: make([]error, 0),
+// 		},
+// 	}
+// }
 
 // Start a process if possible
 func (m *LocalManager) Start() (PID int, err error) {
@@ -67,7 +76,8 @@ func (m *LocalManager) Start() (PID int, err error) {
 	m.userKilled = false
 
 	getPidChan := make(chan int, 1)
-	go m.forkExec(getPidChan)
+	getErrChan := make(chan error, 1)
+	go m.forkExec(getPidChan, getErrChan)
 	pid := <-getPidChan
 	if pid != -1 {
 		m.mu.Lock()
@@ -76,7 +86,8 @@ func (m *LocalManager) Start() (PID int, err error) {
 		go m.upgrade()
 		return pid, nil
 	}
-	return -1, errors.New("process.Manager.Start.failure")
+	perr := <-getErrChan
+	return -1, errors.New("Process.Start.Err=" + perr.Error())
 }
 
 // Restart a process.
@@ -130,22 +141,14 @@ func (m *LocalManager) GetStatus() Status {
 	return m.info.Status
 }
 
-func (m *LocalManager) forkExec(pid chan int) {
+func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 
 	cmd := m.getCmd()
-
-	// file, err := m.createLogFile(m.dir+defaults.SERVICE_LOG_PATH, defaults.SERVICE_LOG_FILE)
-	// if err != nil {
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	// } else {
-	// 	cmd.Stdout = file
-	// 	cmd.Stderr = file
-	// }
 
 	listener := make(chan error)
 	err := cmd.Start()
 	if err != nil {
+		errChan <- err
 		pid <- -1
 		return
 	}
@@ -184,11 +187,21 @@ func (m *LocalManager) forkExec(pid chan int) {
 
 func (m *LocalManager) getCmd() *exec.Cmd {
 	if m.info.Type == Binary {
+
 		var cmd *exec.Cmd
+
 		cmd = exec.Command(m.path, m.args...)
 		cmd.Env = m.env
-		fmt.Println("using " + m.dir + " as dir")
 		cmd.Dir = m.dir
+
+		if m.logFile != nil {
+			cmd.Stdout = m.logFile
+			cmd.Stderr = m.logFile
+		} else {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		}
+
 		return cmd
 	}
 	return nil
@@ -246,24 +259,6 @@ func (m *LocalManager) raise(pid int, sig os.Signal) error {
 		return err
 	}
 	return p.Signal(sig)
-}
-
-func (m *LocalManager) createLogFile(path, filename string) (*os.File, error) {
-
-	m.checkDir(path)
-
-	stdOut, err := os.OpenFile(path+filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
-	if err != nil {
-		return nil, errors.New("could not create log file")
-	}
-
-	return stdOut, nil
-}
-
-func (m *LocalManager) checkDir(path string) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0755)
-	}
 }
 
 // GracefulShutdown blocks restart on failure
