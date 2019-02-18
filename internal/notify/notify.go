@@ -8,133 +8,16 @@ import (
 	"github.com/fatih/color"
 )
 
-// TAB is the amount of indent to set
-const TAB = "  "
-
-// SEP is a seperator
+// SEP erator between things
 const SEP = "-----------------------------------------------"
 
-// CORE is the core logo text
-const CORE = `                    _           
-  _  ._ _  |_  |_| /   _  ._ _  
- (_| | | | |_) | | \\_ (_) | (/_
-  _|                            `
-
-// TAG is the msg to put before a msg
-var TAG string
-var verbose bool
-
-func init() {
-	// TAG = defaults.DEFAULT_PROMPT
-	verbose = true
-}
+var verbose = true
+var header = ""
 
 // SetVerbose on or off
 func SetVerbose(on bool) {
 	verbose = on
 }
-
-// SetTag changes the tag before a message is printed
-func SetTag(tag string) {
-	TAG = tag
-}
-
-// // OpenLogFile at path with filename; will create the path if it does not exists
-// func OpenLogFile(path, filename string) (*os.File, error) {
-// 	checkDir(path)
-// 	file, err := os.OpenFile(path+filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
-// 	if err != nil {
-// 		return nil, errors.New("could not create log file")
-// 	}
-// 	return file, nil
-// }
-
-func checkDir(path string) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0755)
-	}
-}
-
-// // Log is the object that holds onto logging data
-// type Log struct {
-// 	path     string
-// 	filename string
-// 	verbose  bool
-// 	file     *os.File
-// 	mu       *sync.Mutex
-// }
-
-// // NewLogFile creates a new log at path with filename name
-// func NewLogFile(path, filename string, verbose bool) *Log {
-
-// 	logger := &Log{
-// 		path:     path,
-// 		filename: filename,
-// 		verbose:  verbose,
-// 		mu:       &sync.Mutex{},
-// 	}
-
-// 	createFilePath(path)
-// 	file := createFile(path + "/" + filename)
-// 	logger.file = file
-
-// 	return logger
-// }
-
-// // Ln writes a message to log
-// func (l *Log) Ln(format string, a ...interface{}) {
-// 	if l.file != nil {
-// 		l.mu.Lock()
-// 		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
-// 		l.mu.Unlock()
-// 	}
-// 	if l.verbose {
-// 		fmt.Println(fmt.Sprintf(format, a...))
-// 	}
-// }
-
-// // Err writes a message to log
-// func (l *Log) Err(format string, a ...interface{}) {
-// 	if l.file != nil {
-// 		l.mu.Lock()
-// 		l.file.WriteString(fmt.Sprintf(format, a...) + "\n")
-// 		l.mu.Unlock()
-// 	}
-// 	if l.verbose {
-// 		color.Set(color.FgRed)
-// 		fmt.Println(fmt.Sprintf(format, a...))
-// 		color.Unset()
-// 	}
-// }
-
-// // Sep writes a seperator message to log
-// func (l *Log) Sep() {
-// 	if l.file != nil {
-// 		l.mu.Lock()
-// 		l.file.WriteString(SEP + "\n")
-// 		l.mu.Unlock()
-// 	}
-// }
-
-func createFilePath(path string) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0755)
-	}
-}
-
-func createFile(pathName string) *os.File {
-	file, err := os.OpenFile(pathName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
-	if err != nil {
-		return nil
-	}
-	return file
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// REFACTORED BELOW
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-var header = ""
 
 // SetHeader is a string that can be set to precede all writes to stdOut
 func SetHeader(s string) {
@@ -231,7 +114,7 @@ func outB(c color.Attribute, msg string) {
 }
 
 /**********************************************************************************
-**** OS Helpers
+**** OS Helpers (These should probably migrate somewhere else)
 **********************************************************************************/
 
 // GetLogFile attempts to add the desired path as an extension to the current

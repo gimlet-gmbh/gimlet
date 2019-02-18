@@ -17,7 +17,7 @@ import (
 )
 
 func reportOne(p *intrigue.Service, h string) {
-	fmt.Println(h + getBoxTop(p.Name, 38))
+	fmt.Println(h + getBoxTop(p.Name, 54))
 	fmt.Println(h + getBoxLine(formatLine("ID", p.Id, ":")))
 	if p.Pid != 0 {
 		fmt.Println(h + getBoxLine(formatLine("PID", getPid(p.Pid), ":")))
@@ -54,7 +54,7 @@ func reportOne(p *intrigue.Service, h string) {
 }
 
 func reportCluster(c *intrigue.ProcessManager) {
-	fmt.Println(getBoxTop(c.ID, 42))
+	fmt.Println(getBoxTop(c.ID, 64))
 	fmt.Println(getBoxLine(formatLine("Address", c.Address, ":")))
 	fmt.Println(getBoxLine(formatLine("Services", "", "")))
 	for _, p := range c.Services {
@@ -72,7 +72,8 @@ func getBoxTop(name string, length int) string {
 	if length < 0 {
 		length = 0
 	}
-	return fmt.Sprintf(" \u250C%s %s %s\u2510", strings.Repeat("\u2500", 2), name, strings.Repeat("\u2500", length))
+	// \u2510
+	return fmt.Sprintf(" \u250C%s %s %s", strings.Repeat("\u2500", 2), name, strings.Repeat("\u2500", length))
 }
 
 func getBoxLine(data string) string {
