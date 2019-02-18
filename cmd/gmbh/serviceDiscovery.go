@@ -82,34 +82,48 @@ func scanForServices(baseDir string) ([]string, error) {
 }
 
 // launch service fork and exec's using gmbh remote with config path set to the known config path
-func launchService(servicePath, validConfigPath, coreAddress string, verbose bool) {
-	args := []string{"--remote", "--config=" + validConfigPath}
+func launchService(validConfigPaths []string, coreAddress string, verbose bool) {
+	if len(validConfigPaths) == 0 {
+		return
+	}
 
+	args := []string{"--remote"}
+	for _, a := range validConfigPaths {
+		args = append(args, "--config="+a)
+	}
 	if verbose {
 		args = append(args, "--verbose")
 	}
+	// validConfigPath := validConfigPaths[0]
+	// args = append(args, "--config="+validConfigPath)
 
 	cmd := exec.Command("gmbhProcm", args...)
 
 	workingEnv := []string{
 		"GMBHCORE=" + coreAddress,
 		"SERVICEMODE=managed",
-		"CONFIGPATH=" + validConfigPath,
+		// "CONFIGPATH=" + validConfigPath,
 	}
 
 	if verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	} else {
-		dirs := strings.Split(filepath.Dir(validConfigPath), string(filepath.Separator))
-		f, err := getLogFile("gmbh", dirs[len(dirs)-1]+"-remote.log")
+		dirName := []string{}
+		for _, c := range validConfigPaths {
+			dirs := strings.Split(filepath.Dir(c), string(filepath.Separator))
+			dirName = append(dirName, dirs[len(dirs)-1])
+		}
+
+		// dirs := strings.Split(filepath.Dir(validConfigPath), string(filepath.Separator))
+		f, err := getLogFile("gmbh", strings.Join(dirName, "_")+"-remote.log")
 		if err == nil {
 			cmd.Stdout = f
 			cmd.Stderr = f
 		}
 		workingEnv = append(workingEnv, "LOGPATH="+filepath.Join(getpwd(), "gmbh"))
-		workingEnv = append(workingEnv, "LOGNAME="+dirs[len(dirs)-1])
-		notify.LnBYellowF("Log=%s", filepath.Join(getpwd(), "gmbh", dirs[len(dirs)-1]+"-remote.log"))
+		workingEnv = append(workingEnv, "LOGNAME="+strings.Join(dirName, "_"))
+		notify.LnBYellowF("Log=%s", filepath.Join(getpwd(), "gmbh", strings.Join(dirName, "_")+"-remote.log"))
 	}
 
 	cmd.Env = append(os.Environ(), workingEnv...)

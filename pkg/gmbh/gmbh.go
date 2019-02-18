@@ -158,6 +158,10 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		parentID:            os.Getenv("REMOTE"),
 	}
 
+	if g.signalMode == "" {
+		g.signalMode = "free"
+	}
+
 	g.opts = defaultOptions
 	for _, o := range opt {
 		o(&g.opts)
@@ -170,18 +174,10 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 	// Parse the config either from the path passed in or the one set by the service
 	// launcher in the environment
 	var err error
-	envConfPath := os.Getenv("CONFIGPATH")
-	if envConfPath != "" {
-		g.conf, err = config.ParseServiceStatic(envConfPath)
-		if err != nil {
-			return nil, errors.New("could not parse config from env")
-		}
-		print("using config path from env=%s", envConfPath)
-	} else {
-		g.conf, err = config.ParseServiceStatic(configPath)
-		if err != nil {
-			return nil, errors.New("could not parse the config file")
-		}
+	g.conf, err = config.ParseServiceStatic(configPath)
+	g.printer("config path=" + configPath)
+	if err != nil {
+		return nil, errors.New("could not parse the config file; err=" + err.Error())
 	}
 
 	// Validate the data from the config file

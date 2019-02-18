@@ -31,6 +31,8 @@ func main() {
 	nolog := flag.Bool("no-log", false, "disable logging")
 	daemon := flag.Bool("daemon", false, "for running the process manager in a container")
 
+	maxRemoteSize := flag.Int("max", 1, "This specifies the maximum number of servies per remote")
+
 	configs := flag.String("config", "", "a gmbh configuration file path")
 
 	listAllFlag := flag.Bool("list", false, "list all processes")
@@ -45,7 +47,7 @@ func main() {
 	setCore(*configs)
 
 	if *core {
-		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *noServiceDiscovery)
+		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *noServiceDiscovery, *maxRemoteSize)
 	} else if *listAllFlag {
 		listAll()
 	} else if *reportFlag {
@@ -59,12 +61,12 @@ func main() {
 	} else if *shutdownFlag {
 		shutdown()
 	} else {
-		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *noServiceDiscovery)
+		startCore(*configs, *verbose, *verbosedata, *daemon, *nolog, *noServiceDiscovery, *maxRemoteSize)
 	}
 
 }
 
-func startServiceDiscovery(cfile string, verbose, daemon bool) {
+func startServiceDiscovery(cfile string, verbose, daemon bool, max int) {
 	userConfig, err := config.ParseSystemConfig(cfile)
 	if err != nil {
 		notify.LnBRedF("could not parse config; err=%s", err.Error())
@@ -76,6 +78,13 @@ func startServiceDiscovery(cfile string, verbose, daemon bool) {
 		notify.LnBRedF("error scanning for services; err=%s", err.Error())
 		return
 	}
+
+	limit := 1
+	if max > limit {
+		limit = max
+	}
+
+	confs := []string{}
 
 	// Create and attach all services that run in Managed mode
 	for _, servicePath := range servicePaths {
@@ -90,8 +99,13 @@ func startServiceDiscovery(cfile string, verbose, daemon bool) {
 			notify.LnBRedF("could not validate config file")
 			continue
 		}
-		launchService(servicePath, servicePath, config.DefaultSystemCore.Address, verbose)
+		confs = append(confs, servicePath)
+		if len(confs) == limit {
+			launchService(confs, config.DefaultSystemCore.Address, verbose)
+			confs = []string{}
+		}
 	}
+	launchService(confs, config.DefaultSystemCore.Address, verbose)
 
 }
 
@@ -128,7 +142,7 @@ func setCore(configPath string) {
 
 }
 
-func startCore(c string, verbose, vdata, daemon, nolog, noServiceDiscovery bool) {
+func startCore(c string, verbose, vdata, daemon, nolog, noServiceDiscovery bool, max int) {
 	report()
 
 	installed := checkInstall()
@@ -229,7 +243,7 @@ func startCore(c string, verbose, vdata, daemon, nolog, noServiceDiscovery bool)
 	}
 
 	if !noServiceDiscovery {
-		go startServiceDiscovery(c, verbose, daemon)
+		go startServiceDiscovery(c, verbose, daemon, max)
 	}
 
 	if !daemon {

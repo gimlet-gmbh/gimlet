@@ -187,6 +187,8 @@ func (m *LocalManager) getCmd() *exec.Cmd {
 		var cmd *exec.Cmd
 		cmd = exec.Command(m.path, m.args...)
 		cmd.Env = m.env
+		fmt.Println("using " + m.dir + " as dir")
+		cmd.Dir = m.dir
 		return cmd
 	}
 	return nil

@@ -353,11 +353,13 @@ func (r *Remote) AddService(configPath string) (pid string, err error) {
 				service, err := r.serviceManager.AddServiceFromConfig(configPath)
 				if err != nil {
 					perr("could add start service; error=" + err.Error())
+					return
 				}
 				service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
 				pid, err := service.Start(r.mode)
 				if err != nil {
 					perr("could not start service; error=" + err.Error())
+					return
 				}
 				print("service started with pid=%s", pid)
 				break
@@ -751,25 +753,24 @@ func (s *ServiceManager) Restart(id string) (pid string, err error) {
 
 // addToMap adds the service to the map or returns error
 func (s *ServiceManager) addToMap(newService *service.Service) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if _, ok := s.services[newService.ID]; ok {
 		return errors.New("serviceManager.addToMap.error")
 	}
-
-	s.mu.Lock()
 	s.services[newService.ID] = newService
-	s.mu.Unlock()
-
 	return nil
 }
 
 // returns the next id string and then increments the id counter
 func (s *ServiceManager) assignID() string {
-	defer func() {
-		s.mu.Lock()
-		s.idCounter++
-		s.mu.Unlock()
-	}()
-	return "s" + strconv.Itoa(s.idCounter)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id := "s" + strconv.Itoa(s.idCounter)
+	s.idCounter++
+	return id
+
 }
 
 func print(format string, a ...interface{}) {

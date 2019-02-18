@@ -200,9 +200,10 @@ func reportProcess(p *intrigue.Service) string {
 
 func reportRemoteHeader() string {
 	u := color.New(color.Underline).SprintFunc()
-	return u(fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-7s \u2502 %-3s \u2502 %-12s \u2502 %-20s ",
+	return u(fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-6s \u2502 %-7s \u2502 %-3s \u2502 %-12s \u2502 %-20s ",
 		"ID",
 		"Status",
+		"PID",
 		"Uptime",
 		"Err",
 		"Name",
@@ -211,9 +212,10 @@ func reportRemoteHeader() string {
 }
 
 func reportRemote(p *intrigue.Service, c *intrigue.CoreService) string {
-	return fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %-20s ",
+	return fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-6d \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %-20s ",
 		p.Id,
 		getStatus(p.Status),
+		p.Pid,
 		getUptime(p.StartTime),
 		len(p.Errors),
 		getName(p.Name),
@@ -221,9 +223,10 @@ func reportRemote(p *intrigue.Service, c *intrigue.CoreService) string {
 	)
 }
 func reportRemotePM(pm *intrigue.ProcessManager) string {
-	return fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %-20s ",
+	return fmt.Sprintf(" %-9s \u2502 %-8s \u2502 %-6s \u2502 %-7s \u2502 %-3d \u2502 %-12s \u2502 %-20s ",
 		pm.ID,
 		getStatus(pm.Status),
+		"-",
 		getUptime(pm.StartTime),
 		len(pm.Errors),
 		"remoteProcm",

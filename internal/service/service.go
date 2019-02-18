@@ -101,7 +101,7 @@ func (s *Service) Start(mode string) (pid string, err error) {
 		} else {
 			notify.LnYellowF("using sigint as shutdown signal")
 		}
-
+		// fmt.Println("using:", s.Path, "as path")
 		s.Process = process.NewLocalBinaryManager(s.Static.Name, s.createAbsPathToBin(s.Path, s.Static.BinPath), s.Path, s.Static.Args, s.Static.Env, ssignal)
 		pid, err := s.Process.Start()
 		if err != nil {
