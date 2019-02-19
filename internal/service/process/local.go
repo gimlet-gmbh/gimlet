@@ -123,9 +123,7 @@ func (m *LocalManager) Restart(fromFailed bool) (pid int, err error) {
 
 		if previousState == Running || previousState == Stable {
 			m.Kill(fromFailed)
-			fmt.Println("blocking at exit buffer")
 			_ = <-m.exitedBuffer
-			fmt.Println("value received in exit buffer, returning restart")
 		}
 	}
 	return m.Start()
@@ -181,9 +179,9 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 	pid <- cmd.Process.Pid
 
 	// wait for the command to finish; could be error, could be nill.
-	fmt.Println("waiting at listener")
+
 	err = cmd.Wait()
-	fmt.Println("command finished")
+
 	m.exitedBuffer <- true
 
 	if m.gracefulshutdown {
@@ -191,7 +189,6 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 		return
 	}
 
-	fmt.Println("status here=", m.info.Status)
 	if m.info.Status == Killed {
 		return
 	}
@@ -201,14 +198,11 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 	// case in which there is a value in the restart buffer, as of which
 	// we would want to ignore the command exiting with the listener
 	case <-m.restartBuffer:
-		fmt.Println("restart buffer has value, return")
 		return
 
 	// case in which there is no value in the restart buffer, can assume
 	// that the service has failed
 	default:
-		fmt.Println("restart buffer empty, handle failure")
-
 		// Record the error
 		if err != nil {
 			m.info.Errors = append(m.info.Errors, err)

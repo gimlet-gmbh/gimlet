@@ -144,17 +144,13 @@ func (c *Core) Wait() {
 func (c *Core) shutdown(remote bool, source string) {
 	c.v("shutdown procedure started from " + source)
 
-	// send shutdown notification to all services
-	// if c.mode != "managed" {
-	done := make(chan bool)
-	fmt.Println("sending shutdown notice")
-	go c.Router.sendShutdownNotices(done)
-	fmt.Println("waiting")
-	<-done
-	fmt.Println("done")
-	// time.Sleep(time.Second * 3)
-	// }
+	if c.mode != "managed" {
+		done := make(chan bool)
+		go c.Router.sendShutdownNotices(done)
+		<-done
+	}
 
+	notify.LnBlueF("shutdown; time=%s", time.Now().Format(time.Stamp))
 	return
 }
 

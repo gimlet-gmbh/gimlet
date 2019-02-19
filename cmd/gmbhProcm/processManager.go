@@ -320,7 +320,7 @@ func (p *ProcessManager) Shutdown(remote bool) {
 	<-noticesSent
 	p.con.Disconnect()
 
-	p.print("shutdown time=%s", time.Now().Format(time.Stamp))
+	p.print("shutdown; time=%s", time.Now().Format(time.Stamp))
 	return
 }
 
