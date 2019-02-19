@@ -51,7 +51,10 @@ type Service struct {
 	Created time.Time
 	Address string
 	Mode    Mode
-	// Logs    *notify.Log
+
+	// LogPath is where the std{out,err} of service's process' output will be
+	// directed
+	LogPath string
 
 	// Static data associated with the service
 	Static *config.ServiceStatic
@@ -88,19 +91,34 @@ func NewService(id, path string) (*Service, error) {
 
 // Start attempts to fork/exec service and returns the pid, else error
 // service must be in managed or remote mode
-func (s *Service) Start(mode string) (pid string, err error) {
+func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 
 	if s.Static.BinPath != "" {
 
 		conf := &process.LocalProcessConfig{
+			Name:   s.Static.Name,
 			Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
 			Dir:    s.Path,
 			Args:   s.Static.Args,
 			Env:    append(os.Environ(), s.Static.Env...),
 			Signal: syscall.SIGINT,
 		}
+
+		// in managed mode, a log file is also supplied to the process
 		if mode == "managed" {
+
 			conf.Signal = syscall.SIGUSR2
+			if !verbose {
+				s.LogPath = filepath.Join(s.Path, "log", "stdout.log")
+				notify.LnYellowF("%s log at %s", s.Static.Name, s.LogPath)
+				var e error
+				conf.LogF, e = notify.GetLogFileWithPath(filepath.Join(s.Path, "log"), "stdout.log")
+				if e != nil {
+					notify.LnRedF("Error creating log")
+				}
+			} else {
+				notify.LnYellowF("verbose mode; service output directed to os.stdout")
+			}
 		}
 		s.Process = process.NewLocalBinaryManager(conf)
 		pid, err := s.Process.Start()

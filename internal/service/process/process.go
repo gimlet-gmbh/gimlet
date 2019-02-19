@@ -20,6 +20,12 @@ const (
 	// Failed ; the process has ran and failed
 	Failed
 
+	// Restarting ; the process is restarting
+	Restarting
+
+	// Initialized ; the process has not yet started after instantiation
+	Initialized
+
 	// Killed ; the process has been killed
 	Killed
 )
@@ -28,6 +34,8 @@ var statuses = [...]string{
 	"Stable",
 	"Running",
 	"Failed",
+	"Restarting",
+	"Initialized",
 	"Killed",
 }
 

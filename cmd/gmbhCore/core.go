@@ -40,8 +40,9 @@ type Core struct {
 	// Router controls all aspects of data requests & handling in Core
 	Router *Router
 
-	// signalMode controls which signal to use
-	signalMode string
+	// mode can be set to managed to indicate that the service launcher
+	// has launched core and it is being controlled by a remote
+	mode string
 
 	// parent id is for remote instances of core
 	parentID string
@@ -77,7 +78,7 @@ func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 		Router:      NewRouter(),
 		msgCounter:  1,
 		startTime:   time.Now(),
-		signalMode:  os.Getenv("SERVICEMODE"),
+		mode:        os.Getenv("SERVICEMODE"),
 		parentID:    os.Getenv("REMOTE"),
 		mu:          &sync.Mutex{},
 		verbose:     verbose,
@@ -123,7 +124,7 @@ func (c *Core) Start() {
 func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 
-	if c.signalMode == "managed" {
+	if c.mode == "managed" {
 		c.vi("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGUSR1, syscall.SIGINT)
@@ -144,10 +145,17 @@ func (c *Core) shutdown(remote bool, source string) {
 	c.v("shutdown procedure started from " + source)
 
 	// send shutdown notification to all services
-	c.Router.sendShutdownNotices()
+	// if c.mode != "managed" {
+	done := make(chan bool)
+	fmt.Println("sending shutdown notice")
+	go c.Router.sendShutdownNotices(done)
+	fmt.Println("waiting")
+	<-done
+	fmt.Println("done")
+	// time.Sleep(time.Second * 3)
+	// }
 
-	time.Sleep(time.Second * 3)
-	os.Exit(0)
+	return
 }
 
 // v verbose helper
@@ -318,27 +326,34 @@ func (r *Router) addToMap(newService *GmbhService) error {
 }
 
 // sendShutdownNotices sends a notice to all clients that core is shutting down
-func (r *Router) sendShutdownNotices() {
-	for _, n := range r.serviceNames {
-		service := r.services[n]
-		r.v("sending shutdown to %s at %s", service.Name, service.Address)
-		client, ctx, can, err := rpc.GetCabalRequest(service.Address, time.Second*1)
-		if err != nil {
-			r.v("could not create client")
-			can()
-			continue
-		}
-		req := &intrigue.ServiceUpdate{
-			Request: "core.shutdown",
-			Message: service.Name,
-		}
-		_, err = client.UpdateRegistration(ctx, req)
-		if err != nil {
-			if service.State != Shutdown {
-				r.v("error contacting service; id=%s; err=%s", service.ID, err.Error())
+func (r *Router) sendShutdownNotices(done chan bool) {
+	var wg sync.WaitGroup
+	for _, name := range r.serviceNames {
+		wg.Add(1)
+		go func(n string) {
+			defer wg.Done()
+			service := r.services[n]
+			r.v("sending shutdown to %s at %s", service.Name, service.Address)
+			client, ctx, can, err := rpc.GetCabalRequest(service.Address, time.Millisecond*500)
+			if err != nil {
+				r.v("could not create client")
+				can()
+				return
 			}
-		}
+			req := &intrigue.ServiceUpdate{
+				Request: "core.shutdown",
+				Message: service.Name,
+			}
+			_, err = client.UpdateRegistration(ctx, req)
+			if err != nil {
+				if service.State != Shutdown {
+					r.v("error contacting service; id=%s; err=%s", service.ID, err.Error())
+				}
+			}
+		}(name)
 	}
+	wg.Wait()
+	done <- true
 }
 
 // GetCoreServiceData queries each attached client to respond with their information using their

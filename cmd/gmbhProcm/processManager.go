@@ -278,25 +278,32 @@ func (p *ProcessManager) sendGmbhShutdown() {
 }
 
 // sendShutdown notice to all attached remotes
-func (p *ProcessManager) sendShutdown() {
+func (p *ProcessManager) sendShutdown(done chan bool) {
+	var wg sync.WaitGroup
 	remotes := p.router.GetAllAttached()
 	for _, r := range remotes {
-		p.print("sending shutdown notice to " + r.ID)
-		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
-		if err != nil {
-			p.perr("could not get client; err=%s", err.Error())
-			continue
-		}
-		update := &intrigue.ServiceUpdate{
-			Request: "core.shutdown",
-		}
-		_, err = client.UpdateRegistration(ctx, update)
-		if err != nil {
-			p.perr("could not contact client; err=%s", err.Error())
-			continue
-		}
-		can()
+		wg.Add(1)
+		go func(r *RemoteServer) {
+			defer wg.Done()
+			p.print("sending shutdown notice to " + r.ID)
+			client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
+			if err != nil {
+				p.perr("could not get client; err=%s", err.Error())
+				return
+			}
+			update := &intrigue.ServiceUpdate{
+				Request: "core.shutdown",
+			}
+			_, err = client.UpdateRegistration(ctx, update)
+			if err != nil {
+				p.perr("could not contact client; err=%s", err.Error())
+				return
+			}
+			can()
+		}(r)
 	}
+	wg.Wait()
+	done <- true
 }
 
 // MarkShutdown marks the remote as having shutdown and being inactive
@@ -308,11 +315,13 @@ func (p *ProcessManager) MarkShutdown(id string) {
 // tool
 func (p *ProcessManager) Shutdown(remote bool) {
 	p.print("shutdown signal received")
-	p.sendShutdown()
-	time.Sleep(time.Second * 3)
+	noticesSent := make(chan bool)
+	go p.sendShutdown(noticesSent)
+	<-noticesSent
 	p.con.Disconnect()
-	time.Sleep(time.Second * 3)
-	os.Exit(0)
+
+	p.print("shutdown time=%s", time.Now().Format(time.Stamp))
+	return
 }
 
 func (p *ProcessManager) print(format string, a ...interface{}) {

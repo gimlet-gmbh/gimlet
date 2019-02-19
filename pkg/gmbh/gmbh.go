@@ -154,6 +154,11 @@ func NewClient(configPath string, opt ...Option) (*Client, error) {
 		parentID:            os.Getenv("REMOTE"),
 	}
 
+	notify.LnCyanF("	                _                 ")
+	notify.LnCyanF("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
+	notify.LnCyanF(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
+	notify.LnCyanF("  _|                                  ")
+
 	if g.signalMode == "" {
 		g.signalMode = "free"
 	}
@@ -262,16 +267,16 @@ func (g *Client) Shutdown(forceExit bool, src string) {
 	g.makeUnregisterRequest()
 	g.disconnect()
 
-	// g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
 	if g.signalMode == "managed" {
-		g.printer("os.exit in 3s")
-		time.Sleep(time.Second * 3)
-		os.Exit(0)
+		g.printer("managed shutdown on return")
+		defer os.Exit(0)
+
 	}
-	if forceExit {
-		g.printer("force os.exit(0)")
-		os.Exit(0)
-	}
+	// if forceExit {
+	// 	g.printer("force os.exit(0)")
+	// 	os.Exit(0)
+	// }
+	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
 	return
 }
 

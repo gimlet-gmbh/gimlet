@@ -49,6 +49,7 @@ type Remote struct {
 	pingCounter int
 	PongDelay   time.Duration
 	startTime   time.Time
+	logPath     string
 	errors      []error
 
 	// The mode as read by the environment
@@ -126,14 +127,16 @@ func (r *Remote) Start() {
 	if logPath != "" {
 		notify.LnCyanF("Remote using logfile at " + logPath)
 		setLog(logPath)
+		r.logPath = logPath
 	} else {
 		logName := os.Getenv("LOGFILENAME")
 		if logName != "" {
-			p := filepath.Join(notify.Getpwd(), "logs", logName)
-			setLog(p)
-			notify.LnCyanF("Remote using logfile at " + p)
+			r.logPath = filepath.Join(notify.Getpwd(), "logs", logName)
+			setLog(r.logPath)
+			notify.LnCyanF("Remote using logfile at " + r.logPath)
 		} else {
 			notify.LnYellowF("Warning: Logfile name not specified")
+			r.logPath = "-"
 		}
 	}
 
@@ -366,7 +369,7 @@ func (r *Remote) AddService(configPath string) (pid string, err error) {
 					return
 				}
 				service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
-				pid, err := service.Start(r.mode)
+				pid, err := service.Start(r.mode, r.verbose)
 				if err != nil {
 					perr("could not start service; error=" + err.Error())
 					return
@@ -550,6 +553,7 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 					StartTime: r.startTime.Format(time.RFC3339),
 					Errors:    errs,
 					Status:    stat,
+					LogPath:   r.logPath,
 					Services:  rpcServices,
 				},
 			},
@@ -582,6 +586,7 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 					StartTime: r.startTime.Format(time.RFC3339),
 					Errors:    errs,
 					Status:    stat,
+					LogPath:   r.logPath,
 					Services:  []*intrigue.Service{serviceToRPC(service)},
 				},
 			},
@@ -609,7 +614,7 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 		Name:      s.Static.Name,
 		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
-		LogPath:   "-",
+		LogPath:   s.LogPath,
 		Pid:       int32(procRuntime.PID),
 		Fails:     int32(procRuntime.Fails),
 		Restarts:  int32(procRuntime.Restarts),

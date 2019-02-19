@@ -96,6 +96,7 @@ message ProcessManager {
     string StartTime = 5;
     repeated string Errors = 8;
     string Status = 7;
+    string LogPath = 9;
     repeated Service Services = 4;
 }
 
@@ -115,7 +116,7 @@ message ServiceSummary {
 message Service {
     string Id = 10;
     string Name = 11;
-    bool Registered = 22;
+    // bool Registered = 22;
     string Mode = 23;
     string Address = 21;
     string Path = 12;
