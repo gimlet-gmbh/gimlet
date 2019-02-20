@@ -1,52 +1,32 @@
 package main
 
-/*
- * main.go
- * Abe Dick
- * January 2019
- */
-
 import (
-	"fmt"
+	"flag"
 	"os"
-	"strconv"
 
-	"github.com/fatih/color"
 	"github.com/gmbh-micro/notify"
 )
 
-func init() {
-	if len(os.Args) < 2 {
-		notify.StdMsgErr("must start gmbhCore with argument containing path to project")
+func main() {
+
+	configPath := flag.String("config", "", "the path to the gmbh config file (yaml)")
+	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
+	verbosedata := flag.Bool("verbose-data", false, "print gmbh data output to stdOut and stdErr")
+
+	/*
+		Things that should be paremetrized in Core
+		* Should services be in their own remote or all in one remote?
+	*/
+
+	flag.Parse()
+
+	if *configPath == "" {
+		notify.LnRedF("must specify config file")
 		os.Exit(1)
 	}
-}
-
-func main() {
-	daemon := false
-	if len(os.Args) == 3 {
-		if os.Args[2] == "-d" {
-			daemon = true
-		}
+	c, err := NewCore(*configPath, *verbose, *verbosedata)
+	if err != nil {
+		panic(err)
 	}
-
-	gmbhCore := StartCore(os.Args[1], true, daemon)
-
-	printLogo()
-	notify.StdMsgBlue("Starting version: " + gmbhCore.Version + " (" + gmbhCore.CodeName + ")")
-	notify.StdMsgBlue("verbose: true,  daemon: " + strconv.FormatBool(daemon))
-
-	gmbhCore.StartCabalServer()
-	gmbhCore.StartControlServer()
-	gmbhCore.ServiceDiscovery()
-	notify.StdMsgBlue("verbose: true,  daemon: " + strconv.FormatBool(daemon))
-}
-
-func printLogo() {
-	color.Set(color.FgBlue)
-	fmt.Println("                    _           ")
-	fmt.Println("  _  ._ _  |_  |_| /   _  ._ _  ")
-	fmt.Println(" (_| | | | |_) | | \\_ (_) | (/_")
-	fmt.Println("  _|                            ")
-	color.Unset()
+	c.Start()
 }

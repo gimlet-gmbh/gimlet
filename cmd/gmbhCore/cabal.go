@@ -1,171 +1,175 @@
 package main
 
-/*
- * cabal.go
- * Implements the gRPC server and client for the gmbhCore Cabal Server
- * Abe Dick
- * Nov 2018
- */
-
 import (
 	"context"
-	"errors"
-	"fmt"
+	"strings"
 	"time"
 
-	"github.com/gmbh-micro/cabal"
 	"github.com/gmbh-micro/notify"
-	"github.com/rs/xid"
-	"google.golang.org/grpc"
+	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/intrigue"
+	"google.golang.org/grpc/metadata"
 )
 
-/////////////////////////////////////////////////////////////////////////
-// CLIENT
-/////////////////////////////////////////////////////////////////////////
-
-func getRPCClient(address string) (cabal.CabalClient, error) {
-	con, err := grpc.Dial(address, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	return cabal.NewCabalClient(con), nil
+func v(msg string) {
+	notify.LnBlueF(" [cbl] " + msg)
 }
 
-func getContextCancel() (context.Context, context.CancelFunc) {
-	ctx, can := context.WithTimeout(context.Background(), time.Second)
-	return ctx, can
-}
-
-func makeRequest(address string) (cabal.CabalClient, context.Context, context.CancelFunc, error) {
-	client, err := getRPCClient(address)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	ctx, can := context.WithTimeout(context.Background(), time.Second)
-	return client, ctx, can, nil
-}
-
-func _makeDataRequest(req cabal.Request, address string) (*cabal.Responder, error) {
-	client, ctx, can, err := makeRequest(address)
-	if err != nil {
-		panic(err)
-	}
-	defer can()
-
-	request := cabal.DataReq{
-		Req: &req,
-	}
-
-	reply, err := client.MakeDataRequest(ctx, &request)
-	if err != nil {
-		notify.StdMsgErr(err.Error(), 1)
-		r := cabal.Responder{
-			HadError:    true,
-			ErrorString: err.Error(),
-		}
-		return &r, nil
-	}
-
-	return reply.Resp, nil
-}
-
-func requestQueryData(address string) (*cabal.QueryResponse, error) {
-	client, ctx, can, err := makeRequest(address)
-	if err != nil {
-		panic(err)
-	}
-	defer can()
-
-	req := cabal.QueryRequest{
-		Query: cabal.QueryRequest_STATUS,
-	}
-
-	// reply, err := client.QueryStatus(ctx, &req)
-	return client.QueryStatus(ctx, &req)
-}
-
-/////////////////////////////////////////////////////////////////////////
-// SERVER
-/////////////////////////////////////////////////////////////////////////
+var cnt int
 
 // cabalServer is for gRPC interface for the gmbhCore service coms server
 type cabalServer struct{}
 
-func (s *cabalServer) EphemeralRegisterService(ctx context.Context, in *cabal.RegServReq) (*cabal.RegServRep, error) {
+func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServiceRequest) (*intrigue.Receipt, error) {
 
-	service, err := core.Router.LookupService(in.NewServ.GetName())
+	rv("-> Incoming registration; Request=%s", in.String())
+
+	c, err := GetCore()
 	if err != nil {
-		if err.Error() == "router.LookupService.nameNotFound" {
-			panic(err)
+		return &intrigue.Receipt{Error: "error.coreref"}, nil
+	}
+
+	newService := in.GetService()
+
+	ns, err := c.Router.AddService(newService.GetName(), newService.GetAliases())
+	if err != nil {
+		return &intrigue.Receipt{Error: err.Error()}, nil
+	}
+
+	return &intrigue.Receipt{
+		Message: "acknowledged",
+		ServiceInfo: &intrigue.ServiceSummary{
+			Address:     ns.Address,
+			ID:          ns.ID,
+			Fingerprint: ns.Fingerprint,
+		},
+	}, nil
+
+}
+
+func (s *cabalServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
+
+	rv("-> Update Registration; Update=%s", in.String())
+
+	request := in.GetRequest()
+	name := in.GetMessage()
+
+	c, err := GetCore()
+	if err != nil {
+		return &intrigue.Receipt{Error: "error.coreref"}, nil
+	}
+
+	if request == "shutdown.notif" {
+		service, err := c.Router.LookupService(name)
+		if err != nil {
+			return &intrigue.Receipt{
+				Error: "service.notFound",
+			}, nil
 		}
+
+		service.UpdateState(Shutdown)
+		return &intrigue.Receipt{Message: "ack"}, nil
 	}
 
-	if !core.Config.Daemon && core.Config.Verbose {
-		notify.StdMsgLog(fmt.Sprintf("<- Ephemeral Registration Request: %s", in.NewServ.GetName()))
-		if service.Static.IsServer {
-			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged with address: %v", in.NewServ.GetName(), service.Address))
-		} else {
-			notify.StdMsgLog(fmt.Sprintf("-> %s: acknowledged", in.NewServ.GetName()))
-		}
-	}
-
-	reply := &cabal.RegServRep{
-		Status:   "acknowledged",
-		ID:       xid.New().String(),
-		CorePath: core.ProjectPath,
-		Address:  service.Address,
-	}
-
-	return reply, nil
+	return &intrigue.Receipt{Error: "invalid request"}, nil
 }
 
-func (s *cabalServer) MakeDataRequest(ctx context.Context, in *cabal.DataReq) (*cabal.DataResp, error) {
-	cc, err := getCore()
+func (s *cabalServer) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue.DataResponse, error) {
+
+	t := time.Now()
+	defer func() { cnt++ }()
+
+	request := in.GetRequest()
+	rd("-%d-> Data request: %s", cnt, request.String())
+
+	c, err := GetCore()
 	if err != nil {
-		return nil, errors.New("gmbh system error, could not locate instance of core")
+		rd("<-%d- could not get core error=%s", cnt, err.Error())
+		return &intrigue.DataResponse{Error: "core.ref"}, nil
 	}
-	if !cc.Config.Daemon {
-		notify.StdMsgLog(fmt.Sprintf("<- Data Request; from: %s; to: %s; method: %s", in.Req.GetSender(), in.Req.GetTarget(), in.Req.GetMethod()))
 
-	}
-	responder, err := handleDataRequest(*in.Req)
+	fwd, err := c.Router.LookupService(request.GetTarget())
 	if err != nil {
-		if !cc.Config.Daemon {
-			notify.StdMsgLog(fmt.Sprintf("Could not contact: %s", in.Req.Target), 1)
-		}
-		responder.HadError = true
-		responder.ErrorString = "Could not contact target"
+		rd("<-%d- service not found error=%s", cnt, err.Error())
+		return &intrigue.DataResponse{Error: "service.notFound"}, nil
 	}
 
-	reply := &cabal.DataResp{Resp: responder}
-	return reply, nil
-}
-
-func (s *cabalServer) UnregisterService(ctx context.Context, in *cabal.UnregisterReq) (*cabal.UnregisterResp, error) {
-	// printDebug("Received unregister request")
-	// printDebug("\tName: " + in.Name)
-
-	reply := &cabal.UnregisterResp{Awk: false}
-	// err := removeServiceFromList(in.Name, -1)
-	// if err != nil {
-	// reply.Awk = false
-	// }
-	// listAllServices()
-	return reply, nil
-}
-
-func handleDataRequest(req cabal.Request) (*cabal.Responder, error) {
-	address, err := core.Router.LookupAddress(req.GetTarget())
+	client, ctx, can, err := rpc.GetCabalRequest(fwd.Address, time.Second*2)
 	if err != nil {
-		return &cabal.Responder{}, err
+		rd("<-%d- rpc error=%s", cnt, err.Error())
+		return &intrigue.DataResponse{Error: "rpc error=" + err.Error()}, nil
 	}
-	if !core.Config.Daemon && core.Config.Verbose {
-		notify.StdMsgLog(fmt.Sprintf("   Target address on file: %v", address))
+	defer can()
+	final, err := client.Data(ctx, in)
+	if err != nil {
+		rd("<-%d- could not forward error=%s", cnt, err.Error())
+		return &intrigue.DataResponse{Error: "unableToForward"}, nil
 	}
-	return _makeDataRequest(req, address)
+	rd("<-%d-  elapsed time=%s", cnt, time.Since(t))
+	return final, nil
 }
 
-func (s *cabalServer) QueryStatus(ctx context.Context, in *cabal.QueryRequest) (*cabal.QueryResponse, error) {
-	return nil, nil
+func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
+
+	rv("-> Update Registration; Update=%s", in.String())
+
+	c, err := GetCore()
+	if err != nil {
+		rd("could not get core error=%s", cnt, err.Error())
+		return &intrigue.SummaryReceipt{Error: "core.ref"}, nil
+	}
+
+	// add core itself
+	ccs := &intrigue.CoreService{
+		Name:     "core",
+		Address:  c.conf.Address,
+		ParentID: c.parentID,
+	}
+
+	request := in.GetRequest()
+	if request == "request.info.all" {
+		return &intrigue.SummaryReceipt{
+			Services: c.Router.GetCoreServiceData(ccs),
+			Error:    "",
+		}, nil
+	}
+
+	return &intrigue.SummaryReceipt{Error: "unimp"}, nil
+}
+
+func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
+
+	// rv("<- pong")
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		rv("Could not get metadata")
+	}
+
+	c, err := GetCore()
+	if err != nil {
+		return &intrigue.Pong{Error: "core.ref"}, nil
+	}
+
+	name := strings.Join(md.Get("sender"), "")
+	fp := strings.Join(md.Get("fingerprint"), "")
+
+	verified := c.Router.Verify(name, fp)
+	if verified != nil {
+		rve("could not verify; err=%s", verified.Error())
+		return &intrigue.Pong{Error: verified.Error()}, nil
+	}
+	return &intrigue.Pong{Time: time.Now().Format(time.Stamp), Status: "core.verified"}, nil
+}
+
+func rv(msg string, a ...interface{}) {
+	notify.LnMagentaF("[cabal] "+msg, a...)
+}
+
+func rd(msg string, a ...interface{}) {
+	notify.LnCyanF("[data] "+msg, a...)
+}
+
+func rve(msg string, a ...interface{}) {
+	notify.LnRedF("[cabal] "+msg, a...)
 }

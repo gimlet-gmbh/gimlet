@@ -1,26 +1,25 @@
-# gmbh CLI
-This tool starts a gmbh server. Right now it hangs onto the process and outputs debug info to stdOut.
+# gmbh
 
-### Usage
-In the main project directory run the `gmbh` command from terminal and a gmbh server will start.
+## Usage
 
-### Expected file directory for gmbh project
-/
-&nbsp;&nbsp;gmbh/
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{gmbh_files}
-&nbsp;&nbsp;services/
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{service folders w/ gmbh config file}
+### Starting a gmbh server
+`gmbh --core --config=<yaml_config_path>`
 
-gmbh_files will be where the CLI looks to start the gmbh process. The gmbh process will then scan through the services directory looking for all subdirectories that have a gmbh config YAML file with the correct instructions. 
+Options
+* `--verbose` for all output to stdout
+* `--verbose-data` for all gmbh data to stdout, process management data is logged
 
-### Config file layout
-This is preliminary and will change frequently during development.
-```
-name: <service_name>            # The name of the service
-aliases: ["<other", "names>"]   # Any aliases you wish the service to be known as
-language: go                    # The language of the service (now only in Golang)
-makefile: true                  # Is there a makefile in the same directory as the config file?
-pathtobin: ./bin/???            # Where does the makefile output the binary to?
-isClient: true                  # Does this service call other services?
-isServer: true                  # Can other services call this service?
-```
+### Starting a gmbh process manager
+`gmbhPM`
+
+### Attaching remote processes
+`gmbh --container --config=<yaml_config_path>`
+
+### Reporting data from gmbh
+
+`gmbh --list` lists all remotes currently attached
+`gmbh --list-one=<id>` lists data from one remote
+`gmbh --report` lists data in report form with errors
+`gmbh --restart` sends a restart signal to all remotes
+`gmbh --restart-one=<id>` sends a restart signal to one remote
+`gmbh -q` shuts down gmbh

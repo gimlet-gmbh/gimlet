@@ -1,148 +1,168 @@
 package notify
 
 import (
-	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/fatih/color"
-	"github.com/gmbh-micro/defaults"
 )
 
-// TAB is the amount of indent to set
-const TAB = "  "
+// SEP erator between things
+const SEP = "-----------------------------------------------"
 
-// TAG is the msg to put before a msg
-var TAG string
-var lvl int
-var verbose bool
-
-func init() {
-	TAG = defaults.DEFAULT_PROMPT
-	lvl = 0
-	verbose = true
-}
-
-// SetLevel of the logging
-func SetLevel(newLvl int) {
-	lvl = newLvl
-}
+var verbose = true
+var header = ""
 
 // SetVerbose on or off
 func SetVerbose(on bool) {
 	verbose = on
 }
 
-// SetTag changes the tag before a message is printed
-func SetTag(tag string) {
-	TAG = tag
-}
-
-// StdMsg logs a message to stdOut if in verbose mode
-func StdMsg(msg string, tab ...int) {
-	toStdOutWithTag(checkIndent(tab...) + msg)
-}
-
-// StdMsgNoPrompt logs a message to stdOut if in verbose mode
-func StdMsgNoPrompt(msg string, tab ...int) {
-	toStdOut(checkIndent(tab...) + msg)
-}
-
-// StdMsgBlue logs a blue message to stdOut if in verbose mode
-func StdMsgBlue(msg string, tab ...int) {
-	toStdOutWithColorTag(color.FgBlue, checkIndent(tab...)+msg)
-}
-
-// StdMsgBlueNoPrompt logs a blue message to stdOut if in verbose mode
-func StdMsgBlueNoPrompt(msg string, tab ...int) {
-	toStdOutWithColor(color.FgBlue, checkIndent(tab...)+msg)
-}
-
-// StdMsgGreen logs a green message to stdOut if in verbose mode
-func StdMsgGreen(msg string, tab ...int) {
-	toStdOutWithColorTag(color.FgGreen, checkIndent(tab...)+msg)
-}
-
-// StdMsgGreenNoPrompt logs a green message to stdOut if in verbose mode
-func StdMsgGreenNoPrompt(msg string, tab ...int) {
-	toStdOutWithColor(color.FgGreen, checkIndent(tab...)+msg)
-}
-
-// StdMsgMagenta logs a magenta message to stdOut if in verbose mode
-func StdMsgMagenta(msg string, tab ...int) {
-	toStdOutWithColorTag(color.FgMagenta, checkIndent(tab...)+msg)
-}
-
-// StdMsgErr logs a red error message to stdOut if in verbose mode
-func StdMsgErr(msg string, tab ...int) {
-	toStdOutWithColorTag(color.FgRed, checkIndent(tab...)+msg)
-}
-
-// StdMsgErrNoPrompt logs a red error message to stdOut if in verbose mode
-func StdMsgErrNoPrompt(msg string, tab ...int) {
-	toStdOutWithColor(color.FgRed, checkIndent(tab...)+msg)
-}
-
-// StdMsgDebug logs a highlighted message to stdOut if in verbose mode
-func StdMsgDebug(msg string, tab ...int) {
-	toStdOutWithColorTag(color.FgYellow, checkIndent(tab...)+msg)
-}
-
-// StdMsgLog logs a yellow message to stdOut if in verbose mode
-func StdMsgLog(msg string, tab ...int) {
-	toStdOutWithColorTag(color.FgYellow, checkIndent(tab...)+msg)
-}
-
-func checkIndent(tab ...int) string {
-	indent := ""
-	if len(tab) >= 1 {
-		for i := 0; i <= tab[0]; i++ {
-			indent += TAB
-		}
+// SetHeader is a string that can be set to precede all writes to stdOut
+func SetHeader(s string) {
+	if s[len(s)-1] != ' ' {
+		header = s + " "
+		return
 	}
-	return indent
+	header = s
 }
 
-func toStdOutWithTag(msg string) {
-	if verbose {
-		fmt.Println(TAG + msg)
-	}
+// LnRedF prints to stdOut a line in red formatted
+func LnRedF(format string, a ...interface{}) {
+	out(color.FgRed, fmt.Sprintf(format, a...))
 }
 
-func toStdOut(msg string) {
-	if verbose {
-		fmt.Println(msg)
-	}
+// LnGreenF prints to stdOut a line in green formatted
+func LnGreenF(format string, a ...interface{}) {
+	out(color.FgGreen, fmt.Sprintf(format, a...))
 }
 
-func toStdOutWithColorTag(c color.Attribute, msg string) {
+// LnYellowF prints to stdOut a line in yellow formatted
+func LnYellowF(format string, a ...interface{}) {
+	out(color.FgYellow, fmt.Sprintf(format, a...))
+}
+
+// LnBlueF prints to stdOut a line in blue formatted
+func LnBlueF(format string, a ...interface{}) {
+	out(color.FgBlue, fmt.Sprintf(format, a...))
+}
+
+// LnMagentaF prints to stdOut a line in magenta formatted
+func LnMagentaF(format string, a ...interface{}) {
+	out(color.FgMagenta, fmt.Sprintf(format, a...))
+}
+
+// LnCyanF prints to stdOut a line in cyan formatted
+func LnCyanF(format string, a ...interface{}) {
+	out(color.FgCyan, fmt.Sprintf(format, a...))
+}
+
+// LnWhiteF prints to stdOut a line in white formatted
+func LnWhiteF(format string, a ...interface{}) {
+	out(color.FgWhite, fmt.Sprintf(format, a...))
+}
+
+// LnBRedF prints to stdOut a line in bold red formatted
+func LnBRedF(format string, a ...interface{}) {
+	outB(color.FgRed, fmt.Sprintf(format, a...))
+}
+
+// LnBGreenF prints to stdOut a line in bold green formatted
+func LnBGreenF(format string, a ...interface{}) {
+	outB(color.FgGreen, fmt.Sprintf(format, a...))
+}
+
+// LnBYellowF prints to stdOut a line in bold yellow formatted
+func LnBYellowF(format string, a ...interface{}) {
+	outB(color.FgYellow, fmt.Sprintf(format, a...))
+}
+
+// LnBBlueF prints to stdOut a line in bold blue formatted
+func LnBBlueF(format string, a ...interface{}) {
+	outB(color.FgBlue, fmt.Sprintf(format, a...))
+}
+
+// LnBMagentaF prints to stdOut a line in bold magenta formatted
+func LnBMagentaF(format string, a ...interface{}) {
+	outB(color.FgMagenta, fmt.Sprintf(format, a...))
+}
+
+// LnBCyanF prints to stdOut a line in bold cyan formatted
+func LnBCyanF(format string, a ...interface{}) {
+	outB(color.FgCyan, fmt.Sprintf(format, a...))
+}
+
+// LnBWhiteF prints to stdOut a line in bold white formatted
+func LnBWhiteF(format string, a ...interface{}) {
+	outB(color.FgWhite, fmt.Sprintf(format, a...))
+}
+
+func out(c color.Attribute, msg string) {
 	if verbose {
 		color.Set(c)
-		defer color.Unset()
-		fmt.Printf(TAG + msg + "\n")
+		fmt.Printf(header + msg + "\n")
+		color.Unset()
 	}
 }
-
-func toStdOutWithColor(c color.Attribute, msg string) {
+func outB(c color.Attribute, msg string) {
 	if verbose {
-		color.Set(c)
-		defer color.Unset()
-		fmt.Printf(msg + "\n")
+		color.Set(c).Add(color.Bold)
+		fmt.Printf(header + msg + "\n")
+		color.Unset()
 	}
 }
 
-// OpenLogFile at path with filename; will create the path if it does not exists
-func OpenLogFile(path, filename string) (*os.File, error) {
-	checkDir(path)
-	file, err := os.OpenFile(path+filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+/**********************************************************************************
+**** OS Helpers (These should probably migrate somewhere else)
+**********************************************************************************/
+
+// GetLogFile attempts to add the desired path as an extension to the current
+// directory as reported by os.GetWd(). The file is then opened or created
+// and returned
+func GetLogFile(desiredPathExt, filename string) (*os.File, error) {
+	// get pwd
+	dir, err := os.Getwd()
 	if err != nil {
-		return nil, errors.New("could not create log file")
+		return nil, err
+	}
+	// make sure that the path extension exists or make the directories needed
+	dirPath := filepath.Join(dir, desiredPathExt)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		os.Mkdir(dir, 0755)
+	}
+	// create the file
+	filePath := filepath.Join(dirPath, filename)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
 	}
 	return file, nil
 }
 
-func checkDir(path string) {
+// GetLogFileWithPath attempts to add the desired path as an extension to the current
+// directory as reported by os.GetWd(). The file is then opened or created
+// and returned
+func GetLogFileWithPath(path, filename string) (*os.File, error) {
+	// make sure that the path exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.Mkdir(path, 0755)
 	}
+	// create the file
+	filePath := filepath.Join(path, filename)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+// Getpwd returns the directory that the process was launched from according to the os package
+// Unlike the os package it never returns and error, only an empty string
+func Getpwd() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return dir
 }

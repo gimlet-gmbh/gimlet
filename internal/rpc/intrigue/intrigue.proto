@@ -1,0 +1,155 @@
+syntax = "proto3";
+package intrigue;
+
+service Cabal {
+
+    rpc RegisterService (NewServiceRequest) returns (Receipt) {}
+    rpc UpdateRegistration (ServiceUpdate) returns (Receipt) {}
+    
+    rpc Data (DataRequest) returns (DataResponse) {}
+
+    rpc Summary (Action) returns (SummaryReceipt) {}
+    rpc Alive (Ping) returns (Pong) {}
+}
+
+service Remote {
+    rpc NotifyAction (Action) returns (Action) {}
+    
+    rpc Summary (Action) returns (SummaryReceipt) {}
+    
+    rpc UpdateRegistration (ServiceUpdate) returns (Receipt) {}
+    rpc Alive (Ping) returns (Pong) {}
+}
+
+service Control {
+    rpc StartService (Action) returns (Receipt) {}
+    rpc RestartService (Action) returns (Receipt) {}
+    rpc KillService (Action) returns (Receipt) {}
+    
+    rpc Summary (Action) returns (SummaryReceipt) {}
+    
+    rpc UpdateRegistration (ServiceUpdate) returns (Receipt) {}
+    rpc Alive (Ping) returns (Pong) {}
+    
+    rpc StopServer (EmptyRequest) returns (Receipt) {}
+}
+
+message NewServiceRequest {
+    NewService Service = 1;
+}
+
+message Receipt {
+    ServiceSummary serviceInfo = 1;
+    string Message = 2;
+    string Followup = 3;
+    string Error = 10;
+}
+
+message DataRequest{
+    Request Request = 1;
+    string Error = 2;
+}
+
+message DataResponse{
+    Responder Responder = 2;
+    string Error = 3;
+}
+
+message EmptyRequest{}//empty
+
+message ServiceUpdate {
+    string Request = 1;
+    string Message = 2;
+    string Error = 3;
+}
+
+message Action {
+    string Request = 1;
+    string Target = 2;
+    string RemoteID = 5;
+    string Message = 4;
+    string Error = 3;
+}
+
+message SummaryReceipt {
+    repeated ProcessManager Remotes = 1;  // data from control sever
+    repeated CoreService Services = 4;    // data from cabal server
+    string Error = 3;
+}
+
+message Ping {
+    string Status = 1;
+    string Time = 2;
+    string Error = 3;
+}
+
+message Pong{
+    string Status = 1;
+    string Time = 2;
+    string Error = 3;
+}
+
+message ProcessManager {
+    string ID = 1;
+    string Name = 2;
+    string Address = 3;
+    string StartTime = 5;
+    repeated string Errors = 8;
+    string Status = 7;
+    string LogPath = 9;
+    repeated Service Services = 4;
+}
+
+message NewService {
+    string Name = 1;
+    repeated string Aliases = 2;
+    bool IsServer = 3;
+    bool IsClient = 4;
+}
+
+message ServiceSummary {
+    string Address = 1;
+    string ID = 2;
+    string Fingerprint = 3;
+}
+
+message Service {
+    string Id = 10;
+    string Name = 11;
+    // bool Registered = 22;
+    string Mode = 23;
+    string Address = 21;
+    string Path = 12;
+    string LogPath = 20;
+    string Status = 14;
+    int32 Restarts = 15;
+    int32 Fails = 24;
+    int32 Pid = 16;
+    string StartTime = 17;
+    string FailTime = 18;
+    repeated string Errors = 19;
+}
+
+message CoreService {
+    string Name = 1;
+    string Address = 2;
+    string Mode = 3;
+    string ParentID = 5;
+    repeated string Errors = 4;
+}
+
+/*
+    Data Handlers
+*/
+message Request{
+    string Sender = 1;
+    string Target = 2;
+    string Method = 3;
+    string Data1 = 50;
+}
+
+message Responder{
+    string Result = 50;
+    string ErrorString = 98;
+    bool HadError = 99;
+}

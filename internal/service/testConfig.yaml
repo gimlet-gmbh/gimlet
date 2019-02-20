@@ -1,0 +1,3 @@
+name: "test"
+language: "go"
+path_to_bin: "./bin/test"

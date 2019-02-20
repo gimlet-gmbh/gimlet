@@ -7,35 +7,38 @@ GOGET=$(GOCMD) get
 
 CLI_BINARY=gmbh
 CORE_BINARY=gmbhCore
-CTRL_BINARY=gmbhCtrl
+PROCM_BINARY=gmbhProcm
 
-all: build install
+all: cli core procm
 
+cli: build-cli install-cli
+core: build-core install-core
+procm: build-procm install-procm
 
-build:
-	$(GOBUILD) -o ./bin/$(CORE_BINARY) ./cmd/gmbhCore/*.go
+build-cli:
 	$(GOBUILD) -o ./bin/$(CLI_BINARY) ./cmd/gmbh/*.go
-	$(GOBUILD) -o ./bin/$(CTRL_BINARY) ./cmd/gmbhCtrl/*.go
+build-core:
+	$(GOBUILD) -o ./bin/$(CORE_BINARY) ./cmd/gmbhCore/*.go
+build-procm:
+	$(GOBUILD) -o ./bin/$(PROCM_BINARY) ./cmd/gmbhProcm/*.go
 
-install:
-	cp bin/$(CORE_BINARY) /usr/local/bin/
-	cp bin/$(CLI_BINARY) /usr/local/bin/
-	cp bin/$(CTRL_BINARY) /usr/local/bin/
+install-cli:
+	cp bin/$(CLI_BINARY) ${GOPATH}/bin
+install-core:
+	cp bin/$(CORE_BINARY) ${GOPATH}/bin
+install-procm:
+	cp bin/$(PROCM_BINARY) ${GOPATH}/bin
 
-# test: 
-# 	$(GOTEST) -v ./...
 
 deps:
-	$(GOGET) github.com/fatih/color
-	$(GOGET) google.golang.org/grpc
-	$(GOGET) gopkg.in/yaml.v2
-	$(GOGET) github.com/rs/xid
-	$(GOGET) github.com/golang/protobuf/proto
-	$(GOGET) github.com/golang/protobuf/protoc-gen-go 
-
+	$(GOGET) -u github.com/golang/protobuf/proto
+	$(GOGET) -u github.com/golang/protobuf/protoc-gen-go 
+	$(GOGET) -u google.golang.org/grpc
+	$(GOGET) -u github.com/fatih/color
+	$(GOGET) -u gopkg.in/yaml.v2
+	$(GOGET) -u github.com/rs/xid
+	
 clean: 
-	rm -f ./bin/$(BINARY_NAME)
-
+	rm -f ./bin/*
 
 .PONY:
-	osx
