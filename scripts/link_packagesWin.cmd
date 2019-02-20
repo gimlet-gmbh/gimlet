@@ -7,15 +7,16 @@ IF ("%GOPATH%" == "") (
 )
 
 :: Link packages needed to build gmbh server and Go package
-SET GMBH_PATH="%GOPATH%/src/github.com/gmbh-micro"
-mkdir %GMBH_PATH%
+SET GMBH_PATH=%GOPATH%\src\github.com\gmbh-micro
+mkdir "%GMBH_PATH%"
 
 ECHO linking gmbh at %GMBH_PATH%
 
 cd ../internal/
 
 :: Link the internal packages for building the core
-FOR /D %%P in ("*") DO IF EXIST ( "%GMBH_PATH%/%%P" ) ( ECHO ECHO "Linking: %%P" & SET pdir="%cd%/%%P" & mklink /D "%pdir%" "%GMBH_PATH%" ) ELSE ( ECHO "%%P is already linked" )
+:: ECHO Linking: %%P & SET pdir=%cd%\%%P & mklink /D "%pdir%" "%GMBH_PATH%"
+FOR /D %%P in ("*") DO IF NOT EXIST "%GMBH_PATH%\%%P" ( ECHO Linking: %%P & mklink /D "%GMBH_PATH%\%%P" "%cd%\%%P" ) ELSE ( ECHO "%%P is already linked" )
 
 cd ../pkg
 
