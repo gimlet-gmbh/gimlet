@@ -1,30 +1,16 @@
 package main
 
-import (
-	"flag"
-	"os"
-
-	"github.com/gmbh-micro/notify"
-)
+import "flag"
 
 func main() {
 
-	configPath := flag.String("config", "", "the path to the gmbh config file (yaml)")
+	configPath := flag.String("config", "", "the path to the gmbh config file (toml)")
+	address := flag.String("address", "", "specifying an address here can be used in place of a config (All defaults will be used except for the address); note that if a config file is also specified, this is the address that will be used")
 	verbose := flag.Bool("verbose", false, "print all output to stdOut and stdErr")
-	verbosedata := flag.Bool("verbose-data", false, "print gmbh data output to stdOut and stdErr")
-
-	/*
-		Things that should be paremetrized in Core
-		* Should services be in their own remote or all in one remote?
-	*/
 
 	flag.Parse()
 
-	if *configPath == "" {
-		notify.LnRedF("must specify config file")
-		os.Exit(1)
-	}
-	c, err := NewCore(*configPath, *verbose, *verbosedata)
+	c, err := NewCore(*configPath, *address, *verbose)
 	if err != nil {
 		panic(err)
 	}

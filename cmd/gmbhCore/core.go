@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -14,6 +13,7 @@ import (
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/address"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/rs/xid"
 	"google.golang.org/grpc/metadata"
@@ -47,32 +47,43 @@ type Core struct {
 	// parent id is for remote instances of core
 	parentID string
 
-	msgCounter  int
-	startTime   time.Time
-	mu          *sync.Mutex
-	verbose     bool
-	verboseData bool
+	msgCounter int
+	startTime  time.Time
+	mu         *sync.Mutex
+	verbose    bool
 }
 
 // NewCore initializes settings of the core and instantiates the core struct which includes the
 // service router and handlers
-func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
+func NewCore(cPath, address string, verbose bool) (*Core, error) {
 
 	// cannot reinit core once it has been created
 	if core != nil {
 		return core, nil
 	}
 
-	userConfig, err := config.ParseSystemCore(cPath)
-	if err != nil {
-		notify.LnRedF("could not parse config; err=%v", err.Error())
-		return nil, err
+	projpath := ""
+	var userConfig *config.SystemCore
+	var err error
+	if cPath == "" {
+		userConfig = config.DefaultSystemCore
+		if address != "" {
+			userConfig.Address = address
+		}
+		projpath = notify.Getpwd()
+	} else {
+		userConfig, err = config.ParseSystemCore(cPath)
+		if err != nil {
+			notify.LnRedF("could not parse config; err=%v", err.Error())
+			return nil, err
+		}
+		projpath = notify.GetAbs(cPath)
 	}
 
 	core = &Core{
 		Version:     config.Version,
 		Code:        config.Code,
-		ProjectPath: basePath(cPath),
+		ProjectPath: projpath,
 		con:         rpc.NewCabalConnection(userConfig.Address, &cabalServer{}),
 		conf:        userConfig,
 		Router:      NewRouter(),
@@ -85,7 +96,7 @@ func NewCore(cPath string, verbose, verboseData bool) (*Core, error) {
 	}
 
 	if core.ProjectPath == "" {
-		notify.LnRedF("could not calculate path to project")
+		notify.LnRedF("could not get path to project")
 		return nil, errors.New("config path error")
 	}
 
@@ -114,8 +125,6 @@ func (c *Core) Start() {
 		return
 	}
 	c.v("connected; address=%s", c.con.Address)
-
-	// c.serviceDiscovery()
 
 	c.Wait()
 }
@@ -169,16 +178,6 @@ func (c *Core) vi(format string, a ...interface{}) {
 	notify.LnYellowF("[core] "+format, a...)
 }
 
-// basePath attempts to get the absolute path to the directory in which the config file is specified
-func basePath(configPath string) string {
-	abs, err := filepath.Abs(configPath)
-	if err != nil {
-		notify.LnRedF("error=%v", err.Error())
-		return ""
-	}
-	return filepath.Dir(abs)
-}
-
 /**********************************************************************************
 **** Router
 **********************************************************************************/
@@ -198,7 +197,7 @@ type Router struct {
 	idCounter int
 
 	// addressHandler is in charge of assigning addresses and making sure that there are no collisions
-	addressing *addressHandler
+	addressing *address.Handler
 
 	verbose bool
 	mu      *sync.Mutex
@@ -211,13 +210,9 @@ func NewRouter() *Router {
 		services:     make(map[string]*GmbhService),
 		serviceNames: make([]string, 0),
 		idCounter:    100,
-		addressing: &addressHandler{
-			host: config.Localhost,
-			port: config.ServicePort,
-			mu:   &sync.Mutex{},
-		},
-		mu:      &sync.Mutex{},
-		verbose: true,
+		addressing:   address.NewHandler(config.Localhost, config.ServicePort, config.ServicePort+1000),
+		mu:           &sync.Mutex{},
+		verbose:      true,
 	}
 
 	go r.pingHandler()
@@ -240,11 +235,16 @@ func (r *Router) LookupService(name string) (*GmbhService, error) {
 // AddService attaches a service to gmbH
 func (r *Router) AddService(name string, aliases []string) (*GmbhService, error) {
 
+	addr, err := r.addressing.NextAddress()
+	if err != nil {
+		return nil, err
+	}
+
 	newService := NewService(
 		r.assignNextID(),
 		name,
 		aliases,
-		r.addressing.assignAddress(),
+		addr,
 	)
 
 	// check to see if it exists in map already
@@ -420,26 +420,6 @@ func (r *Router) v(msg string, a ...interface{}) {
 	notify.LnGreenF("[rtr] "+msg, a...)
 }
 
-// addressHandler is in charge of assigning addresses to services
-type addressHandler struct {
-	table map[string]string
-	host  string
-	port  int
-	mu    *sync.Mutex
-}
-
-func (a *addressHandler) assignAddress() string {
-	a.setNextAddress()
-	addr := a.host + ":" + strconv.Itoa(a.port)
-	return addr
-}
-
-func (a *addressHandler) setNextAddress() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.port += 2
-}
-
 /**********************************************************************************
 **** Service
 **********************************************************************************/
@@ -536,39 +516,4 @@ func (s State) String() string {
 		return states[s-1]
 	}
 	return "%!State()"
-}
-
-/**********************************************************************************
-**** OS Helpers
-**********************************************************************************/
-
-// getLogFile attempts to add the desired path as an extension to the current
-// directory as reported by os.GetWd(). The file is then opened or created
-// and returned
-func getLogFile(desiredPathExt, filename string) (*os.File, error) {
-	// get pwd
-	dir, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	// make sure that the path extension exists or make the directories needed
-	dirPath := filepath.Join(dir, desiredPathExt)
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		os.Mkdir(dir, 0755)
-	}
-	// create the file
-	filePath := filepath.Join(dirPath, filename)
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, err
-	}
-	return file, nil
-}
-
-func getpwd() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	return dir
 }

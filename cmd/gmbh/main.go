@@ -1,22 +1,20 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
+	"github.com/rs/xid"
 )
 
 type launcher struct {
@@ -30,6 +28,8 @@ type launcher struct {
 	noLog         *bool
 
 	CoreServiceFName string
+	NodeFiles        []string
+	fingerprint      string
 }
 
 var l *launcher
@@ -51,6 +51,7 @@ func main() {
 		noLog:         flag.Bool("no-log", false, "disable logging"),
 
 		CoreServiceFName: ".core.service",
+		NodeFiles:        make([]string, 0),
 	}
 
 	// cli reporting flags
@@ -200,9 +201,9 @@ func launch() {
 	// if we are in daemon mode, and launching services, use a goroutine otherewise
 	// launch it in the current thread
 	if !*l.noSD && !*l.daemon {
-		go serviceDiscovery()
+		go serviceDiscovery(l)
 	} else if !*l.noSD && *l.daemon {
-		serviceDiscovery()
+		serviceDiscovery(l)
 	}
 
 	if !*l.daemon {
@@ -235,52 +236,128 @@ func launch() {
 
 }
 
-// servicediscovery parses the config that was passed in and if a services directory
-// was specified, all subdirectories of it are scanned looking for a valid gmbhService
-// config file.
-//
-// When one is found it is added to the list of services to launch and then launches
-// then.
-func serviceDiscovery() {
-	coreConfig, err := config.ParseSystemConfig(*l.config)
+func serviceDiscovery(l *launcher) {
+
+	c, err := config.ParseSystemConfig(*l.config)
 	if err != nil {
-		notify.LnBRedF("could not parse config; err=%s", err.Error())
+		panic(err)
+	}
+
+	node := 1
+	fingerprint := xid.New().String()
+	l.fingerprint = fingerprint[len(fingerprint)-4:]
+	oneRemote := []*config.ServiceConfig{}
+	for i, s := range c.Service {
+		s.Env = append(s.Env, "GMBHCORE="+c.Core.Address)
+		oneRemote = append(oneRemote, s)
+		if ((i + 1) % *l.maxRemoteSize) == 0 {
+			l.genRemoteConfig(oneRemote, node)
+			node++
+			oneRemote = []*config.ServiceConfig{}
+		}
+	}
+
+	l.launch()
+}
+
+func (l *launcher) genRemoteConfig(services []*config.ServiceConfig, node int) {
+
+	configFile, err := notify.CreateFile(filepath.Join(notify.Getpwd(), "gmbh", "node_"+strconv.Itoa(node)) + ".toml")
+	if err != nil {
+		notify.LnRedF("could not create cluster file; err=%s", err)
 		return
 	}
-	path := filepath.Join(basePath(*l.config), coreConfig.Services.ServicesDirectory)
-	servicePaths, err := scanForServices(path)
-	if err != nil {
-		notify.LnBRedF("error scanning for services; err=%s", err.Error())
+
+	l.NodeFiles = append(l.NodeFiles, filepath.Join(notify.Getpwd(), "gmbh", "node_"+strconv.Itoa(node))+".toml")
+
+	print := configFile.WriteString
+	print("# Automatically generated file\n")
+	print("# \n")
+	print("# Services in this file (by directory) \n")
+	for _, s := range services {
+		print("# -" + notify.GetAbs(s.BinPath) + "\n")
+	}
+	print("#\n")
+	print("# Fingerprint - the id that refers to this cluster\n")
+	print("fingerprint = \"" + l.fingerprint + "\"\n")
+	print("\n")
+	for _, s := range services {
+		print("[[service]]\n")
+		print("args = " + strArrtoStr(s.Args) + "\n")
+		print("env = " + strArrtoStr(s.Env) + "\n")
+		print("language = \"" + s.Language + "\"\n")
+		print("bin_path = \"" + notify.GetAbsFpath(s.BinPath) + "\"\n")
+		print("src_path = \"" + s.SrcPath + "\"\n")
+		print("\n")
+	}
+	configFile.Close()
+}
+
+func strArrtoStr(arr []string) string {
+	ret := "["
+	for i, v := range arr {
+		if v == "" {
+			continue
+		}
+		ret += "\"" + v + "\""
+		if i != len(arr)-1 {
+			ret += ","
+		}
+
+	}
+	ret += "]"
+	return ret
+}
+
+// launch starts all services in remotes
+func (l *launcher) launch() {
+
+	if len(l.NodeFiles) == 0 {
 		return
 	}
 
-	limit := 1
-	if *l.maxRemoteSize > limit {
-		limit = *l.maxRemoteSize
+	binPath := ""
+	args := []string{"--remote"}
+	env := []string{
+		"SERVICEMODE=managed",
+		"FINGERPRINT=" + l.fingerprint,
 	}
 
-	confs := []string{}
+	if runtime.GOOS == "darwin" {
+		binPath = "gmbhProcm"
+	} else if runtime.GOOS == "linux" {
+		binPath = config.ProcmBinPathLinux
+	} else if runtime.GOOS == "windows" {
+		notify.LnBRedF("windows binaries location not configured")
+		return
+	}
 
-	// Create and attach all services that run in Managed mode
-	for _, servicePath := range servicePaths {
+	if *l.verbose {
+		args = append(args, "--verbose")
+	}
 
-		static, err := config.ParseServiceStatic(servicePath)
-		if err != nil {
-			notify.LnBRedF("could not open config file")
-			continue
-		}
+	if binPath != "" {
 
-		if ok := static.Validate(); ok != nil {
-			notify.LnBRedF("could not validate config file")
-			continue
-		}
-		confs = append(confs, servicePath)
-		if len(confs) == limit {
-			launchService(confs, path, config.DefaultSystemCore.Address)
-			confs = []string{}
+		for _, f := range l.NodeFiles {
+
+			cmd := exec.Command(binPath, append(args, "--config="+f)...)
+
+			f, err := getLogFile(filepath.Join("gmbh", "log"), "node.log")
+			if err == nil {
+				notify.LnYellowF("%s", filepath.Join(notify.Getpwd(), "gmbh", "log", "node.log"))
+				cmd.Stdout = f
+				cmd.Stderr = f
+			} else {
+				notify.LnBRedF("could not create log file: " + err.Error())
+			}
+
+			cmd.Env = append(os.Environ(), env...)
+			err = cmd.Start()
+			if err != nil {
+				notify.LnBRedF("could not start node; err=%s", err.Error())
+			}
 		}
 	}
-	launchService(confs, path, config.DefaultSystemCore.Address)
 
 }
 
@@ -289,31 +366,21 @@ func serviceDiscovery() {
 //
 // All data related to starting the core from the service launcher should be configured here.
 func genCoreServiceConfig() {
-	Service := config.ServiceConfig{
-		Static: &config.ServiceStatic{
-			Name:     "CoreData",
-			Language: "go",
-			BinPath:  "gmbhCore",
-			Args:     []string{"--config=" + *l.config, "--verbose"},
-		},
-	}
-	dir := filepath.Dir(*l.config)
-	coreServiceConfig := filepath.Join(dir, l.CoreServiceFName)
-	buf := new(bytes.Buffer)
-	if err := toml.NewEncoder(buf).Encode(Service); err != nil {
-		log.Fatal(err)
-	}
-	f, err := os.Create(coreServiceConfig)
+	configFile, err := notify.CreateFile(filepath.Join(filepath.Dir(*l.config), l.CoreServiceFName))
 	if err != nil {
-		log.Fatal(err)
+		notify.LnRedF("could not create cluster file; err=%s", err)
+		return
 	}
-	w := bufio.NewWriter(f)
-	_, err = w.Write(buf.Bytes())
-	if err != nil {
-		log.Fatal(err)
-	}
-	w.Flush()
-	f.Close()
+	print := configFile.WriteString
+	print("# Automatically generated file\n")
+	print("fingerprint = \"" + l.fingerprint + "\"\n")
+	print("\n")
+	print("[[service]]\n")
+	print("args = " + strArrtoStr([]string{"--verbose", "--config=" + *l.config}) + "\n")
+	// print("env = " + "" + "\n")
+	print("bin_path = \"" + "gmbhCore" + "\"\n")
+	print("\n")
+	configFile.Close()
 }
 
 // getLogFile attempts to add the desired path as an extension to the current
@@ -369,4 +436,14 @@ func checkInstall() bool {
 	}
 	notify.LnRedF(fmt.Sprintf("OS support not implemented for %s", runtime.GOOS))
 	return false
+}
+
+// basePath attempts to get the absolute path to the directory in which the config file is specified
+func basePath(configPath string) string {
+	abs, err := filepath.Abs(configPath)
+	if err != nil {
+		notify.LnRedF("error=%v", err.Error())
+		return ""
+	}
+	return filepath.Dir(abs)
 }

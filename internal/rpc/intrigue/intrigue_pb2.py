@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='intrigue',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0eintrigue.proto\x12\x08intrigue\":\n\x11NewServiceRequest\x12%\n\x07Service\x18\x01 \x01(\x0b\x32\x14.intrigue.NewService\"j\n\x07Receipt\x12-\n\x0bserviceInfo\x18\x01 \x01(\x0b\x32\x18.intrigue.ServiceSummary\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x10\n\x08\x46ollowup\x18\x03 \x01(\t\x12\r\n\x05\x45rror\x18\n \x01(\t\"@\n\x0b\x44\x61taRequest\x12\"\n\x07Request\x18\x01 \x01(\x0b\x32\x11.intrigue.Request\x12\r\n\x05\x45rror\x18\x02 \x01(\t\"E\n\x0c\x44\x61taResponse\x12&\n\tResponder\x18\x02 \x01(\x0b\x32\x13.intrigue.Responder\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\x0e\n\x0c\x45mptyRequest\"@\n\rServiceUpdate\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"[\n\x06\x41\x63tion\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x10\n\x08RemoteID\x18\x05 \x01(\t\x12\x0f\n\x07Message\x18\x04 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"s\n\x0eSummaryReceipt\x12)\n\x07Remotes\x18\x01 \x03(\x0b\x32\x18.intrigue.ProcessManager\x12\'\n\x08Services\x18\x04 \x03(\x0b\x32\x15.intrigue.CoreService\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Ping\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Pong\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\xa4\x01\n\x0eProcessManager\x12\n\n\x02ID\x18\x01 \x01(\t\x12\x0c\n\x04Name\x18\x02 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x03 \x01(\t\x12\x11\n\tStartTime\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x08 \x03(\t\x12\x0e\n\x06Status\x18\x07 \x01(\t\x12\x0f\n\x07LogPath\x18\t \x01(\t\x12#\n\x08Services\x18\x04 \x03(\x0b\x32\x11.intrigue.Service\"O\n\nNewService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41liases\x18\x02 \x03(\t\x12\x10\n\x08IsServer\x18\x03 \x01(\x08\x12\x10\n\x08IsClient\x18\x04 \x01(\x08\"B\n\x0eServiceSummary\x12\x0f\n\x07\x41\x64\x64ress\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x12\x13\n\x0b\x46ingerprint\x18\x03 \x01(\t\"\xe8\x01\n\x07Service\x12\n\n\x02Id\x18\n \x01(\t\x12\x0c\n\x04Name\x18\x0b \x01(\t\x12\x12\n\nRegistered\x18\x16 \x01(\x08\x12\x0c\n\x04Mode\x18\x17 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x15 \x01(\t\x12\x0c\n\x04Path\x18\x0c \x01(\t\x12\x0f\n\x07LogPath\x18\x14 \x01(\t\x12\x0e\n\x06Status\x18\x0e \x01(\t\x12\x10\n\x08Restarts\x18\x0f \x01(\x05\x12\r\n\x05\x46\x61ils\x18\x18 \x01(\x05\x12\x0b\n\x03Pid\x18\x10 \x01(\x05\x12\x11\n\tStartTime\x18\x11 \x01(\t\x12\x10\n\x08\x46\x61ilTime\x18\x12 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x13 \x03(\t\"\\\n\x0b\x43oreService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04Mode\x18\x03 \x01(\t\x12\x10\n\x08ParentID\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x04 \x03(\t\"H\n\x07Request\x12\x0e\n\x06Sender\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x0e\n\x06Method\x18\x03 \x01(\t\x12\r\n\x05\x44\x61ta1\x18\x32 \x01(\t\"B\n\tResponder\x12\x0e\n\x06Result\x18\x32 \x01(\t\x12\x13\n\x0b\x45rrorString\x18\x62 \x01(\t\x12\x10\n\x08HadError\x18\x63 \x01(\x08\x32\xad\x02\n\x05\x43\x61\x62\x61l\x12\x43\n\x0fRegisterService\x12\x1b.intrigue.NewServiceRequest\x1a\x11.intrigue.Receipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x04\x44\x61ta\x12\x15.intrigue.DataRequest\x1a\x16.intrigue.DataResponse\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\xe6\x01\n\x06Remote\x12\x34\n\x0cNotifyAction\x12\x10.intrigue.Action\x1a\x10.intrigue.Action\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\x92\x03\n\x07\x43ontrol\x12\x35\n\x0cStartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x0eRestartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x34\n\x0bKillService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x12\x39\n\nStopServer\x12\x16.intrigue.EmptyRequest\x1a\x11.intrigue.Receipt\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x0eintrigue.proto\x12\x08intrigue\":\n\x11NewServiceRequest\x12%\n\x07Service\x18\x01 \x01(\x0b\x32\x14.intrigue.NewService\"j\n\x07Receipt\x12-\n\x0bserviceInfo\x18\x01 \x01(\x0b\x32\x18.intrigue.ServiceSummary\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x10\n\x08\x46ollowup\x18\x03 \x01(\t\x12\r\n\x05\x45rror\x18\n \x01(\t\"@\n\x0b\x44\x61taRequest\x12\"\n\x07Request\x18\x01 \x01(\x0b\x32\x11.intrigue.Request\x12\r\n\x05\x45rror\x18\x02 \x01(\t\"E\n\x0c\x44\x61taResponse\x12&\n\tResponder\x18\x02 \x01(\x0b\x32\x13.intrigue.Responder\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\x0e\n\x0c\x45mptyRequest\"@\n\rServiceUpdate\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"[\n\x06\x41\x63tion\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x10\n\x08RemoteID\x18\x05 \x01(\t\x12\x0f\n\x07Message\x18\x04 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"s\n\x0eSummaryReceipt\x12)\n\x07Remotes\x18\x01 \x03(\x0b\x32\x18.intrigue.ProcessManager\x12\'\n\x08Services\x18\x04 \x03(\x0b\x32\x15.intrigue.CoreService\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Ping\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Pong\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\xa4\x01\n\x0eProcessManager\x12\n\n\x02ID\x18\x01 \x01(\t\x12\x0c\n\x04Name\x18\x02 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x03 \x01(\t\x12\x11\n\tStartTime\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x08 \x03(\t\x12\x0e\n\x06Status\x18\x07 \x01(\t\x12\x0f\n\x07LogPath\x18\t \x01(\t\x12#\n\x08Services\x18\x04 \x03(\x0b\x32\x11.intrigue.Service\"O\n\nNewService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41liases\x18\x02 \x03(\t\x12\x10\n\x08IsServer\x18\x03 \x01(\x08\x12\x10\n\x08IsClient\x18\x04 \x01(\x08\"B\n\x0eServiceSummary\x12\x0f\n\x07\x41\x64\x64ress\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x12\x13\n\x0b\x46ingerprint\x18\x03 \x01(\t\"\xd4\x01\n\x07Service\x12\n\n\x02Id\x18\n \x01(\t\x12\x0c\n\x04Name\x18\x0b \x01(\t\x12\x0c\n\x04Mode\x18\x17 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x15 \x01(\t\x12\x0c\n\x04Path\x18\x0c \x01(\t\x12\x0f\n\x07LogPath\x18\x14 \x01(\t\x12\x0e\n\x06Status\x18\x0e \x01(\t\x12\x10\n\x08Restarts\x18\x0f \x01(\x05\x12\r\n\x05\x46\x61ils\x18\x18 \x01(\x05\x12\x0b\n\x03Pid\x18\x10 \x01(\x05\x12\x11\n\tStartTime\x18\x11 \x01(\t\x12\x10\n\x08\x46\x61ilTime\x18\x12 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x13 \x03(\t\"\\\n\x0b\x43oreService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04Mode\x18\x03 \x01(\t\x12\x10\n\x08ParentID\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x04 \x03(\t\"H\n\x07Request\x12\x0e\n\x06Sender\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x0e\n\x06Method\x18\x03 \x01(\t\x12\r\n\x05\x44\x61ta1\x18\x32 \x01(\t\"B\n\tResponder\x12\x0e\n\x06Result\x18\x32 \x01(\t\x12\x13\n\x0b\x45rrorString\x18\x62 \x01(\t\x12\x10\n\x08HadError\x18\x63 \x01(\x08\x32\xad\x02\n\x05\x43\x61\x62\x61l\x12\x43\n\x0fRegisterService\x12\x1b.intrigue.NewServiceRequest\x1a\x11.intrigue.Receipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x04\x44\x61ta\x12\x15.intrigue.DataRequest\x1a\x16.intrigue.DataResponse\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\xe6\x01\n\x06Remote\x12\x34\n\x0cNotifyAction\x12\x10.intrigue.Action\x1a\x10.intrigue.Action\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\x92\x03\n\x07\x43ontrol\x12\x35\n\x0cStartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x0eRestartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x34\n\x0bKillService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x12\x39\n\nStopServer\x12\x16.intrigue.EmptyRequest\x1a\x11.intrigue.Receipt\"\x00\x62\x06proto3')
 )
 
 
@@ -646,84 +646,77 @@ _SERVICE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Registered', full_name='intrigue.Service.Registered', index=2,
-      number=22, type=8, cpp_type=7, label=1,
-      has_default_value=False, default_value=False,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='Mode', full_name='intrigue.Service.Mode', index=3,
+      name='Mode', full_name='intrigue.Service.Mode', index=2,
       number=23, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Address', full_name='intrigue.Service.Address', index=4,
+      name='Address', full_name='intrigue.Service.Address', index=3,
       number=21, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Path', full_name='intrigue.Service.Path', index=5,
+      name='Path', full_name='intrigue.Service.Path', index=4,
       number=12, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='LogPath', full_name='intrigue.Service.LogPath', index=6,
+      name='LogPath', full_name='intrigue.Service.LogPath', index=5,
       number=20, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Status', full_name='intrigue.Service.Status', index=7,
+      name='Status', full_name='intrigue.Service.Status', index=6,
       number=14, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Restarts', full_name='intrigue.Service.Restarts', index=8,
+      name='Restarts', full_name='intrigue.Service.Restarts', index=7,
       number=15, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Fails', full_name='intrigue.Service.Fails', index=9,
+      name='Fails', full_name='intrigue.Service.Fails', index=8,
       number=24, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Pid', full_name='intrigue.Service.Pid', index=10,
+      name='Pid', full_name='intrigue.Service.Pid', index=9,
       number=16, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='StartTime', full_name='intrigue.Service.StartTime', index=11,
+      name='StartTime', full_name='intrigue.Service.StartTime', index=10,
       number=17, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='FailTime', full_name='intrigue.Service.FailTime', index=12,
+      name='FailTime', full_name='intrigue.Service.FailTime', index=11,
       number=18, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='Errors', full_name='intrigue.Service.Errors', index=13,
+      name='Errors', full_name='intrigue.Service.Errors', index=12,
       number=19, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -742,7 +735,7 @@ _SERVICE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=1048,
-  serialized_end=1280,
+  serialized_end=1260,
 )
 
 
@@ -800,8 +793,8 @@ _CORESERVICE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1282,
-  serialized_end=1374,
+  serialized_start=1262,
+  serialized_end=1354,
 )
 
 
@@ -852,8 +845,8 @@ _REQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1376,
-  serialized_end=1448,
+  serialized_start=1356,
+  serialized_end=1428,
 )
 
 
@@ -897,8 +890,8 @@ _RESPONDER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1450,
-  serialized_end=1516,
+  serialized_start=1430,
+  serialized_end=1496,
 )
 
 _NEWSERVICEREQUEST.fields_by_name['Service'].message_type = _NEWSERVICE
@@ -1054,8 +1047,8 @@ _CABAL = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=1519,
-  serialized_end=1820,
+  serialized_start=1499,
+  serialized_end=1800,
   methods=[
   _descriptor.MethodDescriptor(
     name='RegisterService',
@@ -1114,8 +1107,8 @@ _REMOTE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=1,
   serialized_options=None,
-  serialized_start=1823,
-  serialized_end=2053,
+  serialized_start=1803,
+  serialized_end=2033,
   methods=[
   _descriptor.MethodDescriptor(
     name='NotifyAction',
@@ -1165,8 +1158,8 @@ _CONTROL = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=2,
   serialized_options=None,
-  serialized_start=2056,
-  serialized_end=2458,
+  serialized_start=2036,
+  serialized_end=2438,
   methods=[
   _descriptor.MethodDescriptor(
     name='StartService',

@@ -156,7 +156,7 @@ func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue
 
 	verified := c.Router.Verify(name, fp)
 	if verified != nil {
-		rve("could not verify; err=%s", verified.Error())
+		rve("could not verify %s; err=%s", name, verified.Error())
 		return &intrigue.Pong{Error: verified.Error()}, nil
 	}
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp), Status: "core.verified"}, nil

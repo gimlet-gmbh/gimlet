@@ -57,20 +57,9 @@ var DefaultSystemCore = &SystemCore{
 	BinPath:   filepath.Join(os.Getenv("$GOPATH"), "bin", "gmbhCore"),
 }
 
-// DefaultSystemServices holds default services settings
-var DefaultSystemServices = &SystemServices{
-	Services:          []string{},
-	ServicesDirectory: "",
-}
-
 // DefaultSystemConfig is the complete default system config
 var DefaultSystemConfig = SystemConfig{
-	Core:     DefaultSystemCore,
-	Procm:    DefaultSystemProcm,
-	Services: DefaultSystemServices,
-}
-
-// DefaultServiceConfig is the default configuration for a service
-var DefaultServiceConfig = &ServiceConfig{
-	CoreAddress: DefaultSystemCore.Address,
+	Core:    DefaultSystemCore,
+	Procm:   DefaultSystemProcm,
+	Service: make([]*ServiceConfig, 0),
 }

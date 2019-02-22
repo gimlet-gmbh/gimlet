@@ -23,13 +23,14 @@ address = "localhost:49500" #default is localhost:49500
 keep_alive = "45s"
 #
 # Path to gmbhCore binary
-core_bin = "" #default is $GOPATH/bin/gmbhCore
+core_bin = ""   # default is $GOPATH/bin/gmbhCore
+                # Note cannot interpolate env vars in TOML
 
 ##################################################################################
 [procm]
 ##################################################################################
 # What address should the ProcM be started at
-address = "localhost:59500"
+address = "localhost:5900" #default is localhost:59500
 #
 # How long between keep alive messages
 keep_alive = "45s"
@@ -38,16 +39,33 @@ keep_alive = "45s"
 verbose = false
 #
 # Path to gmbhProcm binary
-procm_bin = "" #default is $GOPATH/bin/gmbhProcm
+procm_bin = ""  # default is $GOPATH/bin/gmbhProcm
+                # Note cannot interpolate env vars in TOML
+
 
 ##################################################################################
-[services]
+[services] # Holds the array of services to launch from the service launcher and
+############ start in managed mode.
 ##################################################################################
-# This directory will be scanned for subdirectories. The subdirectories will be 
-# scanned for service configuration files. When a config file is found, 
-# gmbhServiceLauncher will attempt to launch the service in managed mode
-services_directory = "managed_services"
-#
-# Path to any other services for gmbhServiceLauncher to attach
-services = [""]
-#
+
+    ## The data needed to start each service
+    #
+    # Note that either a language and src_path need to be specifed or a bin_path needs
+    # to be specified for the service launcher to successfully start the service.
+    [[service]]
+    # Arguments that will be passed on to the service
+    args = [""]
+    #
+    # Environemnt Variables that will be passed on to the service
+    env = [""]
+    #
+    # The language(python|go|node) the service is written in. 
+    language = ""
+    #
+    # If a bin path is supplied it will be used to launch the service
+    bin_path = ""
+    #
+    # If a src path is supplied it will be used to build the service at launch time
+    # NOTE: For Go projects -- Specify a path that will be able to be started using
+    #       *.go (with *_test.go filtered out)
+    src_path = ""

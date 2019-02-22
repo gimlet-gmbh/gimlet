@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -12,9 +13,10 @@ import (
 
 // SystemConfig - config for gmbh
 type SystemConfig struct {
-	Core     *SystemCore     `toml:"core"`
-	Procm    *SystemProcm    `toml:"procm"`
-	Services *SystemServices `toml:"services"`
+	Core        *SystemCore      `toml:"core"`
+	Procm       *SystemProcm     `toml:"procm"`
+	Service     []*ServiceConfig `toml:"service"`
+	Fingerprint string           `toml:"fingerprint"`
 }
 
 // SystemCore stores gmbhCore settings
@@ -35,10 +37,18 @@ type SystemProcm struct {
 	BinPath   string   `toml:"core_bin"`
 }
 
-// SystemServices stores information about connecting services
-type SystemServices struct {
-	ServicesDirectory string   `toml:"services_directory"`
-	Services          []string `toml:"services"`
+// // SystemServices holds the list of services to launch
+// type SystemServices struct {
+// 	Service []*ServiceConfig `toml:"service"`
+// }
+
+// ServiceConfig is the static data needed to launch a service from the service launcher
+type ServiceConfig struct {
+	Args     []string `toml:"args"`
+	Env      []string `toml:"env"`
+	Language string   `toml:"language"`
+	BinPath  string   `toml:"bin_path"`
+	SrcPath  string   `toml:"src_path"`
 }
 
 // ParseSystemConfig parses the entire system config from the file passed in
@@ -70,31 +80,43 @@ func ParseSystemProcm(configFile string) (*SystemProcm, error) {
 	return system.Procm, nil
 }
 
-// ParseSystemServices returns only the services settings
-func ParseSystemServices(configFile string) (*SystemServices, error) {
+// ParseServices returns only the services and the fingerprint
+func ParseServices(configFile string) ([]*ServiceConfig, string, error) {
 	system, err := ParseSystemConfig(configFile)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return system.Services, nil
+	return system.Service, system.Fingerprint, nil
+}
+
+// Verify that a service config is balid
+func (s *ServiceConfig) Verify() error {
+	if s.BinPath == "" && (s.Language == "" || s.SrcPath == "") {
+		return fmt.Errorf("must specify a bin_path or language and src_path")
+	}
+	return nil
 }
 
 // setDefaults fills in the blanks with default settings on the important config values
 func setDefaults(c *SystemConfig) {
-	if c.Core.Mode == "" {
-		c.Core.Mode = DefaultSystemCore.Mode
+	if c.Core != nil {
+		if c.Core.Mode == "" {
+			c.Core.Mode = DefaultSystemCore.Mode
+		}
+		if c.Core.Address == "" {
+			c.Core.Address = DefaultSystemCore.Address
+		}
+		if c.Core.BinPath == "" {
+			c.Core.BinPath = DefaultSystemCore.BinPath
+		}
 	}
-	if c.Core.Address == "" {
-		c.Core.Address = DefaultSystemCore.Address
-	}
-	if c.Core.BinPath == "" {
-		c.Core.BinPath = DefaultSystemCore.BinPath
-	}
-	if c.Procm.Address == "" {
-		c.Procm.Address = DefaultSystemProcm.Address
-	}
-	if c.Procm.BinPath == "" {
-		c.Procm.BinPath = DefaultSystemProcm.BinPath
+	if c.Procm != nil {
+		if c.Procm.Address == "" {
+			c.Procm.Address = DefaultSystemProcm.Address
+		}
+		if c.Procm.BinPath == "" {
+			c.Procm.BinPath = DefaultSystemProcm.BinPath
+		}
 	}
 }
 

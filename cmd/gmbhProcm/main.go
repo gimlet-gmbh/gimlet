@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"path/filepath"
+	"fmt"
+	"os"
 
 	"github.com/gmbh-micro/config"
-	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/remote"
 )
 
@@ -33,12 +33,19 @@ func main() {
 	if *remoteMode {
 		rem, _ := remote.NewRemote(config.DefaultSystemProcm.Address, *verbose)
 		for _, path := range configPaths {
-			absPath, err := filepath.Abs(path)
+
+			sconfs, fingerprint, err := config.ParseServices(path)
 			if err != nil {
-				notify.LnRedF("could not create abs path to %s", path)
-				continue
+				panic(err)
 			}
-			rem.AddService(absPath)
+
+			if fingerprint != os.Getenv("FINGERPRINT") {
+				panic(fmt.Errorf("fingerprints do not match (%s != %s)", fingerprint, os.Getenv("FINGERPRINT")))
+			}
+
+			for _, sconf := range sconfs {
+				rem.AddService(sconf)
+			}
 		}
 		rem.Start()
 	} else {

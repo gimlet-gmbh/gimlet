@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -123,35 +124,17 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 // Start the remote
 func (r *Remote) Start() {
 
-	logPath := os.Getenv("REMOTELOG")
-	if logPath != "" {
-		notify.LnCyanF("Remote using logfile at " + logPath)
-		setLog(logPath)
-		r.logPath = logPath
-	} else {
-		logName := os.Getenv("LOGFILENAME")
-		if logName != "" {
-			r.logPath = filepath.Join(notify.Getpwd(), "logs", logName)
-			setLog(r.logPath)
-			notify.LnCyanF("Remote using logfile at " + r.logPath)
-		} else {
-			notify.LnYellowF("Warning: Logfile name not specified")
-			r.logPath = "-"
-		}
-	}
+	r.setLog()
 
-	println("                      _                       ")
-	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
-	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
-	println("  _|                                          ")
-	print("started, time=" + time.Now().Format(time.Stamp))
-
+	// setting mode and choosing shutdown mechanism
 	sig := make(chan os.Signal, 1)
 	if r.mode == "managed" {
 		print("remote is in managed mode; using sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT, syscall.SIGUSR1)
 	} else {
+		r.mode = "standalone"
+		print("remote is in standalone mode; using sigint")
 		signal.Notify(sig, syscall.SIGINT)
 	}
 
@@ -332,6 +315,7 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 
 	request := &intrigue.ServiceUpdate{
 		Request: "remote.register",
+		Message: r.mode,
 	}
 
 	reply, err := client.UpdateRegistration(ctx, request)
@@ -357,13 +341,12 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 // AddService attaches services to the remote and then attempts to start them
 // EXPERIMENTAL -- in a goroutine wait until the registration has been returned from
 //                 procm before starting the service
-func (r *Remote) AddService(configPath string) (pid string, err error) {
-
+func (r *Remote) AddService(conf *config.ServiceConfig) (pid string, err error) {
 	go func() {
 		for {
 			time.Sleep(time.Second * 3)
 			if r.id != "" {
-				service, err := r.serviceManager.AddServiceFromConfig(configPath)
+				service, err := r.serviceManager.AddServiceFromConfig(conf)
 				if err != nil {
 					perr("could add start service; error=" + err.Error())
 					return
@@ -380,12 +363,6 @@ func (r *Remote) AddService(configPath string) (pid string, err error) {
 		}
 	}()
 	return "-1", nil
-	// service, err := r.serviceManager.AddServiceFromConfig(configPath)
-	// if err != nil {
-	// 	return "-1", errors.New("could not start service; error=" + err.Error())
-	// }
-	// service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
-	// return service.Start(r.mode)
 }
 
 // GetServices returns all service pointers attached to the Remote
@@ -441,6 +418,40 @@ func (r *Remote) GetRegistration() *registration {
 		return r.reg
 	}
 	return &registration{}
+}
+
+// setLog checks for environment vars that can be used to set the log
+// else checks for verbose mode or creates the std log file
+func (r *Remote) setLog() {
+	logPath := os.Getenv("REMOTELOG")
+	logName := os.Getenv("LOGFILENAME")
+	if logPath != "" {
+		r.logPath = logPath
+	} else if logName != "" {
+		r.logPath = filepath.Join(notify.Getpwd(), "logs", logName)
+	} else if r.verbose {
+		r.logPath = "-"
+	} else {
+		r.logPath = filepath.Join(notify.Getpwd(), "logs", "remote.log")
+	}
+
+	if r.logPath != "-" {
+		var err error
+		logfile, err = notify.OpenFile(r.logPath)
+		if err != nil {
+			notify.LnRedF("could not create log file, using stdout and stderr")
+		} else {
+			notify.LnYellowF("Remote using logfile at " + r.logPath)
+		}
+	} else {
+		notify.LnYellowF("Verbose mode; using stdout and stderr")
+	}
+
+	println("                      _                       ")
+	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
+	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
+	println("  _|                                          ")
+	print("started, time=" + time.Now().Format(time.Stamp))
 }
 
 /**********************************************************************************
@@ -610,8 +621,8 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 	procRuntime := s.Process.GetInfo()
 
 	si := &intrigue.Service{
-		Id:        r.id + "-" + s.ID,
-		Name:      s.Static.Name,
+		Id: r.id + "-" + s.ID,
+		// Name:      s.Static.Name,
 		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
 		LogPath:   s.LogPath,
@@ -621,7 +632,7 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 		StartTime: procRuntime.StartTime.Format(time.RFC3339),
 		FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
 		Errors:    s.Process.GetErrors(),
-		Mode:      "remote",
+		Mode:      s.Mode.String(),
 	}
 
 	return si
@@ -691,12 +702,9 @@ func NewServiceManager() *ServiceManager {
 
 // AddServiceFromConfig attaches a service to the service manager by parsing the config file at configPath
 // and creating a new local binary manager from the process package
-func (s *ServiceManager) AddServiceFromConfig(configPath string) (*service.Service, error) {
+func (s *ServiceManager) AddServiceFromConfig(conf *config.ServiceConfig) (*service.Service, error) {
 
-	if configPath == "" {
-		return nil, errors.New("serviceManager.AddServiceFromConfig.unspecified config")
-	}
-	newService, err := service.NewService(s.assignID(), configPath)
+	newService, err := service.NewService(s.assignID(), conf)
 	if err != nil {
 		return nil, errors.New("serviceManager.AddServiceFromConfig.serviceErr=" + err.Error())
 	}

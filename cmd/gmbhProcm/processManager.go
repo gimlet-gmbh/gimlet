@@ -13,6 +13,7 @@ import (
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/address"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/rs/xid"
 )
@@ -164,9 +165,9 @@ func (p *ProcessManager) gracefulShutdownListener() {
 }
 
 // RegisterRemote adds the remote to the router and sends back the id and address
-func (p *ProcessManager) RegisterRemote() (id, address, fingerprint string, err error) {
+func (p *ProcessManager) RegisterRemote(mode string) (id, address, fingerprint string, err error) {
 	p.print("registering new remote")
-	rm, err := p.router.AttachNewRemote()
+	rm, err := p.router.AttachNewRemote(mode)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -341,7 +342,7 @@ type Router struct {
 	idCounter int
 
 	// handles the assignment of addresses for new remotes
-	addressing *addressHandler
+	addr *address.Handler
 
 	mu *sync.Mutex
 
@@ -353,13 +354,9 @@ func NewRouter() *Router {
 	r := &Router{
 		remotes:   make(map[string]*RemoteServer),
 		idCounter: 100,
-		addressing: &addressHandler{
-			host: config.Localhost,
-			port: config.RemotePort,
-			mu:   &sync.Mutex{},
-		},
-		mu:      &sync.Mutex{},
-		Verbose: true,
+		addr:      address.NewHandler(config.Localhost, config.RemotePort, config.RemotePort+1000),
+		mu:        &sync.Mutex{},
+		Verbose:   true,
 	}
 	// start the ping handler
 	go r.pingHandler()
@@ -381,9 +378,15 @@ func (r *Router) LookupRemote(id string) (*RemoteServer, error) {
 }
 
 // AttachNewRemote adds the remote to the map and then returns the new remote server object
-func (r *Router) AttachNewRemote() (*RemoteServer, error) {
-	newRemote := NewRemoteServer(r.assignID(), r.addressing.Assign())
-	err := r.addToMap(newRemote)
+func (r *Router) AttachNewRemote(mode string) (*RemoteServer, error) {
+
+	addr, err := r.addr.NextAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	newRemote := NewRemoteServer(r.assignID(), addr, mode)
+	err = r.addToMap(newRemote)
 	if err != nil {
 		r.verbose(err.Error())
 		return nil, err
@@ -511,6 +514,10 @@ type RemoteServer struct {
 	ID      string
 	State   State
 
+	// Mode determines whether the remote was launched as part of service launcher
+	// or it is standalone
+	Mode string
+
 	// The time that the state was updated to either Shutdown for Failed
 	StateUpdate time.Time
 
@@ -524,11 +531,12 @@ type RemoteServer struct {
 }
 
 // NewRemoteServer returns an instance of a remote server with values set to the parameters
-func NewRemoteServer(id, address string) *RemoteServer {
+func NewRemoteServer(id, address, mode string) *RemoteServer {
 	return &RemoteServer{
 		ID:          id,
 		Address:     address,
 		State:       Running,
+		Mode:        mode,
 		LastPing:    time.Now().Add(time.Hour),
 		fingerprint: xid.New().String(),
 		mu:          &sync.Mutex{},
@@ -547,26 +555,4 @@ func (rs *RemoteServer) UpdatePing(t time.Time) {
 	rs.mu.Lock()
 	rs.LastPing = t
 	rs.mu.Unlock()
-}
-
-// addressHandler is in charge of assigning addresses to services
-type addressHandler struct {
-	table map[string]string
-	host  string
-	port  int
-	mu    *sync.Mutex
-}
-
-// Assign returns the next address
-func (a *addressHandler) Assign() string {
-	a.setNextAddress()
-	addr := a.host + ":" + strconv.Itoa(a.port)
-	return addr
-}
-
-// setNextAddress calculates the next address
-func (a *addressHandler) setNextAddress() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.port += 2
 }
