@@ -402,7 +402,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 	for {
 
 		time.Sleep(g.PongTime)
-		g.printer("-> ping")
+		// g.printer("-> ping")
 
 		select {
 		case _ = <-ph.pingChan: // case in which this channel is no longer needed

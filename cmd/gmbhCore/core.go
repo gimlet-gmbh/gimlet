@@ -222,13 +222,13 @@ func NewRouter() *Router {
 
 // LookupService looks through the services map and returns the service if it exists
 func (r *Router) LookupService(name string) (*GmbhService, error) {
-	r.v("looking up %s", name)
+	// r.v("looking up %s", name)
 	retrievedService := r.services[name]
 	if retrievedService == nil {
-		r.v("not found")
+		r.v("%s not found in router", name)
 		return nil, errors.New("router.LookupService.NotFound")
 	}
-	r.v("found")
+	// r.v("found")
 	return retrievedService, nil
 }
 
@@ -316,7 +316,7 @@ func (r *Router) addToMap(newService *GmbhService) error {
 		r.services[alias] = newService
 	}
 
-	r.v("added %s to map", newService.Name)
+	// r.v("added %s to map", newService.Name)
 
 	return nil
 }

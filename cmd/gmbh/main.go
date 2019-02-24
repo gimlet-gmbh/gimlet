@@ -50,7 +50,7 @@ func main() {
 		maxRemoteSize: flag.Int("max", 1, "This specifies the maximum number of servies per remote process manager"),
 		noLog:         flag.Bool("no-log", false, "disable logging"),
 
-		CoreServiceFName: ".core.service",
+		CoreServiceFName: "coreService.toml",
 		NodeFiles:        make([]string, 0),
 	}
 
@@ -113,7 +113,7 @@ func startGmbh() {
 		os.Exit(1)
 	}
 
-	if !fileExists(l.CoreServiceFName) {
+	if !fileExists(filepath.Join("gmbh", l.CoreServiceFName)) {
 		notify.LnBYellowF("Generating core service config file")
 		genCoreServiceConfig()
 	}
@@ -130,60 +130,17 @@ func launch() {
 	var err error
 
 	pmCmd := exec.Command("gmbhProcm")
-	gmbhCmd := exec.Command("gmbhProcm", "--remote", "--config=./"+l.CoreServiceFName)
+	gmbhCmd := exec.Command("gmbhProcm", "--remote", "--config=./gmbh/"+l.CoreServiceFName)
 
 	gmbhEnv := []string{
 		"SERVICEMODE=managed",
 	}
 
-	// Both commands should print to os.Stdout
-	if *l.verboseAll {
-		pmCmd.Stdout = os.Stdout
-		pmCmd.Stderr = os.Stderr
-		pmCmd.Args = append(pmCmd.Args, "--verbose")
-
-		gmbhCmd.Stdout = os.Stdout
-		gmbhCmd.Stderr = os.Stderr
-		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
-
-	} else if *l.verbose {
-		base := filepath.Join("gmbh", "logs")
-
-		// Only gmbhCore should print to os.StdOut
-		pmlog, err = getLogFile(base, "procm.log")
-		if err == nil {
-			notify.LnYellowF(base, "procm.log")
-			pmCmd.Stdout = pmlog
-			pmCmd.Stderr = pmlog
-		}
-
-		gmbhCmd.Stdout = os.Stdout
-		gmbhCmd.Stderr = os.Stderr
-		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
-
-	} else if !*l.noLog {
-		base := filepath.Join("gmbh", "logs")
-
-		// both files get logs
-		pmlog, err = getLogFile(base, "procm.log")
-		if err == nil {
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), base, "procm.log"))
-			pmCmd.Stdout = pmlog
-			pmCmd.Stderr = pmlog
-		} else {
-			notify.LnRedF("could not create log file for procm; logging disabled")
-		}
-		datalog, err = getLogFile(base, "data.log")
-		if err == nil {
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), base, "data.log"))
-			gmbhCmd.Stdout = datalog
-			gmbhCmd.Stderr = datalog
-		} else {
-			notify.LnRedF("could not create log file for procm; logging disabled")
-		}
+	addEnv := setLogs(pmCmd, gmbhCmd)
+	if addEnv {
 		gmbhEnv = append(
 			gmbhEnv,
-			"REMOTELOG="+filepath.Join(basePath(*l.config), "gmbh", "logs", "core-remote.log"),
+			"REMOTELOG="+filepath.Join(basePath(*l.config), config.LogPath, "core-remote.log"),
 		)
 	}
 
@@ -237,6 +194,58 @@ func launch() {
 		notify.LnBYellowF("[cli] shutdown complete")
 	}
 
+}
+
+// Sets the logs fro core and procm
+func setLogs(pmCmd, gmbhCmd *exec.Cmd) bool {
+
+	pmCmd.Stdout = os.Stdout
+	pmCmd.Stderr = os.Stderr
+	gmbhCmd.Stdout = os.Stdout
+	gmbhCmd.Stderr = os.Stderr
+
+	// print everything to stdout from all children processes
+	if *l.verboseAll {
+		pmCmd.Args = append(pmCmd.Args, "--verbose")
+		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
+		return false
+	}
+
+	// print core and its remote to stdout but log procm
+	if *l.verbose && !*l.noLog {
+		pmlog, err := getLogFile(config.LogPath, config.ProcmLogName)
+		if err == nil {
+			pmCmd.Stdout = pmlog
+			pmCmd.Stderr = pmlog
+			notify.LnYellowF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
+		} else {
+			notify.LnRedF("could not create procm log, err=%s", err.Error())
+		}
+		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
+		return false
+	}
+
+	if !*l.noLog {
+		pmlog, err := getLogFile(config.LogPath, config.ProcmLogName)
+		if err == nil {
+			pmCmd.Stdout = pmlog
+			pmCmd.Stderr = pmlog
+			notify.LnYellowF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
+		} else {
+			notify.LnRedF("could not create procm log, err=%s", err.Error())
+		}
+
+		corelog, err := getLogFile(config.LogPath, config.CoreLogName)
+		if err == nil {
+			pmCmd.Stdout = corelog
+			pmCmd.Stderr = corelog
+			notify.LnYellowF(filepath.Join(notify.Getpwd(), config.LogPath, config.CoreLogName))
+		} else {
+			notify.LnRedF("could not create core log, err=%s", err.Error())
+		}
+		return true
+	}
+	return false
 }
 
 func serviceDiscovery(l *launcher) {
@@ -344,9 +353,9 @@ func (l *launcher) launch() {
 
 		cmd := exec.Command(binPath, append(args, "--config="+f)...)
 
-		f, err := getLogFile(filepath.Join("gmbh", "logs"), "node-"+strconv.Itoa(i)+".log")
+		f, err := getLogFile(config.LogPath, "node-"+strconv.Itoa(i+1)+".log")
 		if err == nil {
-			notify.LnYellowF("%s", filepath.Join(notify.Getpwd(), "gmbh", "logs", "node-"+strconv.Itoa(i)+".log"))
+			notify.LnYellowF("%s", filepath.Join(notify.Getpwd(), config.LogPath, "node-"+strconv.Itoa(i+1)+".log"))
 			cmd.Stdout = f
 			cmd.Stderr = f
 		} else {
@@ -367,7 +376,7 @@ func (l *launcher) launch() {
 //
 // All data related to starting the core from the service launcher should be configured here.
 func genCoreServiceConfig() {
-	configFile, err := notify.CreateFile(filepath.Join(filepath.Dir(*l.config), l.CoreServiceFName))
+	configFile, err := notify.CreateFile(filepath.Join(filepath.Dir(*l.config), "gmbh", l.CoreServiceFName))
 	if err != nil {
 		notify.LnRedF("could not create cluster file; err=%s", err)
 		return

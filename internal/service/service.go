@@ -78,8 +78,6 @@ func NewService(id string, conf *config.ServiceConfig) (*Service, error) {
 // service must be in managed or remote mode
 func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 
-	// if s.Static.BinPath != "" {
-
 	conf := &process.LocalProcessConfig{
 		Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
 		Dir:    s.Path,
@@ -88,19 +86,22 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 		Signal: syscall.SIGINT,
 	}
 
-	// in managed mode, a log file is also supplied to the process
+	// in managed mode, a log file is set to capture stdout and stderr
 	if mode == "managed" {
 		s.Mode = Managed
 		conf.Signal = syscall.SIGUSR2
 		if !verbose {
 			if s.Static.ProjPath != "" {
-				fname := filepath.Base(s.Static.BinPath) + "-stdout.log"
+
+				base := s.Static.BinPath
 				if s.Static.SrcPath != "" {
-					fname = filepath.Base(s.Static.SrcPath) + "-stdout.log"
+					base = s.Static.SrcPath
 				}
-				s.LogPath = filepath.Join(s.Static.ProjPath, "gmbh", "logs", fname)
+				fname := filepath.Base(base) + config.StdoutExt
+				s.LogPath = filepath.Join(s.Static.ProjPath, config.LogPath, fname)
+
 			} else {
-				s.LogPath = filepath.Join(s.Path, "gmbh", "logs", "stdout.log")
+				s.LogPath = filepath.Join(s.Path, config.LogPath, config.DefaultServiceLogName)
 			}
 			notify.LnYellowF("log at %s", s.LogPath)
 			var e error

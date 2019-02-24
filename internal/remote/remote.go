@@ -161,8 +161,8 @@ func (r *Remote) shutdown(src string) {
 	r.notifyCore()
 
 	print("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
-	p := int64(time.Since(r.startTime) / r.PongDelay)
-	print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
+	// p := int64(time.Since(r.startTime) / r.PongDelay)
+	// print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
 	os.Exit(0)
 }
 
@@ -257,11 +257,11 @@ func (r *Remote) sendPing(ph *pingHelper) {
 
 		time.Sleep(r.PongDelay)
 
-		r.mu.Lock()
-		r.pingCounter++
-		r.mu.Unlock()
+		// r.mu.Lock()
+		// r.pingCounter++
+		// r.mu.Unlock()
 
-		print("-> ping " + strconv.Itoa(r.pingCounter))
+		// print("-> ping " + strconv.Itoa(r.pingCounter))
 
 		select {
 		case _ = <-ph.pingChan: // case in which this channel has a message in the buffer

@@ -63,3 +63,34 @@ var DefaultSystemConfig = SystemConfig{
 	Procm:   DefaultSystemProcm,
 	Service: make([]*ServiceConfig, 0),
 }
+
+///////////////////////////////////////////////////////////////////////////////////
+// System Convenience /////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+
+var (
+	// InternalFiles is the relative path from a project config file to where
+	// things should be stored such as manifests and logs
+	InternalFiles = "gmbh"
+
+	// LogPath is the path from the project directory in which logs should be stored
+	LogPath = filepath.Join(InternalFiles, "logs")
+
+	// ManifestPath is the path from the project directory in which manifest toml files
+	// should be stored
+	ManifestPath = filepath.Join(InternalFiles, "manifest")
+)
+
+const (
+	// ProcmLogName for log file at Log Path
+	ProcmLogName = "procm.log"
+
+	// CoreLogName for log file at Log Path
+	CoreLogName = "coreData.log"
+
+	// StdoutExt is the extensions for stdout files
+	StdoutExt = "-stdout.log"
+
+	// DefaultServiceLogName ;
+	DefaultServiceLogName = "stdout.log"
+)
