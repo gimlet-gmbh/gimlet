@@ -147,11 +147,12 @@ func launch() {
 		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
 
 	} else if *l.verbose {
-		// Only gmbhCore should print to os.StdOut
+		base := filepath.Join("gmbh", "logs")
 
-		pmlog, err = getLogFile("logs", "procm.log")
+		// Only gmbhCore should print to os.StdOut
+		pmlog, err = getLogFile(base, "procm.log")
 		if err == nil {
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), "logs", "procm.log"))
+			notify.LnYellowF(base, "procm.log")
 			pmCmd.Stdout = pmlog
 			pmCmd.Stderr = pmlog
 		}
@@ -161,18 +162,20 @@ func launch() {
 		gmbhCmd.Args = append(gmbhCmd.Args, "--verbose")
 
 	} else if !*l.noLog {
+		base := filepath.Join("gmbh", "logs")
+
 		// both files get logs
-		pmlog, err = getLogFile("logs", "procm.log")
+		pmlog, err = getLogFile(base, "procm.log")
 		if err == nil {
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), "logs", "procm.log"))
+			notify.LnYellowF(filepath.Join(notify.Getpwd(), base, "procm.log"))
 			pmCmd.Stdout = pmlog
 			pmCmd.Stderr = pmlog
 		} else {
 			notify.LnRedF("could not create log file for procm; logging disabled")
 		}
-		datalog, err = getLogFile("logs", "data.log")
+		datalog, err = getLogFile(base, "data.log")
 		if err == nil {
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), "logs", "core.log"))
+			notify.LnYellowF(filepath.Join(notify.Getpwd(), base, "data.log"))
 			gmbhCmd.Stdout = datalog
 			gmbhCmd.Stderr = datalog
 		} else {
@@ -180,7 +183,7 @@ func launch() {
 		}
 		gmbhEnv = append(
 			gmbhEnv,
-			"REMOTELOG="+filepath.Join(basePath(*l.config), "logs", "core-remote.log"),
+			"REMOTELOG="+filepath.Join(basePath(*l.config), "gmbh", "logs", "core-remote.log"),
 		)
 	}
 
@@ -321,6 +324,7 @@ func (l *launcher) launch() {
 	env := []string{
 		"SERVICEMODE=managed",
 		"FINGERPRINT=" + l.fingerprint,
+		"PROJPATH=" + notify.Getpwd(),
 	}
 
 	if runtime.GOOS == "darwin" {
@@ -332,30 +336,27 @@ func (l *launcher) launch() {
 		return
 	}
 
-	if *l.verbose {
-		args = append(args, "--verbose")
+	if binPath == "" {
+		return
 	}
 
-	if binPath != "" {
+	for i, f := range l.NodeFiles {
 
-		for _, f := range l.NodeFiles {
+		cmd := exec.Command(binPath, append(args, "--config="+f)...)
 
-			cmd := exec.Command(binPath, append(args, "--config="+f)...)
+		f, err := getLogFile(filepath.Join("gmbh", "logs"), "node-"+strconv.Itoa(i)+".log")
+		if err == nil {
+			notify.LnYellowF("%s", filepath.Join(notify.Getpwd(), "gmbh", "logs", "node-"+strconv.Itoa(i)+".log"))
+			cmd.Stdout = f
+			cmd.Stderr = f
+		} else {
+			notify.LnBRedF("could not create log file: " + err.Error())
+		}
 
-			f, err := getLogFile(filepath.Join("gmbh", "log"), "node.log")
-			if err == nil {
-				notify.LnYellowF("%s", filepath.Join(notify.Getpwd(), "gmbh", "log", "node.log"))
-				cmd.Stdout = f
-				cmd.Stderr = f
-			} else {
-				notify.LnBRedF("could not create log file: " + err.Error())
-			}
-
-			cmd.Env = append(os.Environ(), env...)
-			err = cmd.Start()
-			if err != nil {
-				notify.LnBRedF("could not start node; err=%s", err.Error())
-			}
+		cmd.Env = append(os.Environ(), env...)
+		err = cmd.Start()
+		if err != nil {
+			notify.LnBRedF("could not start node; err=%s", err.Error())
 		}
 	}
 

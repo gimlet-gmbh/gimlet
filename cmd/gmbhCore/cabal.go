@@ -121,7 +121,7 @@ func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrig
 
 	// add core itself
 	ccs := &intrigue.CoreService{
-		Name:     "core",
+		Name:     "CoreData",
 		Address:  c.conf.Address,
 		ParentID: c.parentID,
 	}
@@ -162,14 +162,7 @@ func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp), Status: "core.verified"}, nil
 }
 
-func rv(msg string, a ...interface{}) {
-	notify.LnMagentaF("[cabal] "+msg, a...)
-}
-
-func rd(msg string, a ...interface{}) {
-	notify.LnCyanF("[data] "+msg, a...)
-}
-
-func rve(msg string, a ...interface{}) {
-	notify.LnRedF("[cabal] "+msg, a...)
-}
+// convenience printer methods
+func rv(msg string, a ...interface{})  { notify.LnMagentaF("[cabal] "+msg, a...) }
+func rd(msg string, a ...interface{})  { notify.LnCyanF("[data] "+msg, a...) }
+func rve(msg string, a ...interface{}) { notify.LnRedF("[cabal] "+msg, a...) }

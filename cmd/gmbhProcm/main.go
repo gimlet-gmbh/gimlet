@@ -44,6 +44,9 @@ func main() {
 			}
 
 			for _, sconf := range sconfs {
+				if os.Getenv("PROJPATH") != "" {
+					sconf.ProjPath = os.Getenv("PROJPATH")
+				}
 				rem.AddService(sconf)
 			}
 		}

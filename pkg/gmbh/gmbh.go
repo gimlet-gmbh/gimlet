@@ -137,9 +137,6 @@ type Client struct {
 	// registratrion with data from gmbhCore
 	reg *registration
 
-	// config data from file
-	// conf *config.ServiceConfig
-
 	// The user configurable options of the server
 	opts options
 
@@ -159,6 +156,9 @@ type Client struct {
 
 	msgCounter int
 	mu         *sync.Mutex
+
+	errors   []string
+	warnings []string
 
 	// mode chooses between signint and sigusr2 for the shutdown listener
 	// depending how how SERVICEMODE environment variable is set
@@ -620,15 +620,6 @@ func update(phs []*pingHelper) []*pingHelper {
 }
 
 func (g *Client) printer(msg string, a ...interface{}) {
-	// if g.outputFile != nil {
-	// 	g.outputmu.Lock()
-	// 	g.outputFile.WriteString(fmt.Sprintf(msg, a...) + "\n")
-	// 	g.outputmu.Unlock()
-	// } else {
-	// 	if g.opts.runtime.Verbose {
-	// 		notify.LnCyanF(msg, a...)
-	// 	}
-	// }
 	if g.opts.runtime.Verbose {
 		notify.LnCyanF(msg, a...)
 	}

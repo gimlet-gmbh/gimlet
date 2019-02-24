@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -26,8 +25,6 @@ import (
 
 	"google.golang.org/grpc/metadata"
 )
-
-var logfile *os.File
 
 // Remote ; as in remote process manager client; holds the process
 type Remote struct {
@@ -124,7 +121,11 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 // Start the remote
 func (r *Remote) Start() {
 
-	r.setLog()
+	println("                      _                       ")
+	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
+	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
+	println("  _|                                          ")
+	print("started, time=" + time.Now().Format(time.Stamp))
 
 	// setting mode and choosing shutdown mechanism
 	sig := make(chan os.Signal, 1)
@@ -341,7 +342,7 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 // AddService attaches services to the remote and then attempts to start them
 // EXPERIMENTAL -- in a goroutine wait until the registration has been returned from
 //                 procm before starting the service
-func (r *Remote) AddService(conf *config.ServiceConfig) (pid string, err error) {
+func (r *Remote) AddService(conf *config.ServiceConfig) {
 	go func() {
 		for {
 			time.Sleep(time.Second * 3)
@@ -362,7 +363,6 @@ func (r *Remote) AddService(conf *config.ServiceConfig) (pid string, err error) 
 			}
 		}
 	}()
-	return "-1", nil
 }
 
 // GetServices returns all service pointers attached to the Remote
@@ -418,40 +418,6 @@ func (r *Remote) GetRegistration() *registration {
 		return r.reg
 	}
 	return &registration{}
-}
-
-// setLog checks for environment vars that can be used to set the log
-// else checks for verbose mode or creates the std log file
-func (r *Remote) setLog() {
-	logPath := os.Getenv("REMOTELOG")
-	logName := os.Getenv("LOGFILENAME")
-	if logPath != "" {
-		r.logPath = logPath
-	} else if logName != "" {
-		r.logPath = filepath.Join(notify.Getpwd(), "logs", logName)
-	} else if r.verbose {
-		r.logPath = "-"
-	} else {
-		r.logPath = filepath.Join(notify.Getpwd(), "logs", "remote.log")
-	}
-
-	if r.logPath != "-" {
-		var err error
-		logfile, err = notify.OpenFile(r.logPath)
-		if err != nil {
-			notify.LnRedF("could not create log file, using stdout and stderr")
-		} else {
-			notify.LnYellowF("Remote using logfile at " + r.logPath)
-		}
-	} else {
-		notify.LnYellowF("Verbose mode; using stdout and stderr")
-	}
-
-	println("                      _                       ")
-	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
-	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
-	println("  _|                                          ")
-	print("started, time=" + time.Now().Format(time.Stamp))
 }
 
 /**********************************************************************************
@@ -801,18 +767,10 @@ func print(format string, a ...interface{}) {
 	if r.id == "" {
 		tag = "[remote] "
 	}
-	if logfile != nil {
-		logfile.WriteString(fmt.Sprintf(tag+format+"\n", a...))
-		return
-	}
 	notify.LnBlueF(tag+format, a...)
 }
 
 func println(format string, a ...interface{}) {
-	if logfile != nil {
-		logfile.WriteString(fmt.Sprintf(format+"\n", a...))
-		return
-	}
 	notify.LnBlueF(format, a...)
 }
 
@@ -821,22 +779,5 @@ func perr(format string, a ...interface{}) {
 	if r.id == "" {
 		tag = "[remote] "
 	}
-	if logfile != nil {
-		logfile.WriteString(fmt.Sprintf(tag+format+"\n", a...))
-		return
-	}
 	notify.LnRedF(tag+format, a...)
-}
-
-func setLog(fpath string) {
-	dirPath := filepath.Dir(fpath)
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		os.Mkdir(dirPath, 0755)
-	}
-	file, err := os.OpenFile(fpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		print("creating log file err=%s", err.Error())
-		return
-	}
-	logfile = file
 }

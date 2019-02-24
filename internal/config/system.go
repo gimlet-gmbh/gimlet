@@ -37,11 +37,6 @@ type SystemProcm struct {
 	BinPath   string   `toml:"core_bin"`
 }
 
-// // SystemServices holds the list of services to launch
-// type SystemServices struct {
-// 	Service []*ServiceConfig `toml:"service"`
-// }
-
 // ServiceConfig is the static data needed to launch a service from the service launcher
 type ServiceConfig struct {
 	Args     []string `toml:"args"`
@@ -49,6 +44,7 @@ type ServiceConfig struct {
 	Language string   `toml:"language"`
 	BinPath  string   `toml:"bin_path"`
 	SrcPath  string   `toml:"src_path"`
+	ProjPath string
 }
 
 // ParseSystemConfig parses the entire system config from the file passed in

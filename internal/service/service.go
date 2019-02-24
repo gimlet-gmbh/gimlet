@@ -93,10 +93,18 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 		s.Mode = Managed
 		conf.Signal = syscall.SIGUSR2
 		if !verbose {
-			s.LogPath = filepath.Join(s.Path, "log", "stdout.log")
+			if s.Static.ProjPath != "" {
+				fname := filepath.Base(s.Static.BinPath) + "-stdout.log"
+				if s.Static.SrcPath != "" {
+					fname = filepath.Base(s.Static.SrcPath) + "-stdout.log"
+				}
+				s.LogPath = filepath.Join(s.Static.ProjPath, "gmbh", "logs", fname)
+			} else {
+				s.LogPath = filepath.Join(s.Path, "gmbh", "logs", "stdout.log")
+			}
 			notify.LnYellowF("log at %s", s.LogPath)
 			var e error
-			conf.LogF, e = notify.GetLogFileWithPath(filepath.Join(s.Path, "log"), "stdout.log")
+			conf.LogF, e = notify.OpenFile(s.LogPath)
 			if e != nil {
 				notify.LnRedF("Error creating log")
 			}
