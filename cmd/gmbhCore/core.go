@@ -251,13 +251,24 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 	s, err := r.LookupService(name)
 	if err == nil {
 		r.v("found new service already in map")
-		if s.State == Shutdown {
-			r.v("state is reported as shutdown")
+		if s.State == Shutdown || s.State == Unresponsive {
+			r.v("state is reported as shutdown or unresponsive")
+
 			r.v("acting as if this is the same service")
 			s.UpdateState(Running)
 			return s, nil
 		}
 		r.v("state was not reported as shutdown, probable err")
+		r.v("sending alive request")
+		alive := r.CheckIsAlive(s.Address)
+		if !alive {
+			r.v("could not get a response, treating new service as one found")
+			r.v("acting as if this is the same service")
+			s.UpdateState(Running)
+			return s, nil
+		}
+		r.v("found service reported alive; naming err")
+		return nil, fmt.Errorf("duplicate service")
 	}
 
 	err = r.addToMap(newService)
@@ -350,6 +361,22 @@ func (r *Router) sendShutdownNotices(done chan bool) {
 	}
 	wg.Wait()
 	done <- true
+}
+
+// CheckIsAlive checks a connected service for aliveness (via a ping request)
+// returns true if the service could be contacted, else false
+func (r *Router) CheckIsAlive(addr string) bool {
+
+	client, ctx, can, err := rpc.GetCabalRequest(addr, time.Second*15)
+	if err != nil {
+		return false
+	}
+	defer can()
+	_, err = client.Alive(ctx, &intrigue.Ping{Time: time.Now().Format(time.Stamp)})
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // GetCoreServiceData queries each attached client to respond with their information using their

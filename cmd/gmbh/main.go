@@ -199,10 +199,12 @@ func launch() {
 // Sets the logs fro core and procm
 func setLogs(pmCmd, gmbhCmd *exec.Cmd) bool {
 
-	pmCmd.Stdout = os.Stdout
-	pmCmd.Stderr = os.Stderr
-	gmbhCmd.Stdout = os.Stdout
-	gmbhCmd.Stderr = os.Stderr
+	if !*l.daemon {
+		pmCmd.Stdout = os.Stdout
+		pmCmd.Stderr = os.Stderr
+		gmbhCmd.Stdout = os.Stdout
+		gmbhCmd.Stderr = os.Stderr
+	}
 
 	// print everything to stdout from all children processes
 	if *l.verboseAll {
@@ -225,7 +227,7 @@ func setLogs(pmCmd, gmbhCmd *exec.Cmd) bool {
 		return false
 	}
 
-	if !*l.noLog {
+	if !*l.noLog || *l.daemon {
 		pmlog, err := getLogFile(config.LogPath, config.ProcmLogName)
 		if err == nil {
 			pmCmd.Stdout = pmlog
