@@ -18,12 +18,12 @@ cd ../internal/
 :: ECHO Linking: %%P & SET pdir=%cd%\%%P & mklink /D "%pdir%" "%GMBH_PATH%"
 FOR /D %%P in ("*") DO IF NOT EXIST "%GMBH_PATH%\%%P" ( ECHO Linking: %%P & mklink /D "%GMBH_PATH%\%%P" "%cd%\%%P" ) ELSE ( ECHO "%%P is already linked" )
 
-cd ../pkg
+cd ../pkg/
 
 :: Link the go client package
-::IF EXIST ("%GMBH_PATH%/gmbh") (
-::    ECHO "gmbh is already linked"
-::) ELSE (
-::    mklink /D "/gmbh" "%GMBH_PATH%/gmbh"
-::    ECHO "linking gmbh to go path"
-::)
+IF EXIST ("%GMBH_PATH%\gmbh") (
+    ECHO "gmbh is already linked"
+) ELSE (
+    mklink /D "%GMBH_PATH%\gmbh" "%cd%\gmbh"
+    ECHO linking gmbh to go path
+)
