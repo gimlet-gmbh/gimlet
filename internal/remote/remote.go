@@ -149,8 +149,8 @@ func (r *Remote) Start() {
 	sig := make(chan os.Signal, 1)
 	if r.mode == "managed" {
 		print("remote is in managed mode; using sigusr2; ignoring sigusr1, sigint")
-		signal.Notify(sig, syscall.SIGUSR2)
-		signal.Ignore(syscall.SIGINT, syscall.SIGUSR1)
+		signal.Notify(sig, syscall.SIGQUIT)
+		signal.Ignore(syscall.SIGINT, syscall.SIGTRAP)
 	} else {
 		signal.Notify(sig, syscall.SIGINT)
 	}

@@ -140,7 +140,7 @@ func (p *ProcessManager) Wait() {
 	sig := make(chan os.Signal, 1)
 	if p.signalMode == "managed" {
 		p.print("procm is in managed mode; overriding sigusr2; ignoring sigint")
-		signal.Notify(sig, syscall.SIGUSR2)
+		signal.Notify(sig, syscall.SIGQUIT)
 		signal.Ignore(syscall.SIGINT)
 	} else {
 		signal.Notify(sig, syscall.SIGINT)
@@ -156,7 +156,7 @@ func (p *ProcessManager) Wait() {
 func (p *ProcessManager) gracefulShutdownListener() {
 
 	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, syscall.SIGUSR1)
+	signal.Notify(shutdown, syscall.SIGTRAP)
 
 	_ = <-shutdown
 	p.print("SIGUSR1 reported")

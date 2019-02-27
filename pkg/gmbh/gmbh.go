@@ -242,7 +242,7 @@ func (g *Client) start() {
 	if g.signalMode == "managed" {
 		g.printer("managed mode; ignoring siging; listening for sigusr2")
 		signal.Ignore(syscall.SIGINT)
-		signal.Notify(sigs, syscall.SIGUSR2)
+		signal.Notify(sigs, syscall.SIGQUIT)
 	} else {
 		signal.Notify(sigs, syscall.SIGINT)
 	}

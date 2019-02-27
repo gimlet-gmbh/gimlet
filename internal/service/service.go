@@ -107,7 +107,7 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 		// in managed mode, a log file is also supplied to the process
 		if mode == "managed" {
 
-			conf.Signal = syscall.SIGUSR2
+			conf.Signal = syscall.SIGQUIT
 			if !verbose {
 				s.LogPath = filepath.Join(s.Path, "log", "stdout.log")
 				notify.LnYellowF("%s log at %s", s.Static.Name, s.LogPath)

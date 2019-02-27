@@ -128,8 +128,14 @@ func launch() {
 	var datalog *os.File
 	var err error
 
-	pmCmd := exec.Command("gmbhProcm")
-	gmbhCmd := exec.Command("gmbhProcm", "--remote", "--config=./"+l.CoreServiceFName)
+	var pmCmd, gmbhCmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		pmCmd = exec.Command("cmd", "/C gmbhProcm")
+		gmbhCmd = exec.Command("cmd", "/C gmbhProcm", "--remote", "--config=./"+l.CoreServiceFName)
+	} else {
+		pmCmd = exec.Command("gmbhProcm")
+		gmbhCmd = exec.Command("gmbhProcm", "--remote", "--config=./"+l.CoreServiceFName)
+	}
 
 	gmbhEnv := []string{
 		"SERVICEMODE=managed",
@@ -189,6 +195,7 @@ func launch() {
 	err = pmCmd.Start()
 	if err != nil {
 		notify.LnBRedF("could not start gmbh-procm")
+		notify.LnBRedF(err.Error())
 		return
 	}
 	err = gmbhCmd.Start()
@@ -214,11 +221,11 @@ func launch() {
 
 		// signal the processes
 		notify.LnBBlueF("signaled sigusr1")
-		pmCmd.Process.Signal(syscall.SIGUSR1)
+		pmCmd.Process.Signal(syscall.SIGTRAP)
 
 		// shutdown the process manager
 		time.Sleep(time.Second * 3)
-		pmCmd.Process.Signal(syscall.SIGUSR2)
+		pmCmd.Process.Signal(syscall.SIGQUIT)
 		pmCmd.Wait()
 		notify.LnBYellowF("[cli] procm shutdown")
 
@@ -365,6 +372,15 @@ func checkInstall() bool {
 			return false
 		}
 		notify.LnRedF("Linux support is incomplete")
+		return true
+	} else if runtime.GOOS == "windows" {
+		if _, err := os.Stat(config.ProcmBinPathWindows); os.IsNotExist(err) {
+			return false
+		}
+		if _, err := os.Stat(config.CoreBinPathWindows); os.IsNotExist(err) {
+			return false
+		}
+		notify.LnRedF("Windows support is incomplete")
 		return true
 	}
 	notify.LnRedF(fmt.Sprintf("OS support not implemented for %s", runtime.GOOS))

@@ -126,8 +126,8 @@ func (c *Core) Wait() {
 
 	if c.mode == "managed" {
 		c.vi("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
-		signal.Notify(sig, syscall.SIGUSR2)
-		signal.Ignore(syscall.SIGUSR1, syscall.SIGINT)
+		signal.Notify(sig, syscall.SIGQUIT)
+		signal.Ignore(syscall.SIGTRAP, syscall.SIGINT)
 	} else {
 		signal.Notify(sig, syscall.SIGINT)
 	}
