@@ -191,7 +191,8 @@ func (c *controlServer) UpdateRegistration(ctx context.Context, in *intrigue.Ser
 
 	if request == "remote.register" {
 
-		id, address, fingerprint, err := pm.RegisterRemote()
+		// message is mode
+		id, address, fingerprint, err := pm.RegisterRemote(message)
 		if err != nil {
 			rpcperr("router.err=" + err.Error())
 			return &intrigue.Receipt{Error: "router.err=" + err.Error()}, nil

@@ -12,12 +12,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -25,8 +25,6 @@ import (
 
 	"google.golang.org/grpc/metadata"
 )
-
-var logfile *os.File
 
 // Remote ; as in remote process manager client; holds the process
 type Remote struct {
@@ -123,35 +121,21 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 // Start the remote
 func (r *Remote) Start() {
 
-	logPath := os.Getenv("REMOTELOG")
-	if logPath != "" {
-		notify.LnCyanF("Remote using logfile at " + logPath)
-		setLog(logPath)
-		r.logPath = logPath
-	} else {
-		logName := os.Getenv("LOGFILENAME")
-		if logName != "" {
-			r.logPath = filepath.Join(notify.Getpwd(), "logs", logName)
-			setLog(r.logPath)
-			notify.LnCyanF("Remote using logfile at " + r.logPath)
-		} else {
-			notify.LnYellowF("Warning: Logfile name not specified")
-			r.logPath = "-"
-		}
-	}
-
 	println("                      _                       ")
 	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
 	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
 	println("  _|                                          ")
 	print("started, time=" + time.Now().Format(time.Stamp))
 
+	// setting mode and choosing shutdown mechanism
 	sig := make(chan os.Signal, 1)
 	if r.mode == "managed" {
 		print("remote is in managed mode; using sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGQUIT)
 		signal.Ignore(syscall.SIGINT, syscall.SIGTRAP)
 	} else {
+		r.mode = "standalone"
+		print("remote is in standalone mode; using sigint")
 		signal.Notify(sig, syscall.SIGINT)
 	}
 
@@ -177,8 +161,8 @@ func (r *Remote) shutdown(src string) {
 	r.notifyCore()
 
 	print("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
-	p := int64(time.Since(r.startTime) / r.PongDelay)
-	print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
+	// p := int64(time.Since(r.startTime) / r.PongDelay)
+	// print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
 	os.Exit(0)
 }
 
@@ -273,11 +257,11 @@ func (r *Remote) sendPing(ph *pingHelper) {
 
 		time.Sleep(r.PongDelay)
 
-		r.mu.Lock()
-		r.pingCounter++
-		r.mu.Unlock()
+		// r.mu.Lock()
+		// r.pingCounter++
+		// r.mu.Unlock()
 
-		print("-> ping " + strconv.Itoa(r.pingCounter))
+		// print("-> ping " + strconv.Itoa(r.pingCounter))
 
 		select {
 		case _ = <-ph.pingChan: // case in which this channel has a message in the buffer
@@ -332,6 +316,7 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 
 	request := &intrigue.ServiceUpdate{
 		Request: "remote.register",
+		Message: r.mode,
 	}
 
 	reply, err := client.UpdateRegistration(ctx, request)
@@ -357,13 +342,12 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 // AddService attaches services to the remote and then attempts to start them
 // EXPERIMENTAL -- in a goroutine wait until the registration has been returned from
 //                 procm before starting the service
-func (r *Remote) AddService(configPath string) (pid string, err error) {
-
+func (r *Remote) AddService(conf *config.ServiceConfig) {
 	go func() {
 		for {
 			time.Sleep(time.Second * 3)
 			if r.id != "" {
-				service, err := r.serviceManager.AddServiceFromConfig(configPath)
+				service, err := r.serviceManager.AddServiceFromConfig(conf)
 				if err != nil {
 					perr("could add start service; error=" + err.Error())
 					return
@@ -379,13 +363,6 @@ func (r *Remote) AddService(configPath string) (pid string, err error) {
 			}
 		}
 	}()
-	return "-1", nil
-	// service, err := r.serviceManager.AddServiceFromConfig(configPath)
-	// if err != nil {
-	// 	return "-1", errors.New("could not start service; error=" + err.Error())
-	// }
-	// service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
-	// return service.Start(r.mode)
 }
 
 // GetServices returns all service pointers attached to the Remote
@@ -610,8 +587,8 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 	procRuntime := s.Process.GetInfo()
 
 	si := &intrigue.Service{
-		Id:        r.id + "-" + s.ID,
-		Name:      s.Static.Name,
+		Id: r.id + "-" + s.ID,
+		// Name:      s.Static.Name,
 		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
 		LogPath:   s.LogPath,
@@ -621,7 +598,7 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 		StartTime: procRuntime.StartTime.Format(time.RFC3339),
 		FailTime:  procRuntime.DeathTime.Format(time.RFC3339),
 		Errors:    s.Process.GetErrors(),
-		Mode:      "remote",
+		Mode:      s.Mode.String(),
 	}
 
 	return si
@@ -691,12 +668,9 @@ func NewServiceManager() *ServiceManager {
 
 // AddServiceFromConfig attaches a service to the service manager by parsing the config file at configPath
 // and creating a new local binary manager from the process package
-func (s *ServiceManager) AddServiceFromConfig(configPath string) (*service.Service, error) {
+func (s *ServiceManager) AddServiceFromConfig(conf *config.ServiceConfig) (*service.Service, error) {
 
-	if configPath == "" {
-		return nil, errors.New("serviceManager.AddServiceFromConfig.unspecified config")
-	}
-	newService, err := service.NewService(s.assignID(), configPath)
+	newService, err := service.NewService(s.assignID(), conf)
 	if err != nil {
 		return nil, errors.New("serviceManager.AddServiceFromConfig.serviceErr=" + err.Error())
 	}
@@ -793,19 +767,11 @@ func print(format string, a ...interface{}) {
 	if r.id == "" {
 		tag = "[remote] "
 	}
-	if logfile != nil {
-		logfile.WriteString(fmt.Sprintf(tag+format+"\n", a...))
-		return
-	}
-	notify.LnBlueF(tag+format, a...)
+	notify.LnMagentaF(tag+format, a...)
 }
 
 func println(format string, a ...interface{}) {
-	if logfile != nil {
-		logfile.WriteString(fmt.Sprintf(format+"\n", a...))
-		return
-	}
-	notify.LnBlueF(format, a...)
+	notify.LnMagentaF(format, a...)
 }
 
 func perr(format string, a ...interface{}) {
@@ -813,22 +779,5 @@ func perr(format string, a ...interface{}) {
 	if r.id == "" {
 		tag = "[remote] "
 	}
-	if logfile != nil {
-		logfile.WriteString(fmt.Sprintf(tag+format+"\n", a...))
-		return
-	}
 	notify.LnRedF(tag+format, a...)
-}
-
-func setLog(fpath string) {
-	dirPath := filepath.Dir(fpath)
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		os.Mkdir(dirPath, 0755)
-	}
-	file, err := os.OpenFile(fpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		print("creating log file err=%s", err.Error())
-		return
-	}
-	logfile = file
 }

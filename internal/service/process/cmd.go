@@ -12,12 +12,11 @@ import (
 
 // LocalManager ; a process manager
 type LocalManager struct {
-	name string
-	args []string
-	env  []string
-	path string
-	dir  string
-	// userKilled       bool
+	name             string
+	args             []string
+	env              []string
+	path             string
+	dir              string
 	userRestarted    bool
 	restartCounter   int
 	gracefulshutdown bool
