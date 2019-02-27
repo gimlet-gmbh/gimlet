@@ -29,6 +29,11 @@ func SetHeader(s string) {
 	header = s
 }
 
+// LnF prints to stdOut a line formatted
+func LnF(format string, a ...interface{}) {
+	fmt.Printf(format+"\n", a...)
+}
+
 // LnRedF prints to stdOut a line in red formatted
 func LnRedF(format string, a ...interface{}) {
 	out(color.FgRed, fmt.Sprintf(format, a...))
@@ -178,7 +183,7 @@ func CreateFile(fPath string) (*os.File, error) {
 		os.Mkdir(filepath.Dir(fPath), 0755)
 	}
 	// create the file
-	file, err := os.OpenFile(fPath, os.O_CREATE|os.O_WRONLY|io.SeekStart, 0644)
+	file, err := os.OpenFile(fPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY|io.SeekStart, 0644)
 	if err != nil {
 		return nil, err
 	}

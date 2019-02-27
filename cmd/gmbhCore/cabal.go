@@ -5,15 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"google.golang.org/grpc/metadata"
 )
-
-func v(msg string) {
-	notify.LnBlueF(" [cbl] " + msg)
-}
 
 var cnt int
 
@@ -22,7 +17,7 @@ type cabalServer struct{}
 
 func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServiceRequest) (*intrigue.Receipt, error) {
 
-	rv("-> Incoming registration; Request=%s", in.String())
+	logData("-> Incoming registration; Request=%s", in.String())
 
 	c, err := GetCore()
 	if err != nil {
@@ -49,7 +44,7 @@ func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServi
 
 func (s *cabalServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 
-	rv("-> Update Registration; Update=%s", in.String())
+	logData("-> Update Registration; Update=%s", in.String())
 
 	request := in.GetRequest()
 	name := in.GetMessage()
@@ -79,43 +74,43 @@ func (s *cabalServer) Data(ctx context.Context, in *intrigue.DataRequest) (*intr
 	t := time.Now()
 	defer func() { cnt++ }()
 
-	request := in.GetRequest()
-	rd("-%d-> Data request: %s", cnt, request.String())
+	tport := in.GetRequest().GetTport()
+	logData("-%d-> Data request: %s", cnt, tport.String())
 
 	c, err := GetCore()
 	if err != nil {
-		rd("<-%d- could not get core error=%s", cnt, err.Error())
+		logData("<-%d- could not get core error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "core.ref"}, nil
 	}
 
-	fwd, err := c.Router.LookupService(request.GetTarget())
+	fwd, err := c.Router.LookupService(tport.GetTarget())
 	if err != nil {
-		rd("<-%d- service not found error=%s", cnt, err.Error())
+		logData("<-%d- service not found error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "service.notFound"}, nil
 	}
 
 	client, ctx, can, err := rpc.GetCabalRequest(fwd.Address, time.Second*2)
 	if err != nil {
-		rd("<-%d- rpc error=%s", cnt, err.Error())
+		logData("<-%d- rpc error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "rpc error=" + err.Error()}, nil
 	}
 	defer can()
 	final, err := client.Data(ctx, in)
 	if err != nil {
-		rd("<-%d- could not forward error=%s", cnt, err.Error())
+		logData("<-%d- could not forward error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "unableToForward"}, nil
 	}
-	rd("<-%d-  elapsed time=%s", cnt, time.Since(t))
+	logData("<-%d- elapsed time=%s", cnt, time.Since(t))
 	return final, nil
 }
 
 func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
 
-	rv("-> Update Registration; Update=%s", in.String())
+	logData("-> Update Registration; Update=%s", in.String())
 
 	c, err := GetCore()
 	if err != nil {
-		rd("could not get core error=%s", cnt, err.Error())
+		logData("could not get core error=%s", cnt, err.Error())
 		return &intrigue.SummaryReceipt{Error: "core.ref"}, nil
 	}
 
@@ -139,11 +134,9 @@ func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrig
 
 func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
 
-	// rv("<- pong")
-
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		rv("Could not get metadata")
+		return &intrigue.Pong{Error: "invalid request"}, nil
 	}
 
 	c, err := GetCore()
@@ -156,13 +149,9 @@ func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue
 
 	verified := c.Router.Verify(name, fp)
 	if verified != nil {
-		rve("could not verify %s; err=%s", name, verified.Error())
+		logData("could not verify %s; err=%s", name, verified.Error())
 		return &intrigue.Pong{Error: verified.Error()}, nil
 	}
+
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp), Status: "core.verified"}, nil
 }
-
-// convenience printer methods
-func rv(msg string, a ...interface{})  { notify.LnMagentaF("[cabal] "+msg, a...) }
-func rd(msg string, a ...interface{})  { notify.LnCyanF("[data] "+msg, a...) }
-func rve(msg string, a ...interface{}) { notify.LnRedF("[cabal] "+msg, a...) }

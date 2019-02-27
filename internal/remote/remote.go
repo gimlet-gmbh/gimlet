@@ -767,11 +767,11 @@ func print(format string, a ...interface{}) {
 	if r.id == "" {
 		tag = "[remote] "
 	}
-	notify.LnBlueF(tag+format, a...)
+	notify.LnMagentaF(tag+format, a...)
 }
 
 func println(format string, a ...interface{}) {
-	notify.LnBlueF(format, a...)
+	notify.LnMagentaF(format, a...)
 }
 
 func perr(format string, a ...interface{}) {

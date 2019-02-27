@@ -89,32 +89,32 @@ func main() {
 // If all of these things hold true, the service launcher will start gmbh
 func startGmbh() {
 
-	notify.LnBCyanF("                    __                                                ")
-	notify.LnBCyanF("  _  ._ _  |_  |_  (_   _  ._   o  _  _  |   _.     ._   _ |_   _  ._ ")
-	notify.LnBCyanF(" (_| | | | |_) | | __) (/_ | \\/ | (_ (/_ |_ (_| |_| | | (_ | | (/_ |  ")
-	notify.LnBCyanF("  _|                                                                  ")
-	notify.LnBCyanF("Version=%s; Code=%s", config.Version, config.Code)
+	notify.LnF("                    __                                                ")
+	notify.LnF("  _  ._ _  |_  |_  (_   _  ._   o  _  _  |   _.     ._   _ |_   _  ._ ")
+	notify.LnF(" (_| | | | |_) | | __) (/_ | \\/ | (_ (/_ |_ (_| |_| | | (_ | | (/_ |  ")
+	notify.LnF("  _|                                                                  ")
+	notify.LnF("Version=%s; Code=%s", config.Version, config.Code)
 
 	// make sure that gmbhCore is installed
 	installed := checkInstall()
 	if !installed {
-		notify.LnBRedF("gmbhCore or gmbhProcm does not seem to be installed")
+		notify.LnRedF("gmbhCore or gmbhProcm does not seem to be installed")
 		os.Exit(1)
 	}
 
 	if *l.config == "" {
-		notify.LnBRedF("must specify a config file using the --config flag")
+		notify.LnRedF("must specify a config file using the --config flag")
 		os.Exit(1)
 	}
 
 	exists := fileExists(*l.config)
 	if !exists {
-		notify.LnBRedF("the specified config file does not seem to exist...")
+		notify.LnRedF("the specified config file does not seem to exist...")
 		os.Exit(1)
 	}
 
 	if !fileExists(filepath.Join("gmbh", l.CoreServiceFName)) {
-		notify.LnBYellowF("Generating core service config file")
+		notify.LnF("Generating core service config file...")
 		genCoreServiceConfig()
 	}
 
@@ -149,12 +149,12 @@ func launch() {
 
 	err = pmCmd.Start()
 	if err != nil {
-		notify.LnBRedF("could not start gmbh-procm")
+		notify.LnRedF("could not start gmbh-procm")
 		return
 	}
 	err = gmbhCmd.Start()
 	if err != nil {
-		notify.LnBRedF("could not start gmbh-core-data")
+		notify.LnRedF("could not start gmbh-core-data")
 		return
 	}
 
@@ -174,14 +174,14 @@ func launch() {
 		fmt.Println() //dead line to line up output
 
 		// signal the processes
-		notify.LnBBlueF("signaled sigusr1")
+		notify.LnF("signaled sigusr1")
 		pmCmd.Process.Signal(syscall.SIGUSR1)
 
 		// shutdown the process manager
 		time.Sleep(time.Second * 3)
 		pmCmd.Process.Signal(syscall.SIGUSR2)
 		pmCmd.Wait()
-		notify.LnBYellowF("[cli] procm shutdown")
+		notify.LnF("procm shutdown")
 
 		// close the logs
 		if pmlog != nil {
@@ -190,10 +190,8 @@ func launch() {
 		if datalog != nil {
 			datalog.Close()
 		}
-
-		notify.LnBYellowF("[cli] shutdown complete")
+		notify.LnF("shutdown complete")
 	}
-
 }
 
 // Sets the logs fro core and procm
@@ -219,7 +217,7 @@ func setLogs(pmCmd, gmbhCmd *exec.Cmd) bool {
 		if err == nil {
 			pmCmd.Stdout = pmlog
 			pmCmd.Stderr = pmlog
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
+			notify.LnF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
 		} else {
 			notify.LnRedF("could not create procm log, err=%s", err.Error())
 		}
@@ -232,7 +230,7 @@ func setLogs(pmCmd, gmbhCmd *exec.Cmd) bool {
 		if err == nil {
 			pmCmd.Stdout = pmlog
 			pmCmd.Stderr = pmlog
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
+			notify.LnF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
 		} else {
 			notify.LnRedF("could not create procm log, err=%s", err.Error())
 		}
@@ -241,7 +239,7 @@ func setLogs(pmCmd, gmbhCmd *exec.Cmd) bool {
 		if err == nil {
 			pmCmd.Stdout = corelog
 			pmCmd.Stderr = corelog
-			notify.LnYellowF(filepath.Join(notify.Getpwd(), config.LogPath, config.CoreLogName))
+			notify.LnF(filepath.Join(notify.Getpwd(), config.LogPath, config.CoreLogName))
 		} else {
 			notify.LnRedF("could not create core log, err=%s", err.Error())
 		}
@@ -270,7 +268,6 @@ func serviceDiscovery(l *launcher) {
 			oneRemote = []*config.ServiceConfig{}
 		}
 	}
-
 	l.launch()
 }
 
@@ -317,7 +314,6 @@ func strArrtoStr(arr []string) string {
 		if i != len(arr)-1 {
 			ret += ","
 		}
-
 	}
 	ret += "]"
 	return ret
@@ -343,7 +339,7 @@ func (l *launcher) launch() {
 	} else if runtime.GOOS == "linux" {
 		binPath = config.ProcmBinPathLinux
 	} else if runtime.GOOS == "windows" {
-		notify.LnBRedF("windows binaries location not configured")
+		notify.LnRedF("windows binaries location not configured")
 		return
 	}
 
@@ -357,17 +353,17 @@ func (l *launcher) launch() {
 
 		f, err := getLogFile(config.LogPath, "node-"+strconv.Itoa(i+1)+".log")
 		if err == nil {
-			notify.LnYellowF("%s", filepath.Join(notify.Getpwd(), config.LogPath, "node-"+strconv.Itoa(i+1)+".log"))
+			notify.LnF("%s", filepath.Join(notify.Getpwd(), config.LogPath, "node-"+strconv.Itoa(i+1)+".log"))
 			cmd.Stdout = f
 			cmd.Stderr = f
 		} else {
-			notify.LnBRedF("could not create log file: " + err.Error())
+			notify.LnRedF("could not create log file: " + err.Error())
 		}
 
 		cmd.Env = append(os.Environ(), env...)
 		err = cmd.Start()
 		if err != nil {
-			notify.LnBRedF("could not start node; err=%s", err.Error())
+			notify.LnRedF("could not start node; err=%s", err.Error())
 		}
 	}
 
@@ -402,7 +398,7 @@ func getLogFile(desiredPathExt, filename string) (*os.File, error) {
 	// get pwd
 	dir, err := os.Getwd()
 	if err != nil {
-		notify.LnBRedF("getlogfile, pwd err=%s", err.Error())
+		notify.LnRedF("getlogfile, pwd err=%s", err.Error())
 		return nil, err
 	}
 	// make sure that the path extension exists or make the directories needed
@@ -414,7 +410,7 @@ func getLogFile(desiredPathExt, filename string) (*os.File, error) {
 	filePath := filepath.Join(dirPath, filename)
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		notify.LnBRedF("openfile err=%s", err.Error())
+		notify.LnRedF("openfile err=%s", err.Error())
 		return nil, err
 	}
 	return file, nil

@@ -3,7 +3,6 @@ package gmbh
 import (
 	"errors"
 
-	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc/intrigue"
 )
 
@@ -25,7 +24,7 @@ func (g *Client) Route(route string, handler HandlerFunc) {
 }
 
 // MakeRequest is the default method for making data requests through gmbh
-func (g *Client) MakeRequest(target, method, data string) (Responder, error) {
+func (g *Client) MakeRequest(target, method string, data *Payload) (Responder, error) {
 	resp, err := makeDataRequest(target, method, data)
 	if err != nil {
 		return Responder{}, errors.New("could not complete request: " + err.Error())
@@ -36,22 +35,18 @@ func (g *Client) MakeRequest(target, method, data string) (Responder, error) {
 func handleDataRequest(req intrigue.Request) (*intrigue.Responder, error) {
 
 	var request Request
-	request = requestFromProto(req)
+	request = requestFromProto(&req)
 	responder := Responder{}
 
-	handler, ok := g.registeredFunctions[request.Method]
+	handler, ok := g.registeredFunctions[request.transport.Method]
 	if !ok {
-		responder.HadError = true
-		responder.ErrorString = "Could not locate method in registered process map"
+		g.printer("could not find hander=%s", request.transport.Method)
+		responder.err = "could not find method in service map"
 	} else {
+		g.printer("sending to hander=%s", request.transport.Method)
 		handler(request, &responder)
 	}
-
-	return responder.toProto(), nil
-}
-
-func (g *Client) printer(msg string, a ...interface{}) {
-	if g.opts.runtime.Verbose {
-		notify.LnWhiteF(msg, a...)
-	}
+	protoResponder := responder.proto()
+	g.printer(protoResponder.String())
+	return protoResponder, nil
 }

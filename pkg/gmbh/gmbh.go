@@ -63,7 +63,8 @@ type Client struct {
 	// pingHelper keeps track of channels
 	pingHelpers []*pingHelper
 
-	PongTime time.Duration
+	PongTime  time.Duration
+	PingCount int
 
 	state State
 
@@ -108,7 +109,7 @@ func NewClient(opt ...Option) (*Client, error) {
 		registeredFunctions: make(map[string]HandlerFunc),
 		mu:                  &sync.Mutex{},
 		pingHelpers:         []*pingHelper{},
-		PongTime:            time.Second * 5,
+		PongTime:            time.Second * 45,
 		mode:                os.Getenv("SERVICEMODE"),
 		parentID:            os.Getenv("REMOTE"),
 	}
@@ -122,12 +123,12 @@ func NewClient(opt ...Option) (*Client, error) {
 		return nil, fmt.Errorf("must set ServiceOptions to include a name for the service")
 	}
 
-	g.printer("	                _                 ")
+	g.printer("                    _                 ")
 	g.printer("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
 	g.printer(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
 	g.printer("  _|                                  ")
-	g.printer(notify.Getpwd())
 	notify.SetHeader("[gmbh]")
+	g.printer("service started from %s", notify.Getpwd())
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
@@ -210,63 +211,6 @@ func (g *Client) Shutdown(src string) {
 **** Handling connection to gmbhCore
 **********************************************************************************/
 
-// // connect to gmbhCore
-// func (g *Client) connect() {
-// 	g.printer("attempting to connect to gmbh-core")
-
-// 	// when failed or disconnected, the registration is wiped to make sure that
-// 	// legacy data does not get used, thus if g.reg is not nil, then we can assume
-// 	// that a thread has aready requested and received a valid registration
-// 	// and the current thread can be closed
-// 	if g.reg != nil {
-// 		g.printer("cannot (re)connect reg != nil")
-// 		return
-// 	}
-
-// 	reg, status := register(g.opts.service.Name, true, true, "")
-// 	for status != nil {
-// 		if status.Error() != "registration.gmbhUnavailable" {
-// 			g.printer("gmbh internal error")
-// 			return
-// 		}
-
-// 		if g.closed || (g.con != nil && g.con.IsConnected()) {
-// 			return
-// 		}
-// 		g.printer("Could not reach gmbh-core, trying again in 5 seconds")
-// 		time.Sleep(time.Second * 5)
-// 		reg, status = register(g.opts.service.Name, true, true, "")
-
-// 	}
-
-// 	g.printer("registration details:")
-// 	g.printer("id=" + reg.id + "; address=" + reg.address + "; fingerprint=" + reg.fingerprint)
-
-// 	if reg.address == "" {
-// 		g.printer("address not received")
-// 		return
-// 	}
-
-// 	g.mu.Lock()
-// 	g.reg = reg
-// 	g.con = rpc.NewCabalConnection(reg.address, &_server{})
-
-// 	// add a new channel to communicate to this goroutine
-// 	ph := newPingHelper()
-// 	g.pingHelpers = append(g.pingHelpers, ph)
-// 	g.mu.Unlock()
-
-// 	err := g.con.Connect()
-// 	if err != nil {
-// 		g.printer("gmbh connection error=(" + err.Error() + ")")
-// 		return
-// 	}
-// 	g.printer("connected; coreAddress=(" + reg.address + ")")
-
-// 	go g.sendPing(ph)
-
-// }
-
 // disconnect from gmbh-core and go back into connecting mode
 func (g *Client) disconnect() {
 
@@ -333,4 +277,10 @@ func (g *Client) getReg() *registration {
 		return &registration{}
 	}
 	return g.reg
+}
+
+func (g *Client) printer(msg string, a ...interface{}) {
+	if g.opts.runtime.Verbose {
+		notify.LnMagentaF(msg, a...)
+	}
 }

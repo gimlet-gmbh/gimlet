@@ -92,25 +92,23 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 		conf.Signal = syscall.SIGUSR2
 		if !verbose {
 			if s.Static.ProjPath != "" {
-
 				base := s.Static.BinPath
 				if s.Static.SrcPath != "" {
 					base = s.Static.SrcPath
 				}
 				fname := filepath.Base(base) + config.StdoutExt
 				s.LogPath = filepath.Join(s.Static.ProjPath, config.LogPath, fname)
-
 			} else {
 				s.LogPath = filepath.Join(s.Path, config.LogPath, config.DefaultServiceLogName)
 			}
-			notify.LnYellowF("log at %s", s.LogPath)
+			notify.LnMagentaF("log at %s", s.LogPath)
 			var e error
 			conf.LogF, e = notify.OpenFile(s.LogPath)
 			if e != nil {
 				notify.LnRedF("Error creating log")
 			}
 		} else {
-			notify.LnYellowF("verbose mode; service output directed to os.stdout")
+			notify.LnMagentaF("verbose; service output directed to os.stdout")
 		}
 	} else {
 		s.Mode = Remote
@@ -118,7 +116,7 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	s.Process = process.NewLocalBinaryManager(conf)
 	p, err := s.Process.Start()
 	if err != nil {
-		notify.LnYellowF("failed to start; err=%s", err.Error())
+		notify.LnMagentaF("failed to start; err=%s", err.Error())
 		return "-1", errors.New("service.StartService.couldNotStartNewService")
 	}
 	return strconv.Itoa(p), nil

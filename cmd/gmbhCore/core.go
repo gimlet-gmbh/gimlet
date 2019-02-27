@@ -74,7 +74,7 @@ func NewCore(cPath, address string, verbose bool) (*Core, error) {
 	} else {
 		userConfig, err = config.ParseSystemCore(cPath)
 		if err != nil {
-			notify.LnRedF("could not parse config; err=%v", err.Error())
+			logCore("could not parse config; err=%v", err.Error())
 			return nil, err
 		}
 		projpath = notify.GetAbs(cPath)
@@ -96,7 +96,7 @@ func NewCore(cPath, address string, verbose bool) (*Core, error) {
 	}
 
 	if core.ProjectPath == "" {
-		notify.LnRedF("could not get path to project")
+		logCore("could not get path to project")
 		return nil, errors.New("config path error")
 	}
 
@@ -105,7 +105,6 @@ func NewCore(cPath, address string, verbose bool) (*Core, error) {
 	notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_ |_/ (_|  |_ (_| ")
 	notify.LnCyanF("  _|                                            ")
 	notify.LnCyanF("version=%v; code=%v; startTime=%s", core.Version, core.Code, core.startTime.Format(time.Stamp))
-
 	return core, nil
 }
 
@@ -121,10 +120,10 @@ func GetCore() (*Core, error) {
 func (c *Core) Start() {
 	err := c.con.Connect()
 	if err != nil {
-		c.ve("could not connected; err=%s", err.Error())
+		logCore("could not connected; err=%s", err.Error())
 		return
 	}
-	c.v("connected; address=%s", c.con.Address)
+	logCore("connected; address=%s", c.con.Address)
 
 	c.Wait()
 }
@@ -134,14 +133,14 @@ func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 
 	if c.mode == "managed" {
-		c.vi("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
+		logCore("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGUSR1, syscall.SIGINT)
 	} else {
 		signal.Notify(sig, syscall.SIGINT)
 	}
 
-	c.v("main thread waiting")
+	logCore("main thread waiting")
 	_ = <-sig
 	fmt.Println() //dead line to line up output
 
@@ -151,7 +150,7 @@ func (c *Core) Wait() {
 
 // shutdown begins graceful shutdown procedures
 func (c *Core) shutdown(remote bool, source string) {
-	c.v("shutdown procedure started from " + source)
+	logCore("shutdown procedure started from " + source)
 
 	if c.mode != "managed" {
 		done := make(chan bool)
@@ -161,21 +160,6 @@ func (c *Core) shutdown(remote bool, source string) {
 
 	notify.LnBlueF("shutdown; time=%s", time.Now().Format(time.Stamp))
 	return
-}
-
-// v verbose helper
-func (c *Core) v(format string, a ...interface{}) {
-	notify.LnCyanF("[core] "+format, a...)
-}
-
-// ve verbose helper
-func (c *Core) ve(format string, a ...interface{}) {
-	notify.LnRedF("[core] "+format, a...)
-}
-
-// vi verbose helper
-func (c *Core) vi(format string, a ...interface{}) {
-	notify.LnYellowF("[core] "+format, a...)
 }
 
 /**********************************************************************************
@@ -205,7 +189,6 @@ type Router struct {
 
 // NewRouter instantiates and returns a new Router structure
 func NewRouter() *Router {
-
 	r := &Router{
 		services:     make(map[string]*GmbhService),
 		serviceNames: make([]string, 0),
@@ -214,9 +197,6 @@ func NewRouter() *Router {
 		mu:           &sync.Mutex{},
 		verbose:      true,
 	}
-
-	go r.pingHandler()
-
 	return r
 }
 
@@ -225,7 +205,7 @@ func (r *Router) LookupService(name string) (*GmbhService, error) {
 	// r.v("looking up %s", name)
 	retrievedService := r.services[name]
 	if retrievedService == nil {
-		r.v("%s not found in router", name)
+		logRtr("%s not found in router", name)
 		return nil, errors.New("router.LookupService.NotFound")
 	}
 	// r.v("found")
@@ -250,35 +230,30 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 	// check to see if it exists in map already
 	s, err := r.LookupService(name)
 	if err == nil {
-		r.v("found new service already in map")
-		if s.State == Shutdown || s.State == Unresponsive {
-			r.v("state is reported as shutdown or unresponsive")
-
-			r.v("acting as if this is the same service")
+		// r.v("found new service already in map")
+		if s.State == Shutdown {
+			logRtr("correct params reported for this service to assume role of one found")
 			s.UpdateState(Running)
 			return s, nil
 		}
-		r.v("state was not reported as shutdown, probable err")
-		r.v("sending alive request")
 		alive := r.CheckIsAlive(s.Address)
 		if !alive {
-			r.v("could not get a response, treating new service as one found")
-			r.v("acting as if this is the same service")
+			logRtr("could not get a response from service on file, treating new service as one found")
 			s.UpdateState(Running)
 			return s, nil
 		}
-		r.v("found service reported alive; naming err")
+		logRtr("service in map reporting still alive; naming err; not adding new service")
 		return nil, fmt.Errorf("duplicate service")
 	}
 
 	err = r.addToMap(newService)
 	if err != nil {
-		r.v(newService.String())
-		r.v("could not add service to map; err=%s", err.Error())
+		logRtr(newService.String())
+		logRtr("could not add service to map; err=%s", err.Error())
 		return nil, err
 	}
 
-	r.v("added service=%s", newService.String())
+	logRtr("added service=%s", newService.String())
 	return newService, nil
 }
 
@@ -294,9 +269,6 @@ func (r *Router) Verify(name, fp string) error {
 	if s.State == Shutdown {
 		return errors.New("verify.reportedShutdown")
 	}
-	if s.State == Unresponsive {
-		s.UpdateState(Running)
-	}
 	s.LastPing = time.Now()
 	return nil
 }
@@ -307,13 +279,13 @@ func (r *Router) Verify(name, fp string) error {
 func (r *Router) addToMap(newService *GmbhService) error {
 
 	if _, ok := r.services[newService.Name]; ok {
-		r.v("could not add to map, duplicate name")
+		logRtr("could not add to map, duplicate name")
 		return errors.New("router.addToMap: duplicate service with same name found")
 	}
 
 	for _, alias := range newService.Aliases {
 		if _, ok := r.services[alias]; ok {
-			r.v("could not add to map, duplicate alias=" + alias)
+			logRtr("could not add to map, duplicate alias=" + alias)
 			return errors.New("router.addToMap: duplicate service with same alias found")
 		}
 	}
@@ -340,10 +312,10 @@ func (r *Router) sendShutdownNotices(done chan bool) {
 		go func(n string) {
 			defer wg.Done()
 			service := r.services[n]
-			r.v("sending shutdown to %s at %s", service.Name, service.Address)
+			logRtr("sending shutdown to %s at %s", service.Name, service.Address)
 			client, ctx, can, err := rpc.GetCabalRequest(service.Address, time.Millisecond*500)
 			if err != nil {
-				r.v("could not create client")
+				logRtr("could not create client")
 				can()
 				return
 			}
@@ -354,7 +326,7 @@ func (r *Router) sendShutdownNotices(done chan bool) {
 			_, err = client.UpdateRegistration(ctx, req)
 			if err != nil {
 				if service.State != Shutdown {
-					r.v("error contacting service; id=%s; err=%s", service.ID, err.Error())
+					logRtr("error contacting service; id=%s; err=%s", service.ID, err.Error())
 				}
 			}
 		}(name)
@@ -366,7 +338,6 @@ func (r *Router) sendShutdownNotices(done chan bool) {
 // CheckIsAlive checks a connected service for aliveness (via a ping request)
 // returns true if the service could be contacted, else false
 func (r *Router) CheckIsAlive(addr string) bool {
-
 	client, ctx, can, err := rpc.GetCabalRequest(addr, time.Second*15)
 	if err != nil {
 		return false
@@ -385,10 +356,10 @@ func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.Core
 	ret := []*intrigue.CoreService{core}
 	for _, n := range r.serviceNames {
 		service := r.services[n]
-		r.v("sending summary request to %s at %s", service.Name, service.Address)
+		// logRtr("sending summary request to %s at %s", service.Name, service.Address)
 		client, ctx, can, err := rpc.GetCabalRequest(service.Address, time.Second*1)
 		if err != nil {
-			r.v("could not create client")
+			// logRtr("could not create client")
 			can()
 			continue
 		}
@@ -403,7 +374,7 @@ func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.Core
 		}
 		resp, err := client.Summary(ctx, req)
 		if err != nil {
-			r.v("error contacting service; id=%s; err=%s", service.ID, err.Error())
+			logRtr("error contacting service; id=%s; err=%s", service.ID, err.Error())
 			continue
 		}
 		if resp.GetServices() == nil {
@@ -418,33 +389,12 @@ func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.Core
 	return ret
 }
 
-// pingHandler looks through each of the remotes in the map. if it has been more than n amount of
-// time since a remote has sent a ping, it will be pinged. If the ping is not retured after n more
-// seconds, the remote will be marked as Failed After n amount of time, failed remotes will
-// be removed from the map
-func (r *Router) pingHandler() {
-	for {
-		time.Sleep(time.Second * 180)
-		for _, s := range r.serviceNames {
-			if time.Since(r.services[s].LastPing) > time.Second*90 {
-				r.v("marking name=%s; id=%s as Unresponsive", s, r.services[s].ID)
-				r.services[s].UpdateState(Unresponsive)
-			}
-		}
-	}
-}
-
 func (r *Router) assignNextID() string {
 	mu := &sync.Mutex{}
 	mu.Lock()
 	defer mu.Unlock()
 	r.idCounter++
 	return strconv.Itoa(r.idCounter)
-}
-
-// v verbose printer
-func (r *Router) v(msg string, a ...interface{}) {
-	notify.LnGreenF("[rtr] "+msg, a...)
 }
 
 /**********************************************************************************
@@ -504,14 +454,9 @@ func (g *GmbhService) UpdateState(s State) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if s != g.State {
-		g.v("marking %s(%s) as %s", g.Name, g.ID, s.String())
+		logCore("marking %s(%s) as %s", g.Name, g.ID, s.String())
 		g.State = s
 	}
-}
-
-// v verbose printer
-func (g *GmbhService) v(msg string, a ...interface{}) {
-	notify.LnYellowF("[service] "+msg, a...)
 }
 
 // State controls the state of a remote server
@@ -524,9 +469,6 @@ const (
 	// Shutdown notice received from remote
 	Shutdown
 
-	// Unresponsive if the service has not sent a ping in greater than some amount of time
-	Unresponsive
-
 	// Failed to return a pong
 	Failed
 )
@@ -534,7 +476,6 @@ const (
 var states = [...]string{
 	"Running",
 	"Shutdown",
-	"Unresponsive",
 	"Failed",
 }
 

@@ -20,7 +20,9 @@ func (g *Client) sendPing(ph *pingHelper) {
 	for {
 
 		time.Sleep(g.PongTime)
-		// g.printer("-> ping")
+		g.printer("-> ping %d", g.PingCount)
+
+		g.PingCount++
 
 		select {
 		case _ = <-ph.pingChan: // case in which this channel is no longer needed
@@ -62,7 +64,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 			}
 			if pong.GetStatus() == "core.verified" {
 				can()
-				// g.printer("<- pong")
+				g.printer("<- pong")
 			} else {
 				g.printer("<- pong err=" + pong.GetError())
 				g.failed()

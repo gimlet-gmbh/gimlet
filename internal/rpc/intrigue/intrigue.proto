@@ -146,10 +146,45 @@ message Request{
     string Target = 2;
     string Method = 3;
     string Data1 = 50;
+
+    Transport Tport = 55;
+    Payload Pload = 60;
 }
 
 message Responder{
     string Result = 50;
     string ErrorString = 98;
     bool HadError = 99;
+
+
+    Transport Tport = 55;
+    Payload Pload = 60;
+    string Err = 65; 
+}
+
+
+message Transport {
+    string Sender = 1;
+    string Target = 2;
+    string Method = 3;
+}
+
+message Payload {
+
+    map<string, subFields> Fields = 50;
+    map<string, bytes> JSON = 55;
+
+    map<string, string> TextFields = 60;
+    map<string, bool> BoolFields = 62;
+    map<string, bytes> ByteFields = 64;
+    map<string, int32> IntFields = 66;
+    map<string, int64> Int64Fields = 68;
+    map<string, uint32> UintFields = 70;
+    map<string, uint64> Uint64Fields = 72;
+    map<string, double> DoubleFields = 74;
+    map<string, float> FloatFields = 76;
+}
+
+message subFields {
+    repeated string Sub = 1;
 }

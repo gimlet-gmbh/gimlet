@@ -55,7 +55,7 @@ func register(name string, isClient bool, isServer bool, mode string) (*registra
 	return nil, errors.New(reply.GetMessage())
 }
 
-func makeDataRequest(target string, method string, data string) (Responder, error) {
+func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
 	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
 	if err != nil {
@@ -65,10 +65,12 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 
 	request := intrigue.DataRequest{
 		Request: &intrigue.Request{
-			Sender: g.opts.service.Name,
-			Target: target,
-			Method: method,
-			Data1:  data,
+			Tport: &intrigue.Transport{
+				Target: target,
+				Method: method,
+				Sender: g.opts.service.Name,
+			},
+			Pload: data.Proto(),
 		},
 	}
 
@@ -78,10 +80,7 @@ func makeDataRequest(target string, method string, data string) (Responder, erro
 
 	reply, err := client.Data(ctx, &request)
 	if err != nil {
-		r := Responder{
-			HadError:    true,
-			ErrorString: err.Error(),
-		}
+		r := Responder{err: err.Error()}
 		return r, err
 
 	}

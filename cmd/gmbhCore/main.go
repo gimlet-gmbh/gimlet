@@ -1,6 +1,12 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+	"time"
+
+	"github.com/gmbh-micro/notify"
+)
 
 func main() {
 
@@ -16,3 +22,9 @@ func main() {
 	}
 	c.Start()
 }
+
+func logData(msg string, a ...interface{}) {
+	notify.LnCyanF(fmt.Sprintf("[%s] %s", time.Now().Format(time.Stamp), msg), a...)
+}
+func logCore(msg string, a ...interface{}) { notify.LnCyanF("[core] "+msg, a...) }
+func logRtr(msg string, a ...interface{})  { notify.LnCyanF("[rtr] "+msg, a...) }
