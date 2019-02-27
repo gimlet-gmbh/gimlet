@@ -17,28 +17,20 @@ import (
 type Mode int
 
 const (
-	// Managed mode is for services whose underlying process is managed by gmbhCore
-	Managed Mode = 1 + iota
+	// Remote mode; as in not having been launched from the service launcher
+	Remote Mode = 1 + iota
 
-	// Remote mode is for services whose underlying process is mangaged by gmbhContainer
-	Remote
-
-	// Planetary mode is for services whose underlying process is not mangaged by any gmbh tooling
-	Planetary
-
-	// GmbH mode is for managing the gmbh process itself
-	GmbH
+	// Managed mode; as in having been launched from the service launcher
+	Managed
 )
 
 var modes = [...]string{
-	"Managed",
-	"Remote",
-	"Planetary",
-	"GmbH",
+	"remote",
+	"managed",
 }
 
 func (m Mode) String() string {
-	if Managed <= m && m <= GmbH {
+	if Remote <= m && m <= Managed {
 		return modes[m-1]
 	}
 	return "%!Mode()"
@@ -57,33 +49,26 @@ type Service struct {
 	LogPath string
 
 	// Static data associated with the service
-	Static *config.ServiceStatic
+	// Static *config.ServiceStatic
+	Static *config.ServiceConfig
 
 	// If managed, Process will hold the process controller
 	Process process.Manager
-
-	// If Remote, Remote will hold the remote process controller
-	Remote *process.RemoteManager
 }
 
 // NewService tries to parse the required info from a config file located at path
-func NewService(id, path string) (*Service, error) {
+func NewService(id string, conf *config.ServiceConfig) (*Service, error) {
 
-	staticData, err := config.ParseServiceStatic(path)
+	err := conf.Verify()
 	if err != nil {
-		return nil, err
-	}
-	valid := staticData.Validate()
-	if valid != nil {
 		return nil, err
 	}
 
 	service := Service{
 		ID:      id,
 		Created: time.Now(),
-		Mode:    Managed,
-		Path:    filepath.Dir(path),
-		Static:  staticData,
+		Path:    filepath.Dir(conf.BinPath),
+		Static:  conf,
 	}
 
 	return &service, nil
@@ -93,49 +78,57 @@ func NewService(id, path string) (*Service, error) {
 // service must be in managed or remote mode
 func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 
-	if s.Static.BinPath != "" {
-
-		conf := &process.LocalProcessConfig{
-			Name:   s.Static.Name,
-			Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
-			Dir:    s.Path,
-			Args:   s.Static.Args,
-			Env:    append(os.Environ(), s.Static.Env...),
-			Signal: syscall.SIGINT,
-		}
-
-		// in managed mode, a log file is also supplied to the process
-		if mode == "managed" {
-
-			conf.Signal = syscall.SIGUSR2
-			if !verbose {
-				s.LogPath = filepath.Join(s.Path, "log", "stdout.log")
-				notify.LnYellowF("%s log at %s", s.Static.Name, s.LogPath)
-				var e error
-				conf.LogF, e = notify.GetLogFileWithPath(filepath.Join(s.Path, "log"), "stdout.log")
-				if e != nil {
-					notify.LnRedF("Error creating log")
-				}
-			} else {
-				notify.LnYellowF("verbose mode; service output directed to os.stdout")
-			}
-		}
-		s.Process = process.NewLocalBinaryManager(conf)
-		pid, err := s.Process.Start()
-		if err != nil {
-			notify.LnYellowF("failed to start; err=%s", err.Error())
-			return "-1", errors.New("service.StartService.couldNotStartNewService")
-		}
-		return strconv.Itoa(pid), nil
-
-	} else if s.Static.Language == "go" {
-		return "-1", errors.New("service.StartService.goNotYetSupported")
-	} else if s.Static.Language == "node" {
-		return "-1", errors.New("service.StartService.nodeNotYetSupported")
-	} else if s.Static.Language == "python" {
-		return "-1", errors.New("service.StartService.pythonNotYetSupported")
+	conf := &process.LocalProcessConfig{
+		Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
+		Dir:    s.Path,
+		Args:   s.Static.Args,
+		Env:    append(os.Environ(), s.Static.Env...),
+		Signal: syscall.SIGINT,
 	}
-	return "-1", errors.New("service.StartService.invalidLanguage")
+
+	// in managed mode, a log file is set to capture stdout and stderr
+	if mode == "managed" {
+		s.Mode = Managed
+		conf.Signal = syscall.SIGUSR2
+		if !verbose {
+			if s.Static.ProjPath != "" {
+				base := s.Static.BinPath
+				if s.Static.SrcPath != "" {
+					base = s.Static.SrcPath
+				}
+				fname := filepath.Base(base) + config.StdoutExt
+				s.LogPath = filepath.Join(s.Static.ProjPath, config.LogPath, fname)
+			} else {
+				s.LogPath = filepath.Join(s.Path, config.LogPath, config.DefaultServiceLogName)
+			}
+			notify.LnMagentaF("log at %s", s.LogPath)
+			var e error
+			conf.LogF, e = notify.OpenFile(s.LogPath)
+			if e != nil {
+				notify.LnRedF("Error creating log")
+			}
+		} else {
+			notify.LnMagentaF("verbose; service output directed to os.stdout")
+		}
+	} else {
+		s.Mode = Remote
+	}
+	s.Process = process.NewLocalBinaryManager(conf)
+	p, err := s.Process.Start()
+	if err != nil {
+		notify.LnMagentaF("failed to start; err=%s", err.Error())
+		return "-1", errors.New("service.StartService.couldNotStartNewService")
+	}
+	return strconv.Itoa(p), nil
+
+	// } else if s.Static.Language == "go" {
+	// 	return "-1", errors.New("service.StartService.goNotYetSupported")
+	// } else if s.Static.Language == "node" {
+	// 	return "-1", errors.New("service.StartService.nodeNotYetSupported")
+	// } else if s.Static.Language == "python" {
+	// 	return "-1", errors.New("service.StartService.pythonNotYetSupported")
+	// }
+	// return "-1", errors.New("service.StartService.invalidLanguage")
 }
 
 // Restart the process
@@ -159,38 +152,10 @@ func (s *Service) EnableGracefulShutdown() {
 	s.Process.GracefulShutdown()
 }
 
-// StartLog starts the logger for process management information
-func (s *Service) StartLog(path, filename string) {
-	// s.Logs = notify.NewLogFile(path, filename, false)
-}
-
 // createAbsPathToBin attempts to resolve an absolute path to the binary file to start
 func (s *Service) createAbsPathToBin(path, binPath string) string {
 	if binPath[0] == '.' {
 		return path + binPath[1:]
 	}
 	return binPath
-}
-
-// Println adds a log message to the service's log if it has been configured
-func (s *Service) Println(msg string) {
-	// if s.Logs != nil {
-	// 	s.Logs.Ln(msg)
-	// }
-}
-
-// GetMode returns the mode as a string
-func (s *Service) GetMode() string {
-	if s.Mode == Managed {
-		return "managed"
-	}
-	if s.Mode == Remote {
-		return "remote"
-	}
-
-	if s.Mode == Planetary {
-		return "planetary"
-	}
-
-	return ""
 }
