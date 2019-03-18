@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='intrigue',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0eintrigue.proto\x12\x08intrigue\":\n\x11NewServiceRequest\x12%\n\x07Service\x18\x01 \x01(\x0b\x32\x14.intrigue.NewService\"j\n\x07Receipt\x12-\n\x0bserviceInfo\x18\x01 \x01(\x0b\x32\x18.intrigue.ServiceSummary\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x10\n\x08\x46ollowup\x18\x03 \x01(\t\x12\r\n\x05\x45rror\x18\n \x01(\t\"@\n\x0b\x44\x61taRequest\x12\"\n\x07Request\x18\x01 \x01(\x0b\x32\x11.intrigue.Request\x12\r\n\x05\x45rror\x18\x02 \x01(\t\"E\n\x0c\x44\x61taResponse\x12&\n\tResponder\x18\x02 \x01(\x0b\x32\x13.intrigue.Responder\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\x0e\n\x0c\x45mptyRequest\"@\n\rServiceUpdate\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"[\n\x06\x41\x63tion\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x10\n\x08RemoteID\x18\x05 \x01(\t\x12\x0f\n\x07Message\x18\x04 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"s\n\x0eSummaryReceipt\x12)\n\x07Remotes\x18\x01 \x03(\x0b\x32\x18.intrigue.ProcessManager\x12\'\n\x08Services\x18\x04 \x03(\x0b\x32\x15.intrigue.CoreService\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Ping\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Pong\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\xa4\x01\n\x0eProcessManager\x12\n\n\x02ID\x18\x01 \x01(\t\x12\x0c\n\x04Name\x18\x02 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x03 \x01(\t\x12\x11\n\tStartTime\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x08 \x03(\t\x12\x0e\n\x06Status\x18\x07 \x01(\t\x12\x0f\n\x07LogPath\x18\t \x01(\t\x12#\n\x08Services\x18\x04 \x03(\x0b\x32\x11.intrigue.Service\"O\n\nNewService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41liases\x18\x02 \x03(\t\x12\x10\n\x08IsServer\x18\x03 \x01(\x08\x12\x10\n\x08IsClient\x18\x04 \x01(\x08\"B\n\x0eServiceSummary\x12\x0f\n\x07\x41\x64\x64ress\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x12\x13\n\x0b\x46ingerprint\x18\x03 \x01(\t\"\xd4\x01\n\x07Service\x12\n\n\x02Id\x18\n \x01(\t\x12\x0c\n\x04Name\x18\x0b \x01(\t\x12\x0c\n\x04Mode\x18\x17 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x15 \x01(\t\x12\x0c\n\x04Path\x18\x0c \x01(\t\x12\x0f\n\x07LogPath\x18\x14 \x01(\t\x12\x0e\n\x06Status\x18\x0e \x01(\t\x12\x10\n\x08Restarts\x18\x0f \x01(\x05\x12\r\n\x05\x46\x61ils\x18\x18 \x01(\x05\x12\x0b\n\x03Pid\x18\x10 \x01(\x05\x12\x11\n\tStartTime\x18\x11 \x01(\t\x12\x10\n\x08\x46\x61ilTime\x18\x12 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x13 \x03(\t\"\\\n\x0b\x43oreService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04Mode\x18\x03 \x01(\t\x12\x10\n\x08ParentID\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x04 \x03(\t\"\x8e\x01\n\x07Request\x12\x0e\n\x06Sender\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x0e\n\x06Method\x18\x03 \x01(\t\x12\r\n\x05\x44\x61ta1\x18\x32 \x01(\t\x12\"\n\x05Tport\x18\x37 \x01(\x0b\x32\x13.intrigue.Transport\x12 \n\x05Pload\x18< \x01(\x0b\x32\x11.intrigue.Payload\"\x95\x01\n\tResponder\x12\x0e\n\x06Result\x18\x32 \x01(\t\x12\x13\n\x0b\x45rrorString\x18\x62 \x01(\t\x12\x10\n\x08HadError\x18\x63 \x01(\x08\x12\"\n\x05Tport\x18\x37 \x01(\x0b\x32\x13.intrigue.Transport\x12 \n\x05Pload\x18< \x01(\x0b\x32\x11.intrigue.Payload\x12\x0b\n\x03\x45rr\x18\x41 \x01(\t\";\n\tTransport\x12\x0e\n\x06Sender\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x0e\n\x06Method\x18\x03 \x01(\t\"\x9d\t\n\x07Payload\x12-\n\x06\x46ields\x18\x32 \x03(\x0b\x32\x1d.intrigue.Payload.FieldsEntry\x12)\n\x04JSON\x18\x37 \x03(\x0b\x32\x1b.intrigue.Payload.JSONEntry\x12\x35\n\nTextFields\x18< \x03(\x0b\x32!.intrigue.Payload.TextFieldsEntry\x12\x35\n\nBoolFields\x18> \x03(\x0b\x32!.intrigue.Payload.BoolFieldsEntry\x12\x35\n\nByteFields\x18@ \x03(\x0b\x32!.intrigue.Payload.ByteFieldsEntry\x12\x33\n\tIntFields\x18\x42 \x03(\x0b\x32 .intrigue.Payload.IntFieldsEntry\x12\x37\n\x0bInt64Fields\x18\x44 \x03(\x0b\x32\".intrigue.Payload.Int64FieldsEntry\x12\x35\n\nUintFields\x18\x46 \x03(\x0b\x32!.intrigue.Payload.UintFieldsEntry\x12\x39\n\x0cUint64Fields\x18H \x03(\x0b\x32#.intrigue.Payload.Uint64FieldsEntry\x12\x39\n\x0c\x44oubleFields\x18J \x03(\x0b\x32#.intrigue.Payload.DoubleFieldsEntry\x12\x37\n\x0b\x46loatFields\x18L \x03(\x0b\x32\".intrigue.Payload.FloatFieldsEntry\x1a\x42\n\x0b\x46ieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\"\n\x05value\x18\x02 \x01(\x0b\x32\x13.intrigue.subFields:\x02\x38\x01\x1a+\n\tJSONEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x1a\x31\n\x0fTextFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x31\n\x0f\x42oolFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x08:\x02\x38\x01\x1a\x31\n\x0f\x42yteFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x1a\x30\n\x0eIntFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\x1a\x32\n\x10Int64FieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\x1a\x31\n\x0fUintFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\r:\x02\x38\x01\x1a\x33\n\x11Uint64FieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x04:\x02\x38\x01\x1a\x33\n\x11\x44oubleFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\x1a\x32\n\x10\x46loatFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02:\x02\x38\x01\"\x18\n\tsubFields\x12\x0b\n\x03Sub\x18\x01 \x03(\t2\xad\x02\n\x05\x43\x61\x62\x61l\x12\x43\n\x0fRegisterService\x12\x1b.intrigue.NewServiceRequest\x1a\x11.intrigue.Receipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x04\x44\x61ta\x12\x15.intrigue.DataRequest\x1a\x16.intrigue.DataResponse\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\xe6\x01\n\x06Remote\x12\x34\n\x0cNotifyAction\x12\x10.intrigue.Action\x1a\x10.intrigue.Action\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\x92\x03\n\x07\x43ontrol\x12\x35\n\x0cStartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x0eRestartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x34\n\x0bKillService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x12\x39\n\nStopServer\x12\x16.intrigue.EmptyRequest\x1a\x11.intrigue.Receipt\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x0eintrigue.proto\x12\x08intrigue\":\n\x11NewServiceRequest\x12%\n\x07Service\x18\x01 \x01(\x0b\x32\x14.intrigue.NewService\"j\n\x07Receipt\x12-\n\x0bserviceInfo\x18\x01 \x01(\x0b\x32\x18.intrigue.ServiceSummary\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x10\n\x08\x46ollowup\x18\x03 \x01(\t\x12\r\n\x05\x45rror\x18\n \x01(\t\"@\n\x0b\x44\x61taRequest\x12\"\n\x07Request\x18\x01 \x01(\x0b\x32\x11.intrigue.Request\x12\r\n\x05\x45rror\x18\x02 \x01(\t\"E\n\x0c\x44\x61taResponse\x12&\n\tResponder\x18\x02 \x01(\x0b\x32\x13.intrigue.Responder\x12\r\n\x05\x45rror\x18\x03 \x01(\t\".\n\x0cWhoIsRequest\x12\x0e\n\x06Sender\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\"5\n\rWhoIsResponse\x12\x15\n\rTargetAddress\x18\x01 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\x0e\n\x0c\x45mptyRequest\"@\n\rServiceUpdate\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"[\n\x06\x41\x63tion\x12\x0f\n\x07Request\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x10\n\x08RemoteID\x18\x05 \x01(\t\x12\x0f\n\x07Message\x18\x04 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"s\n\x0eSummaryReceipt\x12)\n\x07Remotes\x18\x01 \x03(\x0b\x32\x18.intrigue.ProcessManager\x12\'\n\x08Services\x18\x04 \x03(\x0b\x32\x15.intrigue.CoreService\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Ping\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"3\n\x04Pong\x12\x0e\n\x06Status\x18\x01 \x01(\t\x12\x0c\n\x04Time\x18\x02 \x01(\t\x12\r\n\x05\x45rror\x18\x03 \x01(\t\"\xa4\x01\n\x0eProcessManager\x12\n\n\x02ID\x18\x01 \x01(\t\x12\x0c\n\x04Name\x18\x02 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x03 \x01(\t\x12\x11\n\tStartTime\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x08 \x03(\t\x12\x0e\n\x06Status\x18\x07 \x01(\t\x12\x0f\n\x07LogPath\x18\t \x01(\t\x12#\n\x08Services\x18\x04 \x03(\x0b\x32\x11.intrigue.Service\"O\n\nNewService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41liases\x18\x02 \x03(\t\x12\x10\n\x08IsServer\x18\x03 \x01(\x08\x12\x10\n\x08IsClient\x18\x04 \x01(\x08\"B\n\x0eServiceSummary\x12\x0f\n\x07\x41\x64\x64ress\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x12\x13\n\x0b\x46ingerprint\x18\x03 \x01(\t\"\xd4\x01\n\x07Service\x12\n\n\x02Id\x18\n \x01(\t\x12\x0c\n\x04Name\x18\x0b \x01(\t\x12\x0c\n\x04Mode\x18\x17 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x15 \x01(\t\x12\x0c\n\x04Path\x18\x0c \x01(\t\x12\x0f\n\x07LogPath\x18\x14 \x01(\t\x12\x0e\n\x06Status\x18\x0e \x01(\t\x12\x10\n\x08Restarts\x18\x0f \x01(\x05\x12\r\n\x05\x46\x61ils\x18\x18 \x01(\x05\x12\x0b\n\x03Pid\x18\x10 \x01(\x05\x12\x11\n\tStartTime\x18\x11 \x01(\t\x12\x10\n\x08\x46\x61ilTime\x18\x12 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x13 \x03(\t\"\\\n\x0b\x43oreService\x12\x0c\n\x04Name\x18\x01 \x01(\t\x12\x0f\n\x07\x41\x64\x64ress\x18\x02 \x01(\t\x12\x0c\n\x04Mode\x18\x03 \x01(\t\x12\x10\n\x08ParentID\x18\x05 \x01(\t\x12\x0e\n\x06\x45rrors\x18\x04 \x03(\t\"\x8e\x01\n\x07Request\x12\x0e\n\x06Sender\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x0e\n\x06Method\x18\x03 \x01(\t\x12\r\n\x05\x44\x61ta1\x18\x32 \x01(\t\x12\"\n\x05Tport\x18\x37 \x01(\x0b\x32\x13.intrigue.Transport\x12 \n\x05Pload\x18< \x01(\x0b\x32\x11.intrigue.Payload\"\x95\x01\n\tResponder\x12\x0e\n\x06Result\x18\x32 \x01(\t\x12\x13\n\x0b\x45rrorString\x18\x62 \x01(\t\x12\x10\n\x08HadError\x18\x63 \x01(\x08\x12\"\n\x05Tport\x18\x37 \x01(\x0b\x32\x13.intrigue.Transport\x12 \n\x05Pload\x18< \x01(\x0b\x32\x11.intrigue.Payload\x12\x0b\n\x03\x45rr\x18\x41 \x01(\t\";\n\tTransport\x12\x0e\n\x06Sender\x18\x01 \x01(\t\x12\x0e\n\x06Target\x18\x02 \x01(\t\x12\x0e\n\x06Method\x18\x03 \x01(\t\"\x9d\t\n\x07Payload\x12-\n\x06\x46ields\x18\x32 \x03(\x0b\x32\x1d.intrigue.Payload.FieldsEntry\x12)\n\x04JSON\x18\x37 \x03(\x0b\x32\x1b.intrigue.Payload.JSONEntry\x12\x35\n\nTextFields\x18< \x03(\x0b\x32!.intrigue.Payload.TextFieldsEntry\x12\x35\n\nBoolFields\x18> \x03(\x0b\x32!.intrigue.Payload.BoolFieldsEntry\x12\x35\n\nByteFields\x18@ \x03(\x0b\x32!.intrigue.Payload.ByteFieldsEntry\x12\x33\n\tIntFields\x18\x42 \x03(\x0b\x32 .intrigue.Payload.IntFieldsEntry\x12\x37\n\x0bInt64Fields\x18\x44 \x03(\x0b\x32\".intrigue.Payload.Int64FieldsEntry\x12\x35\n\nUintFields\x18\x46 \x03(\x0b\x32!.intrigue.Payload.UintFieldsEntry\x12\x39\n\x0cUint64Fields\x18H \x03(\x0b\x32#.intrigue.Payload.Uint64FieldsEntry\x12\x39\n\x0c\x44oubleFields\x18J \x03(\x0b\x32#.intrigue.Payload.DoubleFieldsEntry\x12\x37\n\x0b\x46loatFields\x18L \x03(\x0b\x32\".intrigue.Payload.FloatFieldsEntry\x1a\x42\n\x0b\x46ieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\"\n\x05value\x18\x02 \x01(\x0b\x32\x13.intrigue.subFields:\x02\x38\x01\x1a+\n\tJSONEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x1a\x31\n\x0fTextFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x31\n\x0f\x42oolFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x08:\x02\x38\x01\x1a\x31\n\x0f\x42yteFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\x1a\x30\n\x0eIntFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\x1a\x32\n\x10Int64FieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\x1a\x31\n\x0fUintFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\r:\x02\x38\x01\x1a\x33\n\x11Uint64FieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x04:\x02\x38\x01\x1a\x33\n\x11\x44oubleFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x01:\x02\x38\x01\x1a\x32\n\x10\x46loatFieldsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02:\x02\x38\x01\"\x18\n\tsubFields\x12\x0b\n\x03Sub\x18\x01 \x03(\t2\xe9\x02\n\x05\x43\x61\x62\x61l\x12\x43\n\x0fRegisterService\x12\x1b.intrigue.NewServiceRequest\x1a\x11.intrigue.Receipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x04\x44\x61ta\x12\x15.intrigue.DataRequest\x1a\x16.intrigue.DataResponse\"\x00\x12:\n\x05WhoIs\x12\x16.intrigue.WhoIsRequest\x1a\x17.intrigue.WhoIsResponse\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\xe6\x01\n\x06Remote\x12\x34\n\x0cNotifyAction\x12\x10.intrigue.Action\x1a\x10.intrigue.Action\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x32\x92\x03\n\x07\x43ontrol\x12\x35\n\x0cStartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x0eRestartService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x34\n\x0bKillService\x12\x10.intrigue.Action\x1a\x11.intrigue.Receipt\"\x00\x12\x37\n\x07Summary\x12\x10.intrigue.Action\x1a\x18.intrigue.SummaryReceipt\"\x00\x12\x42\n\x12UpdateRegistration\x12\x17.intrigue.ServiceUpdate\x1a\x11.intrigue.Receipt\"\x00\x12)\n\x05\x41live\x12\x0e.intrigue.Ping\x1a\x0e.intrigue.Pong\"\x00\x12\x39\n\nStopServer\x12\x16.intrigue.EmptyRequest\x1a\x11.intrigue.Receipt\"\x00\x62\x06proto3')
 )
 
 
@@ -184,6 +184,82 @@ _DATARESPONSE = _descriptor.Descriptor(
 )
 
 
+_WHOISREQUEST = _descriptor.Descriptor(
+  name='WhoIsRequest',
+  full_name='intrigue.WhoIsRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='Sender', full_name='intrigue.WhoIsRequest.Sender', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='Target', full_name='intrigue.WhoIsRequest.Target', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=333,
+  serialized_end=379,
+)
+
+
+_WHOISRESPONSE = _descriptor.Descriptor(
+  name='WhoIsResponse',
+  full_name='intrigue.WhoIsResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='TargetAddress', full_name='intrigue.WhoIsResponse.TargetAddress', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='Error', full_name='intrigue.WhoIsResponse.Error', index=1,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=381,
+  serialized_end=434,
+)
+
+
 _EMPTYREQUEST = _descriptor.Descriptor(
   name='EmptyRequest',
   full_name='intrigue.EmptyRequest',
@@ -203,8 +279,8 @@ _EMPTYREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=333,
-  serialized_end=347,
+  serialized_start=436,
+  serialized_end=450,
 )
 
 
@@ -248,8 +324,8 @@ _SERVICEUPDATE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=349,
-  serialized_end=413,
+  serialized_start=452,
+  serialized_end=516,
 )
 
 
@@ -307,8 +383,8 @@ _ACTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=415,
-  serialized_end=506,
+  serialized_start=518,
+  serialized_end=609,
 )
 
 
@@ -352,8 +428,8 @@ _SUMMARYRECEIPT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=508,
-  serialized_end=623,
+  serialized_start=611,
+  serialized_end=726,
 )
 
 
@@ -397,8 +473,8 @@ _PING = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=625,
-  serialized_end=676,
+  serialized_start=728,
+  serialized_end=779,
 )
 
 
@@ -442,8 +518,8 @@ _PONG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=678,
-  serialized_end=729,
+  serialized_start=781,
+  serialized_end=832,
 )
 
 
@@ -522,8 +598,8 @@ _PROCESSMANAGER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=732,
-  serialized_end=896,
+  serialized_start=835,
+  serialized_end=999,
 )
 
 
@@ -574,8 +650,8 @@ _NEWSERVICE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=898,
-  serialized_end=977,
+  serialized_start=1001,
+  serialized_end=1080,
 )
 
 
@@ -619,8 +695,8 @@ _SERVICESUMMARY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=979,
-  serialized_end=1045,
+  serialized_start=1082,
+  serialized_end=1148,
 )
 
 
@@ -734,8 +810,8 @@ _SERVICE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1048,
-  serialized_end=1260,
+  serialized_start=1151,
+  serialized_end=1363,
 )
 
 
@@ -793,8 +869,8 @@ _CORESERVICE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1262,
-  serialized_end=1354,
+  serialized_start=1365,
+  serialized_end=1457,
 )
 
 
@@ -859,8 +935,8 @@ _REQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1357,
-  serialized_end=1499,
+  serialized_start=1460,
+  serialized_end=1602,
 )
 
 
@@ -925,8 +1001,8 @@ _RESPONDER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1502,
-  serialized_end=1651,
+  serialized_start=1605,
+  serialized_end=1754,
 )
 
 
@@ -970,8 +1046,8 @@ _TRANSPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1653,
-  serialized_end=1712,
+  serialized_start=1756,
+  serialized_end=1815,
 )
 
 
@@ -1008,8 +1084,8 @@ _PAYLOAD_FIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2321,
-  serialized_end=2387,
+  serialized_start=2424,
+  serialized_end=2490,
 )
 
 _PAYLOAD_JSONENTRY = _descriptor.Descriptor(
@@ -1045,8 +1121,8 @@ _PAYLOAD_JSONENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2389,
-  serialized_end=2432,
+  serialized_start=2492,
+  serialized_end=2535,
 )
 
 _PAYLOAD_TEXTFIELDSENTRY = _descriptor.Descriptor(
@@ -1082,8 +1158,8 @@ _PAYLOAD_TEXTFIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2434,
-  serialized_end=2483,
+  serialized_start=2537,
+  serialized_end=2586,
 )
 
 _PAYLOAD_BOOLFIELDSENTRY = _descriptor.Descriptor(
@@ -1119,8 +1195,8 @@ _PAYLOAD_BOOLFIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2485,
-  serialized_end=2534,
+  serialized_start=2588,
+  serialized_end=2637,
 )
 
 _PAYLOAD_BYTEFIELDSENTRY = _descriptor.Descriptor(
@@ -1156,8 +1232,8 @@ _PAYLOAD_BYTEFIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2536,
-  serialized_end=2585,
+  serialized_start=2639,
+  serialized_end=2688,
 )
 
 _PAYLOAD_INTFIELDSENTRY = _descriptor.Descriptor(
@@ -1193,8 +1269,8 @@ _PAYLOAD_INTFIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2587,
-  serialized_end=2635,
+  serialized_start=2690,
+  serialized_end=2738,
 )
 
 _PAYLOAD_INT64FIELDSENTRY = _descriptor.Descriptor(
@@ -1230,8 +1306,8 @@ _PAYLOAD_INT64FIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2637,
-  serialized_end=2687,
+  serialized_start=2740,
+  serialized_end=2790,
 )
 
 _PAYLOAD_UINTFIELDSENTRY = _descriptor.Descriptor(
@@ -1267,8 +1343,8 @@ _PAYLOAD_UINTFIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2689,
-  serialized_end=2738,
+  serialized_start=2792,
+  serialized_end=2841,
 )
 
 _PAYLOAD_UINT64FIELDSENTRY = _descriptor.Descriptor(
@@ -1304,8 +1380,8 @@ _PAYLOAD_UINT64FIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2740,
-  serialized_end=2791,
+  serialized_start=2843,
+  serialized_end=2894,
 )
 
 _PAYLOAD_DOUBLEFIELDSENTRY = _descriptor.Descriptor(
@@ -1341,8 +1417,8 @@ _PAYLOAD_DOUBLEFIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2793,
-  serialized_end=2844,
+  serialized_start=2896,
+  serialized_end=2947,
 )
 
 _PAYLOAD_FLOATFIELDSENTRY = _descriptor.Descriptor(
@@ -1378,8 +1454,8 @@ _PAYLOAD_FLOATFIELDSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2846,
-  serialized_end=2896,
+  serialized_start=2949,
+  serialized_end=2999,
 )
 
 _PAYLOAD = _descriptor.Descriptor(
@@ -1478,8 +1554,8 @@ _PAYLOAD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1715,
-  serialized_end=2896,
+  serialized_start=1818,
+  serialized_end=2999,
 )
 
 
@@ -1509,8 +1585,8 @@ _SUBFIELDS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2898,
-  serialized_end=2922,
+  serialized_start=3001,
+  serialized_end=3025,
 )
 
 _NEWSERVICEREQUEST.fields_by_name['Service'].message_type = _NEWSERVICE
@@ -1551,6 +1627,8 @@ DESCRIPTOR.message_types_by_name['NewServiceRequest'] = _NEWSERVICEREQUEST
 DESCRIPTOR.message_types_by_name['Receipt'] = _RECEIPT
 DESCRIPTOR.message_types_by_name['DataRequest'] = _DATAREQUEST
 DESCRIPTOR.message_types_by_name['DataResponse'] = _DATARESPONSE
+DESCRIPTOR.message_types_by_name['WhoIsRequest'] = _WHOISREQUEST
+DESCRIPTOR.message_types_by_name['WhoIsResponse'] = _WHOISRESPONSE
 DESCRIPTOR.message_types_by_name['EmptyRequest'] = _EMPTYREQUEST
 DESCRIPTOR.message_types_by_name['ServiceUpdate'] = _SERVICEUPDATE
 DESCRIPTOR.message_types_by_name['Action'] = _ACTION
@@ -1596,6 +1674,20 @@ DataResponse = _reflection.GeneratedProtocolMessageType('DataResponse', (_messag
   # @@protoc_insertion_point(class_scope:intrigue.DataResponse)
   ))
 _sym_db.RegisterMessage(DataResponse)
+
+WhoIsRequest = _reflection.GeneratedProtocolMessageType('WhoIsRequest', (_message.Message,), dict(
+  DESCRIPTOR = _WHOISREQUEST,
+  __module__ = 'intrigue_pb2'
+  # @@protoc_insertion_point(class_scope:intrigue.WhoIsRequest)
+  ))
+_sym_db.RegisterMessage(WhoIsRequest)
+
+WhoIsResponse = _reflection.GeneratedProtocolMessageType('WhoIsResponse', (_message.Message,), dict(
+  DESCRIPTOR = _WHOISRESPONSE,
+  __module__ = 'intrigue_pb2'
+  # @@protoc_insertion_point(class_scope:intrigue.WhoIsResponse)
+  ))
+_sym_db.RegisterMessage(WhoIsResponse)
 
 EmptyRequest = _reflection.GeneratedProtocolMessageType('EmptyRequest', (_message.Message,), dict(
   DESCRIPTOR = _EMPTYREQUEST,
@@ -1816,8 +1908,8 @@ _CABAL = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=2925,
-  serialized_end=3226,
+  serialized_start=3028,
+  serialized_end=3389,
   methods=[
   _descriptor.MethodDescriptor(
     name='RegisterService',
@@ -1847,9 +1939,18 @@ _CABAL = _descriptor.ServiceDescriptor(
     serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
+    name='WhoIs',
+    full_name='intrigue.Cabal.WhoIs',
+    index=3,
+    containing_service=None,
+    input_type=_WHOISREQUEST,
+    output_type=_WHOISRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
     name='Summary',
     full_name='intrigue.Cabal.Summary',
-    index=3,
+    index=4,
     containing_service=None,
     input_type=_ACTION,
     output_type=_SUMMARYRECEIPT,
@@ -1858,7 +1959,7 @@ _CABAL = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='Alive',
     full_name='intrigue.Cabal.Alive',
-    index=4,
+    index=5,
     containing_service=None,
     input_type=_PING,
     output_type=_PONG,
@@ -1876,8 +1977,8 @@ _REMOTE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=1,
   serialized_options=None,
-  serialized_start=3229,
-  serialized_end=3459,
+  serialized_start=3392,
+  serialized_end=3622,
   methods=[
   _descriptor.MethodDescriptor(
     name='NotifyAction',
@@ -1927,8 +2028,8 @@ _CONTROL = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=2,
   serialized_options=None,
-  serialized_start=3462,
-  serialized_end=3864,
+  serialized_start=3625,
+  serialized_end=4027,
   methods=[
   _descriptor.MethodDescriptor(
     name='StartService',

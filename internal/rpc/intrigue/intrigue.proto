@@ -7,6 +7,7 @@ service Cabal {
     rpc UpdateRegistration (ServiceUpdate) returns (Receipt) {}
     
     rpc Data (DataRequest) returns (DataResponse) {}
+    rpc WhoIs (WhoIsRequest) returns (WhoIsResponse) {}
 
     rpc Summary (Action) returns (SummaryReceipt) {}
     rpc Alive (Ping) returns (Pong) {}
@@ -52,6 +53,16 @@ message DataRequest{
 
 message DataResponse{
     Responder Responder = 2;
+    string Error = 3;
+}
+
+message WhoIsRequest {
+    string Sender = 1;
+    string Target = 2;
+}
+
+message WhoIsResponse {
+    string TargetAddress = 1;
     string Error = 3;
 }
 

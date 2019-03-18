@@ -104,6 +104,24 @@ func (s *cabalServer) Data(ctx context.Context, in *intrigue.DataRequest) (*intr
 	return final, nil
 }
 
+func (s *cabalServer) WhoIs(ctx context.Context, in *intrigue.WhoIsRequest) (*intrigue.WhoIsResponse, error) {
+	c, err := GetCore()
+	if err != nil {
+		logData("<-- could not get core error=%s", err.Error())
+		return &intrigue.WhoIsResponse{Error: "core.ref"}, nil
+	}
+
+	logData("-> WhoIsRequest=%s", in.String())
+	// sender := in.GetSender()
+	target := in.GetTarget()
+
+	serv, err := c.Router.LookupService(target)
+	if err != nil {
+		return &intrigue.WhoIsResponse{Error: "core.ref"}, nil
+	}
+	return &intrigue.WhoIsResponse{TargetAddress: serv.Address}, nil
+}
+
 func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
 
 	logData("-> Update Registration; Update=%s", in.String())

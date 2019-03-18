@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"google.golang.org/grpc"
@@ -57,7 +58,22 @@ func register(name string, isClient bool, isServer bool, mode string) (*registra
 
 func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
-	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
+	addr, ok := g.whoIs[target]
+	if !ok {
+		notify.LnRedF("not found in whoIs table")
+
+		err := makeWhoIsRequest(target)
+		if err != nil {
+			r := Responder{err: err.Error()}
+
+			return r, err
+		}
+		notify.LnYellowF("address from Core=%s", g.whoIs[target])
+	}
+	notify.LnRedF("addr=%s\n", addr)
+
+	t := time.Now()
+	client, ctx, can, err := rpc.GetCabalRequest(g.whoIs[target], time.Second)
 	if err != nil {
 		return Responder{}, errors.New("data.gmbhUnavailable")
 	}
@@ -76,7 +92,7 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	g.printer("<==" + mcs + "== target: " + target + ", method: " + method)
+	g.printer("<=" + mcs + "= target: " + target + ", method: " + method)
 
 	reply, err := client.Data(ctx, &request)
 	if err != nil {
@@ -84,9 +100,28 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 		return r, err
 
 	}
-	g.printer(" ==" + mcs + "==> " + reply.String())
+	g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
+
 	if reply.Responder == nil {
 		return responderFromProto(intrigue.Responder{}), nil
 	}
 	return responderFromProto(*reply.Responder), nil
+}
+
+func makeWhoIsRequest(target string) error {
+
+	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
+	defer can()
+	if err != nil {
+		return err
+	}
+
+	request := intrigue.WhoIsRequest{Target: target, Sender: g.opts.service.Name}
+	reply, err := client.WhoIs(ctx, &request)
+	if err != nil {
+		return err
+	}
+
+	g.whoIs[target] = reply.TargetAddress
+	return nil
 }

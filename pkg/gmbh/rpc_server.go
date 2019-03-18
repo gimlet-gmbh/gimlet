@@ -123,6 +123,9 @@ func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.S
 	return response, nil
 }
 
+func (s *_server) WhoIs(ctx context.Context, in *intrigue.WhoIsRequest) (*intrigue.WhoIsResponse, error) {
+	return &intrigue.WhoIsResponse{Error: "unsupported in client"}, nil
+}
 func (s *_server) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
