@@ -14,7 +14,7 @@ func (g *Client) connect() {
 		return
 	}
 
-	reg, status := register(g.opts.service.Name, true, true, "")
+	reg, status := register()
 	for status != nil {
 		if status.Error() != "registration.gmbhUnavailable" {
 			g.printer("gmbh internal error")
@@ -26,7 +26,7 @@ func (g *Client) connect() {
 		}
 		g.printer("Could not reach gmbh-core, trying again in 5 seconds")
 		time.Sleep(time.Second * 5)
-		reg, status = register(g.opts.service.Name, true, true, "")
+		reg, status = register()
 
 	}
 

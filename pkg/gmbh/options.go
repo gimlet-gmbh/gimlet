@@ -41,6 +41,14 @@ type ServiceOptions struct {
 
 	// Aliases - like the name, must be unique across all services; act as shortcut names
 	Aliases []string
+
+	// The group_id defines services that are allowed to connect directly with each-
+	// other and bypass the core for faster communications.
+	//
+	// The id assignment is arbitrary as long as each intended one has the same id.
+	// NOTE: Any services where the group_id is undefined will be able to talk to
+	//       eachother freely.
+	PeerGroup string
 }
 
 var defaultOptions = options{
@@ -52,8 +60,9 @@ var defaultOptions = options{
 		CoreAddress: config.DefaultSystemCore.Address,
 	},
 	service: &ServiceOptions{
-		Name:    "",
-		Aliases: make([]string, 0),
+		Name:      "",
+		Aliases:   make([]string, 0),
+		PeerGroup: "universal",
 	},
 }
 

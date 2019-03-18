@@ -43,10 +43,8 @@ func handleDataRequest(req intrigue.Request) (*intrigue.Responder, error) {
 		g.printer("could not find hander=%s", request.transport.Method)
 		responder.err = "could not find method in service map"
 	} else {
-		g.printer("sending to hander=%s", request.transport.Method)
 		handler(request, &responder)
 	}
 	protoResponder := responder.proto()
-	g.printer(protoResponder.String())
 	return protoResponder, nil
 }

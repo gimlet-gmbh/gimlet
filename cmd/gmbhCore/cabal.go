@@ -105,21 +105,47 @@ func (s *cabalServer) Data(ctx context.Context, in *intrigue.DataRequest) (*intr
 }
 
 func (s *cabalServer) WhoIs(ctx context.Context, in *intrigue.WhoIsRequest) (*intrigue.WhoIsResponse, error) {
+
+	logData("-> WhoIsRequest=%s", in.String())
+	target := in.GetTarget()
+	sender := in.GetSender()
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return &intrigue.WhoIsResponse{Error: "invalid request"}, nil
+	}
+
 	c, err := GetCore()
 	if err != nil {
-		logData("<-- could not get core error=%s", err.Error())
 		return &intrigue.WhoIsResponse{Error: "core.ref"}, nil
 	}
 
-	logData("-> WhoIsRequest=%s", in.String())
-	// sender := in.GetSender()
-	target := in.GetTarget()
+	name := strings.Join(md.Get("sender"), "")
+	fp := strings.Join(md.Get("fingerprint"), "")
+
+	verified := c.Router.Verify(name, fp)
+	if verified != nil {
+		logData("could not verify %s; err=%s", name, verified.Error())
+		return &intrigue.WhoIsResponse{Error: verified.Error()}, nil
+	}
+
+	fromserv, err := c.Router.LookupService(sender)
+	if err != nil {
+		logData("could not verify %s; err=%s", name, verified.Error())
+		return &intrigue.WhoIsResponse{Error: err.Error()}, nil
+	}
 
 	serv, err := c.Router.LookupService(target)
 	if err != nil {
-		return &intrigue.WhoIsResponse{Error: "core.ref"}, nil
+		return &intrigue.WhoIsResponse{Error: "core.router.notFound"}, nil
 	}
-	return &intrigue.WhoIsResponse{TargetAddress: serv.Address}, nil
+
+	if fromserv.PeerGroup == serv.PeerGroup || serv.PeerGroup == "universal" {
+		logData("<- granted; %s -> %s", fromserv.Name, serv.Name)
+		return &intrigue.WhoIsResponse{TargetAddress: serv.Address}, nil
+	}
+	logData("<- mismatch peer groups; %s -> %s; err=%s", fromserv.Name, serv.Name, verified.Error())
+	return &intrigue.WhoIsResponse{Error: "permission.denied"}, nil
 }
 
 func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {

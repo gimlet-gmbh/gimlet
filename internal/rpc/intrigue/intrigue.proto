@@ -116,6 +116,7 @@ message NewService {
     repeated string Aliases = 2;
     bool IsServer = 3;
     bool IsClient = 4;
+    string PeerGroup = 5;
 }
 
 message ServiceSummary {
