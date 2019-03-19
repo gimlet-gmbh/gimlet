@@ -415,6 +415,9 @@ type GmbhService struct {
 	// the address to the service
 	Address string
 
+	// the peer group is the service defined group of
+	PeerGroup string
+
 	// The time that the service was added to the router
 	Added time.Time
 

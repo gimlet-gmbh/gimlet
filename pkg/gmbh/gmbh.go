@@ -71,6 +71,13 @@ type Client struct {
 	// parentID is used only when running inside of a remotepm
 	parentID string
 
+	// whoIs map [name]address
+	//
+	// if the name is not found in the map, a whois request will be sent to gmbhCore
+	// where it will be determined if the service can make the connection. The resulting
+	// address will be stored in this map
+	whoIs map[string]string
+
 	msgCounter int
 	mu         *sync.Mutex
 
@@ -107,6 +114,7 @@ func NewClient(opt ...Option) (*Client, error) {
 
 	g = &Client{
 		registeredFunctions: make(map[string]HandlerFunc),
+		whoIs:               make(map[string]string),
 		mu:                  &sync.Mutex{},
 		pingHelpers:         []*pingHelper{},
 		PongTime:            time.Second * 45,

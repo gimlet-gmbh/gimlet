@@ -56,6 +56,9 @@ func NewPayload() *Payload {
 
 // GetStringField returns the value of payload.TextFields at key
 func (p *Payload) GetStringField(key string) string {
+	if p == nil {
+		return ""
+	}
 	if p.TextFields == nil {
 		return ""
 	}

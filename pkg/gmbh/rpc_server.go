@@ -82,8 +82,7 @@ func (s *_server) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	// g.printer("==" + mcs + "==> from: " + in.GetRequest().GetSender() + "; method: " + in.GetRequest().GetMethod())
-	g.printer("=="+mcs+"==> message:=$s", in.GetRequest().String())
+	g.printer("=="+mcs+"==> from=%s; method=%s", in.GetRequest().GetTport().GetSender(), in.GetRequest().GetTport().GetMethod())
 
 	responder, err := handleDataRequest(*in.GetRequest())
 	if err != nil {
@@ -123,6 +122,9 @@ func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.S
 	return response, nil
 }
 
+func (s *_server) WhoIs(ctx context.Context, in *intrigue.WhoIsRequest) (*intrigue.WhoIsResponse, error) {
+	return &intrigue.WhoIsResponse{Error: "unsupported in client"}, nil
+}
 func (s *_server) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue.Pong, error) {
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
