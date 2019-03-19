@@ -133,7 +133,7 @@ func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 
 	if c.mode == "managed" {
-		c.vi("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
+		logCore("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGQUIT)
 		signal.Ignore(syscall.SIGTRAP, syscall.SIGINT)
 	} else {
