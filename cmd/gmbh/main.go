@@ -346,8 +346,7 @@ func (l *launcher) launch() {
 	} else if runtime.GOOS == "linux" {
 		binPath = config.ProcmBinPathLinux
 	} else if runtime.GOOS == "windows" {
-		notify.LnRedF("windows binaries location not configured")
-		return
+		binPath = "gmbhProcm"
 	}
 
 	if binPath == "" {
@@ -356,7 +355,16 @@ func (l *launcher) launch() {
 
 	for i, f := range l.NodeFiles {
 
-		cmd := exec.Command(binPath, append(args, "--config="+f)...)
+		var cmd *exec.Cmd
+		argSlice := append(args, "--config=\""+f+"\"")
+		winArgSlice := []string{"/C", binPath}
+		winCmdSlice := append(winArgSlice, argSlice...)
+		fmt.Println(winCmdSlice)
+		if runtime.GOOS == "windows" {
+			cmd = exec.Command("cmd", winCmdSlice...)
+		} else {
+			cmd = exec.Command(binPath, append(args, "--config=\""+f+"\"")...)
+		}
 
 		f, err := getLogFile(config.LogPath, "node-"+strconv.Itoa(i+1)+".log")
 		if err == nil {
