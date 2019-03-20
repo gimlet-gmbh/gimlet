@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version of gmbh{Core,Procm,Data}
-	Version = "0.9.2"
+	Version = "0.9.5"
 
 	// Code name of gmbh release
 	Code = "launching"
@@ -41,7 +41,7 @@ var (
 
 // DefaultSystemProcm holds the default procm settings
 var DefaultSystemProcm = &SystemProcm{
-	Address:   "localhost:59500",
+	Address:   "127.0.0.1:59500",
 	KeepAlive: duration{time.Second * 45},
 	Verbose:   true,
 	BinPath:   filepath.Join(os.Getenv("$GOPATH"), "bin", "gmbhProcm"),
@@ -52,7 +52,7 @@ var DefaultSystemCore = &SystemCore{
 	Mode:      "local",
 	Verbose:   true,
 	Daemon:    false,
-	Address:   "localhost:49500",
+	Address:   ":49500",
 	KeepAlive: duration{time.Second * 45},
 	BinPath:   filepath.Join(os.Getenv("$GOPATH"), "bin", "gmbhCore"),
 }

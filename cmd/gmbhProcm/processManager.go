@@ -107,7 +107,7 @@ func NewProcessManager(configFile string, v bool) *ProcessManager {
 	notify.LnCyanF("  _  ._ _  |_  |_| |_) ._ _   _ |\\/| ")
 	notify.LnCyanF(" (_| | | | |_) | | |   | (_) (_ |  |  ")
 	notify.LnCyanF("  _|                                  ")
-
+	notify.LnCyanF("version=%s", procm.Version)
 	return procm
 }
 

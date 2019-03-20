@@ -18,7 +18,6 @@
                     * Only services defined in docker-compose
             * launching remote services
             * generating docker-compose for cluster
-- [x] Protobuffers need refactored badly!
 - [ ] Module Support
     * No more GOPATH, hopefully makes installation easier for everybody
 - [ ] Language Support 

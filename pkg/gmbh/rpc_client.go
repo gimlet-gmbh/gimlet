@@ -19,7 +19,7 @@ import (
 
 func register() (*registration, error) {
 
-	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
+	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second*3)
 	if err != nil {
 		return nil, errors.New("registration.gmbhUnavailable")
 	}
