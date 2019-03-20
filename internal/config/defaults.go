@@ -41,7 +41,7 @@ var (
 
 // DefaultSystemProcm holds the default procm settings
 var DefaultSystemProcm = &SystemProcm{
-	Address:   "127.0.0.1:59500",
+	Address:   ":59500",
 	KeepAlive: duration{time.Second * 45},
 	Verbose:   true,
 	BinPath:   filepath.Join(os.Getenv("$GOPATH"), "bin", "gmbhProcm"),
