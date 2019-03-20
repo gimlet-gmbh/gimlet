@@ -179,7 +179,7 @@ func (r *Remote) connect() {
 		return
 	}
 
-	print("attempting to connect to core")
+	print("attempting to connect to core @ " + r.coreAddress)
 
 	reg, status := r.makeCoreConnectRequest()
 	for status != nil {
