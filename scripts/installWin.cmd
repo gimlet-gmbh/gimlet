@@ -6,7 +6,6 @@ IF "%GOPATH%"=="" (
     EXIT /B
 )
 
-link_packagesWin.cmd
-cd ..
-install_deps.cmd
-install_package.cmd
+call link_packagesWin.cmd
+call install_deps.cmd
+call install_package.cmd
