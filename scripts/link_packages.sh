@@ -2,7 +2,7 @@
 
 # Creates a symbolic link to all folders in ./internal to the correct destination
 # so that the Go Toolchain can find them without changing your GOPATH.
-
+IFS=''
 if [ $GOPATH == ""]; then
     echo "GOPATH must be set before installing gmbh packages."
     exit
@@ -16,7 +16,7 @@ echo "linking gmbh at $GMBH_PATH"
 
 # Link the internal packages for building the core
 for dir in ../internal/*/
-do  
+do
     dir=${dir%*/}
     PKG_PATH=$GMBH_PATH"/"${dir##*/}
     if [ -d $PKG_PATH ]; then
@@ -32,8 +32,7 @@ done
 # Link the go client package
 if [ -d $GMBH_PATH/gmbh ]; then
     echo "gmbh is already linked"
-else 
+else
     ln -s $PWD"/../pkg/gmbh" $GMBH_PATH"/gmbh"
     echo "linking gmbh to go path"
 fi
-

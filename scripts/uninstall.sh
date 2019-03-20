@@ -1,5 +1,7 @@
 #!/bin/bash
 
+IFS=''
+
 if [ $GOPATH == ""]; then
     echo "GOPATH must be set before installing gmbh packages."
     exit

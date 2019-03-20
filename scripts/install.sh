@@ -5,7 +5,7 @@
 #     echo "GOPATH is not set. Will attempt to use GOPATH=$HOME/go"
 #     export GOPATH=$HOME/go
 # fi
-
+IFS=''
 if [ $GOPATH == ""]; then
     echo "GOPATH must be set before installing gmbh packages."
     echo "\"\$GOPATH/bin\" must also be set to run gmbh from the command line."
