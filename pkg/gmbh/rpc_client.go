@@ -9,13 +9,14 @@ import (
 	"github.com/gmbh-micro/rpc/intrigue"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 )
 
 /**********************************************************************************
 ** RPCClient
 **********************************************************************************/
 
-func register(name string, isClient bool, isServer bool, mode string) (*registration, error) {
+func register() (*registration, error) {
 
 	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
 	if err != nil {
@@ -25,10 +26,11 @@ func register(name string, isClient bool, isServer bool, mode string) (*registra
 
 	request := intrigue.NewServiceRequest{
 		Service: &intrigue.NewService{
-			Name:     name,
-			Aliases:  []string{},
-			IsClient: isClient,
-			IsServer: isServer,
+			Name:      g.opts.service.Name,
+			Aliases:   g.opts.service.Aliases,
+			PeerGroup: g.opts.service.PeerGroup,
+			IsClient:  true,
+			IsServer:  true,
 		},
 	}
 
@@ -57,7 +59,20 @@ func register(name string, isClient bool, isServer bool, mode string) (*registra
 
 func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
-	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
+	_, ok := g.whoIs[target]
+	if !ok {
+		g.printer("getting address for " + target)
+
+		err := makeWhoIsRequest(target)
+		if err != nil {
+			r := Responder{err: err.Error()}
+			g.printer("could not get " + target + " from core")
+			return r, err
+		}
+	}
+
+	t := time.Now()
+	client, ctx, can, err := rpc.GetCabalRequest(g.whoIs[target], time.Second)
 	if err != nil {
 		return Responder{}, errors.New("data.gmbhUnavailable")
 	}
@@ -76,7 +91,7 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	g.printer("<==" + mcs + "== target: " + target + ", method: " + method)
+	g.printer("<=" + mcs + "= target: " + target + ", method: " + method)
 
 	reply, err := client.Data(ctx, &request)
 	if err != nil {
@@ -84,9 +99,35 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 		return r, err
 
 	}
-	g.printer(" ==" + mcs + "==> " + reply.String())
+	g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
+
 	if reply.Responder == nil {
 		return responderFromProto(intrigue.Responder{}), nil
 	}
 	return responderFromProto(*reply.Responder), nil
+}
+
+func makeWhoIsRequest(target string) error {
+
+	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
+	defer can()
+	if err != nil {
+		return err
+	}
+
+	ctx = metadata.AppendToOutgoingContext(
+		ctx,
+		"sender", g.opts.service.Name,
+		"target", "core",
+		"fingerprint", g.reg.fingerprint,
+	)
+
+	request := intrigue.WhoIsRequest{Target: target, Sender: g.opts.service.Name}
+	reply, err := client.WhoIs(ctx, &request)
+	if err != nil {
+		return err
+	}
+
+	g.whoIs[target] = reply.TargetAddress
+	return nil
 }

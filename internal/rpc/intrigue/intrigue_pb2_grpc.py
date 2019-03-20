@@ -29,6 +29,11 @@ class CabalStub(object):
         request_serializer=intrigue__pb2.DataRequest.SerializeToString,
         response_deserializer=intrigue__pb2.DataResponse.FromString,
         )
+    self.WhoIs = channel.unary_unary(
+        '/intrigue.Cabal/WhoIs',
+        request_serializer=intrigue__pb2.WhoIsRequest.SerializeToString,
+        response_deserializer=intrigue__pb2.WhoIsResponse.FromString,
+        )
     self.Summary = channel.unary_unary(
         '/intrigue.Cabal/Summary',
         request_serializer=intrigue__pb2.Action.SerializeToString,
@@ -66,6 +71,13 @@ class CabalServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def WhoIs(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
   def Summary(self, request, context):
     # missing associated documentation comment in .proto file
     pass
@@ -97,6 +109,11 @@ def add_CabalServicer_to_server(servicer, server):
           servicer.Data,
           request_deserializer=intrigue__pb2.DataRequest.FromString,
           response_serializer=intrigue__pb2.DataResponse.SerializeToString,
+      ),
+      'WhoIs': grpc.unary_unary_rpc_method_handler(
+          servicer.WhoIs,
+          request_deserializer=intrigue__pb2.WhoIsRequest.FromString,
+          response_serializer=intrigue__pb2.WhoIsResponse.SerializeToString,
       ),
       'Summary': grpc.unary_unary_rpc_method_handler(
           servicer.Summary,
