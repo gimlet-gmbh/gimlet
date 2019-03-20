@@ -41,7 +41,7 @@ var (
 
 // DefaultSystemProcm holds the default procm settings
 var DefaultSystemProcm = &SystemProcm{
-	Address:   "bridge:59500",
+	Address:   "localhost:59500",
 	KeepAlive: duration{time.Second * 45},
 	Verbose:   true,
 	BinPath:   filepath.Join(os.Getenv("$GOPATH"), "bin", "gmbhProcm"),
@@ -52,7 +52,7 @@ var DefaultSystemCore = &SystemCore{
 	Mode:      "local",
 	Verbose:   true,
 	Daemon:    false,
-	Address:   "bridge:49500",
+	Address:   "localhost:49500",
 	KeepAlive: duration{time.Second * 45},
 	BinPath:   filepath.Join(os.Getenv("$GOPATH"), "bin", "gmbhCore"),
 }

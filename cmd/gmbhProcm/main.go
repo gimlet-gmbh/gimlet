@@ -29,9 +29,16 @@ func main() {
 	flag.Var(&configPaths, "config", "list to config files")
 	flag.Parse()
 
+	coreAddr := config.DefaultSystemProcm.Address
+	try := os.Getenv("DOCKERNETWORK")
+	if try != "" {
+		coreAddr = try
+	}
+
 	// start a remote process manager
 	if *remoteMode {
-		rem, _ := remote.NewRemote(config.DefaultSystemProcm.Address, *verbose)
+
+		rem, _ := remote.NewRemote(coreAddr, *verbose)
 		for _, path := range configPaths {
 
 			sconfs, fingerprint, err := config.ParseServices(path)
@@ -54,7 +61,7 @@ func main() {
 	} else {
 
 		// start a process manager
-		p := NewProcessManager("", *verbose)
+		p := NewProcessManager(coreAddr, *verbose)
 		err := p.Start()
 		if err != nil {
 			panic(err)

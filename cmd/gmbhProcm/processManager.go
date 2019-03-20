@@ -81,7 +81,7 @@ var procm *ProcessManager
 // NewProcessManager instantiates a new pm if one has not already been created. Note that this
 // should be assigned to a global instance to interface with the rpc server. The rpc server should
 // then use the GetProcM function to ensure that the global has not fallen out of scope.
-func NewProcessManager(configFile string, v bool) *ProcessManager {
+func NewProcessManager(coreAddr string, v bool) *ProcessManager {
 
 	// Make sure that it is never allowed to overrite once already instantiated
 	if procm != nil {
@@ -94,7 +94,7 @@ func NewProcessManager(configFile string, v bool) *ProcessManager {
 		Version:    config.Version,
 		CodeName:   config.Code,
 		startTime:  time.Now(),
-		Address:    config.DefaultSystemProcm.Address,
+		Address:    coreAddr,
 		router:     NewRouter(),
 		mode:       Dev,
 		verbose:    v,
