@@ -110,11 +110,12 @@ func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.S
 	response := &intrigue.SummaryReceipt{
 		Services: []*intrigue.CoreService{
 			&intrigue.CoreService{
-				Name:     g.opts.service.Name,
-				Address:  g.getReg().address,
-				Mode:     g.mode,
-				ParentID: g.parentID,
-				Errors:   []string{},
+				Name:       g.opts.service.Name,
+				Address:    g.getReg().address,
+				Mode:       g.mode,
+				PeerGroups: g.opts.service.PeerGroups,
+				ParentID:   g.parentID,
+				Errors:     []string{},
 			},
 		},
 	}

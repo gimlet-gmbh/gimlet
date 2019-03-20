@@ -116,7 +116,8 @@ message NewService {
     repeated string Aliases = 2;
     bool IsServer = 3;
     bool IsClient = 4;
-    string PeerGroup = 5;
+    // string PeerGroup = 5;
+    repeated string PeerGroups = 6;
 }
 
 message ServiceSummary {
@@ -146,6 +147,8 @@ message CoreService {
     string Name = 1;
     string Address = 2;
     string Mode = 3;
+    // string GroupName = 6;
+    repeated string PeerGroups = 7;
     string ParentID = 5;
     repeated string Errors = 4;
 }

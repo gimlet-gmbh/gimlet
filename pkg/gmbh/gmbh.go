@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -137,6 +138,7 @@ func NewClient(opt ...Option) (*Client, error) {
 	g.printer("  _|                                  ")
 	notify.SetHeader("[gmbh]")
 	g.printer("service started from %s", notify.Getpwd())
+	g.printer("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, " "))
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
@@ -213,6 +215,27 @@ func (g *Client) Shutdown(src string) {
 	}
 	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
 	defer os.Exit(0)
+}
+
+func (g *Client) resolveAddress(target string) string {
+
+	addr, ok := g.whoIs[target]
+
+	// address already stored in whoIs map
+	if ok {
+		return addr
+	}
+
+	// ask the core for the address
+	g.printer("getting address for " + target)
+
+	err := makeWhoIsRequest(target)
+	if err == nil {
+		return g.whoIs[target]
+	}
+
+	// send through to see if the core can process the request for us
+	return g.opts.standalone.CoreAddress
 }
 
 /**********************************************************************************

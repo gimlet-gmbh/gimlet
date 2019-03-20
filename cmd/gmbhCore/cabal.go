@@ -26,7 +26,7 @@ func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServi
 
 	newService := in.GetService()
 
-	ns, err := c.Router.AddService(newService.GetName(), newService.GetAliases())
+	ns, err := c.Router.AddService(newService.GetName(), newService.GetAliases(), newService.GetPeerGroups())
 	if err != nil {
 		return &intrigue.Receipt{Error: err.Error()}, nil
 	}
@@ -129,23 +129,19 @@ func (s *cabalServer) WhoIs(ctx context.Context, in *intrigue.WhoIsRequest) (*in
 		return &intrigue.WhoIsResponse{Error: verified.Error()}, nil
 	}
 
-	fromserv, err := c.Router.LookupService(sender)
+	addr, err := c.Router.GrantPermissions(sender, target)
 	if err != nil {
-		logData("could not verify %s; err=%s", name, verified.Error())
-		return &intrigue.WhoIsResponse{Error: err.Error()}, nil
+		if err.Error() == "denied" {
+			logData("<- mismatch peer groups; %s -> %s", sender, target)
+			return &intrigue.WhoIsResponse{Error: "permission.denied"}, nil
+		}
+		logData("<- peer group err=%s; %s -> %s", err.Error(), sender, target)
+		return &intrigue.WhoIsResponse{Error: "server.error"}, nil
 	}
 
-	serv, err := c.Router.LookupService(target)
-	if err != nil {
-		return &intrigue.WhoIsResponse{Error: "core.router.notFound"}, nil
-	}
+	logData("<- granted; %s -> %s", sender, target)
+	return &intrigue.WhoIsResponse{TargetAddress: addr}, nil
 
-	if fromserv.PeerGroup == serv.PeerGroup || serv.PeerGroup == "universal" {
-		logData("<- granted; %s -> %s", fromserv.Name, serv.Name)
-		return &intrigue.WhoIsResponse{TargetAddress: serv.Address}, nil
-	}
-	logData("<- mismatch peer groups; %s -> %s; err=%s", fromserv.Name, serv.Name, verified.Error())
-	return &intrigue.WhoIsResponse{Error: "permission.denied"}, nil
 }
 
 func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {

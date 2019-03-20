@@ -213,7 +213,7 @@ func (r *Router) LookupService(name string) (*GmbhService, error) {
 }
 
 // AddService attaches a service to gmbH
-func (r *Router) AddService(name string, aliases []string) (*GmbhService, error) {
+func (r *Router) AddService(name string, aliases []string, peerGroups []string) (*GmbhService, error) {
 
 	addr, err := r.addressing.NextAddress()
 	if err != nil {
@@ -225,6 +225,7 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 		name,
 		aliases,
 		addr,
+		peerGroups,
 	)
 
 	// check to see if it exists in map already
@@ -389,6 +390,27 @@ func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.Core
 	return ret
 }
 
+// GrantPermissions checks the peer groups of from and to; If they have a common element,
+// then permission for them to speek is granted, else error
+func (r *Router) GrantPermissions(from, to string) (string, error) {
+	fromserv, err := r.LookupService(from)
+	if err != nil {
+		return "", err
+	}
+
+	serv, err := r.LookupService(to)
+	if err != nil {
+		return "", err
+	}
+
+	for k := range fromserv.PeerGroups {
+		if serv.PeerGroups[k] {
+			return serv.Address, nil
+		}
+	}
+	return "", fmt.Errorf("denied")
+}
+
 func (r *Router) assignNextID() string {
 	mu := &sync.Mutex{}
 	mu.Lock()
@@ -415,8 +437,8 @@ type GmbhService struct {
 	// the address to the service
 	Address string
 
-	// the peer group is the service defined group of
-	PeerGroup string
+	// the peer group is the service defined group id
+	PeerGroups map[string]bool
 
 	// The time that the service was added to the router
 	Added time.Time
@@ -438,17 +460,26 @@ func (g *GmbhService) String() string {
 }
 
 // NewService returns a gmbhService object with data filled in
-func NewService(id string, name string, aliases []string, address string) *GmbhService {
-	return &GmbhService{
+func NewService(id string, name string, aliases []string, address string, peerGroups []string) *GmbhService {
+	serv := &GmbhService{
 		ID:          id,
 		Name:        name,
 		Aliases:     aliases,
 		Address:     address,
+		PeerGroups:  make(map[string]bool),
 		Added:       time.Now(),
 		State:       Running,
 		LastPing:    time.Now().Add(time.Hour),
 		Fingerprint: xid.New().String(),
 		mu:          &sync.Mutex{},
+	}
+	serv.setPeerGroups(peerGroups)
+	return serv
+}
+
+func (g *GmbhService) setPeerGroups(pg []string) {
+	for _, v := range pg {
+		g.PeerGroups[v] = true
 	}
 }
 

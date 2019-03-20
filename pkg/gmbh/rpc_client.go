@@ -2,6 +2,7 @@ package gmbh
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -26,11 +27,11 @@ func register() (*registration, error) {
 
 	request := intrigue.NewServiceRequest{
 		Service: &intrigue.NewService{
-			Name:      g.opts.service.Name,
-			Aliases:   g.opts.service.Aliases,
-			PeerGroup: g.opts.service.PeerGroup,
-			IsClient:  true,
-			IsServer:  true,
+			Name:       g.opts.service.Name,
+			Aliases:    g.opts.service.Aliases,
+			PeerGroups: g.opts.service.PeerGroups,
+			IsClient:   true,
+			IsServer:   true,
 		},
 	}
 
@@ -59,20 +60,10 @@ func register() (*registration, error) {
 
 func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
-	_, ok := g.whoIs[target]
-	if !ok {
-		g.printer("getting address for " + target)
-
-		err := makeWhoIsRequest(target)
-		if err != nil {
-			r := Responder{err: err.Error()}
-			g.printer("could not get " + target + " from core")
-			return r, err
-		}
-	}
+	addr := g.resolveAddress(target)
 
 	t := time.Now()
-	client, ctx, can, err := rpc.GetCabalRequest(g.whoIs[target], time.Second)
+	client, ctx, can, err := rpc.GetCabalRequest(addr, time.Second)
 	if err != nil {
 		return Responder{}, errors.New("data.gmbhUnavailable")
 	}
@@ -126,6 +117,10 @@ func makeWhoIsRequest(target string) error {
 	reply, err := client.WhoIs(ctx, &request)
 	if err != nil {
 		return err
+	}
+
+	if reply.GetError() != "" {
+		return fmt.Errorf(reply.GetError())
 	}
 
 	g.whoIs[target] = reply.TargetAddress
