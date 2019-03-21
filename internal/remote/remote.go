@@ -140,9 +140,9 @@ func NewRemote(procmAddr, env string, verbose bool) (*Remote, error) {
 // Start the remote
 func (r *Remote) Start() {
 
-	println("                      _                       ")
-	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
-	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
+	println("                    _                       ")
+	println("  _  ._ _  |_  |_| |_)  _  ._ _   _ _|_  _  ")
+	println(" (_| | | | |_) | | | \\ (/_ | | | (_) |_ (/_ ")
 	println("  _|                                          ")
 	print("started, time=" + time.Now().Format(time.Stamp))
 	print("env=%s; ProcmAddress=%s; hostname=%s", r.env, r.coreAddress, r.host)
