@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/gmbh-micro/config"
@@ -52,9 +51,9 @@ func main() {
 				panic(err)
 			}
 
-			if fingerprint != os.Getenv("FINGERPRINT") {
-				panic(fmt.Errorf("fingerprints do not match (%s != %s)", fingerprint, os.Getenv("FINGERPRINT")))
-			}
+			// if fingerprint != os.Getenv("FINGERPRINT") {
+			// 	panic(fmt.Errorf("fingerprints do not match (%s != %s)", fingerprint, os.Getenv("FINGERPRINT")))
+			// }
 
 			for _, sconf := range sconfs {
 				if os.Getenv("PROJPATH") != "" {
