@@ -46,7 +46,7 @@ func main() {
 		rem, _ := remote.NewRemote(procmAddr, env, *verbose)
 		for _, path := range configPaths {
 
-			sconfs, fingerprint, err := config.ParseServices(path)
+			sconfs, _, err := config.ParseServices(path)
 			if err != nil {
 				panic(err)
 			}
