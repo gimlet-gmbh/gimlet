@@ -57,7 +57,8 @@ type Remote struct {
 	// env is replacing
 	env string
 
-	addr *address.Handler
+	addr  *address.Handler
+	raddr string
 
 	// in containers, this will be the hostname of the container currently being
 	// executed inside of
@@ -336,7 +337,11 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	// env = "C" - must assign own addresses
 	addr := ""
 	if r.env == "C" {
-		addr, _ = r.addr.NextAddress()
+		if r.raddr == "" {
+			addr, _ = r.addr.NextAddress()
+		} else {
+			addr = r.raddr
+		}
 		print("remote address=%s", addr)
 	}
 
