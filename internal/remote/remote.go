@@ -56,6 +56,10 @@ type Remote struct {
 	// env is replacing
 	env string
 
+	// in containers, this will be the hostname of the container currently being
+	// executed inside of
+	host string
+
 	// gmbhShutdown is marked true when sigusr1 has been sent to the pm process.
 	// When this flag is true services that exit will not be restarted as it is
 	// to be used in conjunction with the gmbh process launcher for graceful
@@ -100,7 +104,7 @@ type registration struct {
 var r *Remote
 
 // NewRemote returns a new remote object
-func NewRemote(host, port, env string, verbose bool) (*Remote, error) {
+func NewRemote(ProcmHost, ProcmPort, env string, verbose bool) (*Remote, error) {
 
 	if r != nil {
 		return r, nil
@@ -111,12 +115,18 @@ func NewRemote(host, port, env string, verbose bool) (*Remote, error) {
 		pingHelpers:    make([]*pingHelper, 0),
 		PongDelay:      time.Second * 45,
 		startTime:      time.Now(),
-		coreAddress:    host + port,
+		coreAddress:    ProcmHost + ProcmPort,
 		verbose:        verbose,
 		mode:           os.Getenv("SERVICEMODE"),
 		env:            env,
 		errors:         make([]error, 0),
 		mu:             &sync.Mutex{},
+	}
+
+	if env == "C" {
+		r.host = os.Getenv("HOSTNAME")
+	} else {
+		r.host = config.Localhost
 	}
 
 	return r, nil
@@ -130,7 +140,7 @@ func (r *Remote) Start() {
 	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
 	println("  _|                                          ")
 	print("started, time=" + time.Now().Format(time.Stamp))
-	print("env=%s; address=%s", r.env, r.coreAddress)
+	print("env=%s; ProcmAddress=%s; hostname=%s", r.env, r.coreAddress, r.host)
 
 	// setting mode and choosing shutdown mechanism
 	sig := make(chan os.Signal, 1)
