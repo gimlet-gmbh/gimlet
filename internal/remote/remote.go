@@ -130,6 +130,7 @@ func (r *Remote) Start() {
 	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
 	println("  _|                                          ")
 	print("started, time=" + time.Now().Format(time.Stamp))
+	println("address=%s", r.coreAddress)
 
 	// setting mode and choosing shutdown mechanism
 	sig := make(chan os.Signal, 1)
