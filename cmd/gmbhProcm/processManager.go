@@ -355,8 +355,9 @@ func NewRouter() *Router {
 		remotes:   make(map[string]*RemoteServer),
 		idCounter: 100,
 		addr:      address.NewHandler(config.Localhost, config.RemotePort, config.RemotePort+1000),
-		mu:        &sync.Mutex{},
-		Verbose:   true,
+		// addr:    address.NewHandler(config.Localhost, config.RemotePort, config.RemotePort+1000),
+		mu:      &sync.Mutex{},
+		Verbose: true,
 	}
 	// start the ping handler
 	go r.pingHandler()
