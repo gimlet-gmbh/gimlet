@@ -35,16 +35,16 @@ func main() {
 	// "" = development		-- on a single host (likely localhost)
 	// "C" = containerized	-- in a docker cluster
 
-	host, port := config.Localhost, config.ProcmPort
+	procmAddr := config.DefaultSystemProcm.Address
 	env := os.Getenv("ENV")
 	if env == "C" {
-		host, port = os.Getenv("PROCMHOST"), os.Getenv("PROCMPORT")
+		procmAddr = os.Getenv("PROCM")
 	}
 
 	// start a remote process manager
 	if *remoteMode {
 
-		rem, _ := remote.NewRemote(host, port, env, *verbose)
+		rem, _ := remote.NewRemote(procmAddr, env, *verbose)
 		for _, path := range configPaths {
 
 			sconfs, fingerprint, err := config.ParseServices(path)
@@ -67,7 +67,7 @@ func main() {
 	} else {
 
 		// start a process manager
-		p := NewProcessManager(host, port, env, *verbose)
+		p := NewProcessManager(procmAddr, env, *verbose)
 		err := p.Start()
 		if err != nil {
 			panic(err)

@@ -107,7 +107,7 @@ type registration struct {
 var r *Remote
 
 // NewRemote returns a new remote object
-func NewRemote(ProcmHost, ProcmPort, env string, verbose bool) (*Remote, error) {
+func NewRemote(procmAddr, env string, verbose bool) (*Remote, error) {
 
 	if r != nil {
 		return r, nil
@@ -118,7 +118,7 @@ func NewRemote(ProcmHost, ProcmPort, env string, verbose bool) (*Remote, error) 
 		pingHelpers:    make([]*pingHelper, 0),
 		PongDelay:      time.Second * 45,
 		startTime:      time.Now(),
-		coreAddress:    ProcmHost + ProcmPort,
+		coreAddress:    procmAddr,
 		verbose:        verbose,
 		mode:           os.Getenv("SERVICEMODE"),
 		env:            env,
