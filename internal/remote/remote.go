@@ -20,6 +20,7 @@ import (
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/address"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/gmbh-micro/service"
 
@@ -55,6 +56,8 @@ type Remote struct {
 
 	// env is replacing
 	env string
+
+	addr *address.Handler
 
 	// in containers, this will be the hostname of the container currently being
 	// executed inside of
@@ -125,6 +128,7 @@ func NewRemote(ProcmHost, ProcmPort, env string, verbose bool) (*Remote, error) 
 
 	if env == "C" {
 		r.host = os.Getenv("HOSTNAME")
+		r.addr = address.NewHandler(r.host, config.RemotePort+2, config.RemotePort+1002)
 	} else {
 		r.host = config.Localhost
 	}
@@ -329,9 +333,18 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	}
 	defer can()
 
+	// env = "C" - must assign own addresses
+	addr := ""
+	if r.env == "C" {
+		addr, _ = r.addr.NextAddress()
+		print("remote address=%s", addr)
+	}
+
 	request := &intrigue.ServiceUpdate{
 		Request: "remote.register",
 		Message: r.mode,
+		Env:     r.env,
+		Address: addr,
 	}
 
 	reply, err := client.UpdateRegistration(ctx, request)

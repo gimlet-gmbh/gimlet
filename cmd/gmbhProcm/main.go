@@ -30,9 +30,10 @@ func main() {
 	flag.Parse()
 
 	// ENV key
-	// "M" = managed
-	// "C" = containerized
-	// "" = standalone
+	// "M" = managed 		-- on a single host (likely localhost)
+	//						   using sigusr{1,2} instead of sigint
+	// "" = development		-- on a single host (likely localhost)
+	// "C" = containerized	-- in a docker cluster
 
 	host, port := config.Localhost, config.ProcmPort
 	env := os.Getenv("ENV")

@@ -71,6 +71,8 @@ message EmptyRequest{}//empty
 message ServiceUpdate {
     string Request = 1;
     string Message = 2;
+    string Address = 4;
+    string Env = 5;
     string Error = 3;
 }
 
