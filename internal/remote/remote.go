@@ -362,6 +362,10 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 		fingerprint: reply.GetServiceInfo().GetFingerprint(),
 	}
 
+	if r.env == "C" {
+		reg.address = addr
+	}
+
 	print("registration; id=" + reg.id + "; address=" + reg.address + "; fingerprint=" + reg.fingerprint)
 
 	return reg, nil

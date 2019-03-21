@@ -168,9 +168,9 @@ func (p *ProcessManager) gracefulShutdownListener() {
 }
 
 // RegisterRemote adds the remote to the router and sends back the id and address
-func (p *ProcessManager) RegisterRemote(mode string) (id, address, fingerprint string, err error) {
+func (p *ProcessManager) RegisterRemote(mode, env, addr string) (id, address, fingerprint string, err error) {
 	p.print("registering new remote")
-	rm, err := p.router.AttachNewRemote(mode)
+	rm, err := p.router.AttachNewRemote(mode, env, addr)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -381,15 +381,19 @@ func (r *Router) LookupRemote(id string) (*RemoteServer, error) {
 }
 
 // AttachNewRemote adds the remote to the map and then returns the new remote server object
-func (r *Router) AttachNewRemote(mode string) (*RemoteServer, error) {
+func (r *Router) AttachNewRemote(mode, env, addr string) (*RemoteServer, error) {
 
-	addr, err := r.addr.NextAddress()
-	if err != nil {
-		return nil, err
+	address := addr
+	if env != "C" {
+		var err error
+		address, err = r.addr.NextAddress()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	newRemote := NewRemoteServer(r.assignID(), addr, mode)
-	err = r.addToMap(newRemote)
+	newRemote := NewRemoteServer(r.assignID(), address, mode)
+	err := r.addToMap(newRemote)
 	if err != nil {
 		r.verbose(err.Error())
 		return nil, err
