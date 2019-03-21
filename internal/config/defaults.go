@@ -21,6 +21,12 @@ const (
 	// ServicePort is starting port for assignment to services
 	ServicePort = 49502
 
+	// CorePort ; the default core port
+	CorePort = ":49500"
+
+	// ProcmPort ; the default procm port
+	ProcmPort = ":59500"
+
 	// RemotePort is tarting port for assignment to procm remotes
 	RemotePort = 59502
 )

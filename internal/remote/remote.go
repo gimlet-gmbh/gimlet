@@ -97,7 +97,7 @@ type registration struct {
 var r *Remote
 
 // NewRemote returns a new remote object
-func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
+func NewRemote(host, port string, verbose bool) (*Remote, error) {
 
 	if r != nil {
 		return r, nil
@@ -108,7 +108,7 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 		pingHelpers:    make([]*pingHelper, 0),
 		PongDelay:      time.Second * 45,
 		startTime:      time.Now(),
-		coreAddress:    coreAddress,
+		coreAddress:    host + port,
 		verbose:        verbose,
 		mode:           os.Getenv("SERVICEMODE"),
 		errors:         make([]error, 0),
