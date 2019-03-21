@@ -110,7 +110,8 @@ func NewProcessManager(host, port, env string, v bool) *ProcessManager {
 	notify.LnCyanF("  _  ._ _  |_  |_| |_) ._ _   _ |\\/| ")
 	notify.LnCyanF(" (_| | | | |_) | | |   | (_) (_ |  |  ")
 	notify.LnCyanF("  _|                                  ")
-	notify.LnCyanF("version=%s", procm.Version)
+	procm.print("version=%s", procm.Version)
+	procm.print("env=%s; address=%s", procm.env, procm.Address)
 	return procm
 }
 
@@ -130,7 +131,6 @@ func (p *ProcessManager) Start() error {
 	if err != nil {
 		return err
 	}
-	p.print("serving at " + p.Address)
 	return nil
 }
 
