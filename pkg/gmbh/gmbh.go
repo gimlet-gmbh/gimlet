@@ -142,9 +142,9 @@ func NewClient(opt ...Option) (*Client, error) {
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
-	if os.Getenv("GMBHCORE") != "" {
-		g.opts.standalone.CoreAddress = os.Getenv("GMBHCORE")
-		g.printer("using core address from env=%s", os.Getenv("GMBHCORE"))
+	if os.Getenv("ENV") == "C" {
+		g.opts.standalone.CoreAddress = os.Getenv("CORE")
+		g.printer("using core address from env=%s", os.Getenv("CORE"))
 	} else {
 		g.printer("core address=%s", g.opts.standalone.CoreAddress)
 	}
