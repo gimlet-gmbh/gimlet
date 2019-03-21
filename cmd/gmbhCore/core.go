@@ -43,6 +43,7 @@ type Core struct {
 	// mode can be set to managed to indicate that the service launcher
 	// has launched core and it is being controlled by a remote
 	mode string
+	env  string
 
 	// parent id is for remote instances of core
 	parentID string
@@ -93,6 +94,7 @@ func NewCore(cPath, env, addr string, verbose bool) (*Core, error) {
 		msgCounter:  1,
 		startTime:   time.Now(),
 		mode:        os.Getenv("SERVICEMODE"),
+		env:         env,
 		parentID:    os.Getenv("REMOTE"),
 		mu:          &sync.Mutex{},
 		verbose:     verbose,
@@ -107,7 +109,7 @@ func NewCore(cPath, env, addr string, verbose bool) (*Core, error) {
 	notify.LnCyanF("  _  ._ _  |_  |_| /   _  ._ _  | \\  _. _|_  _. ")
 	notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_ |_/ (_|  |_ (_| ")
 	notify.LnCyanF("  _|                                            ")
-	notify.LnCyanF("version=%v; code=%v; startTime=%s", core.Version, core.Code, core.startTime.Format(time.Stamp))
+	notify.LnCyanF("version=%v; code=%v; env=%s, startTime=%s", core.Version, core.Code, core.env, core.startTime.Format(time.Stamp))
 	return core, nil
 }
 

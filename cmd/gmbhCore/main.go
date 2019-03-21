@@ -19,10 +19,9 @@ func main() {
 	flag.Parse()
 
 	coreAddr := config.DefaultSystemCore.Address
-	// host, port := config.Localhost, config.CorePort
 	env := os.Getenv("ENV")
 	if env == "C" {
-		env = os.Getenv("CORE")
+		coreAddr = os.Getenv("CORE")
 	}
 
 	c, err := NewCore(*configPath, env, coreAddr, *verbose)
