@@ -18,14 +18,14 @@ func main() {
 
 	flag.Parse()
 
-	host, port := config.Localhost, config.CorePort
-	env := "S"
-	if os.Getenv("ENV") == "C" {
-		host, port = os.Getenv("COREHOST"), os.Getenv("COREPORT")
-		env = "C"
+	coreAddr := config.DefaultSystemCore.Address
+	// host, port := config.Localhost, config.CorePort
+	env := os.Getenv("ENV")
+	if env == "C" {
+		env = os.Getenv("CORE")
 	}
 
-	c, err := NewCore(*configPath, env, host, port, *verbose)
+	c, err := NewCore(*configPath, env, coreAddr, *verbose)
 	if err != nil {
 		panic(err)
 	}

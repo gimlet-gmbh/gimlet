@@ -55,7 +55,7 @@ type Core struct {
 
 // NewCore initializes settings of the core and instantiates the core struct which includes the
 // service router and handlers
-func NewCore(cPath, env, host, port string, verbose bool) (*Core, error) {
+func NewCore(cPath, env, addr string, verbose bool) (*Core, error) {
 
 	// cannot reinit core once it has been created
 	// TODO use a "once" function here
@@ -68,7 +68,7 @@ func NewCore(cPath, env, host, port string, verbose bool) (*Core, error) {
 	var err error
 	if cPath == "" {
 		userConfig = config.DefaultSystemCore
-		userConfig.Address = host + port
+		userConfig.Address = addr
 		projpath = notify.Getpwd()
 	} else {
 		userConfig, err = config.ParseSystemCore(cPath)
@@ -80,10 +80,8 @@ func NewCore(cPath, env, host, port string, verbose bool) (*Core, error) {
 	}
 
 	if env == "C" {
-		userConfig.Address = host + port
+		userConfig.Address = addr
 	}
-
-	notify.LnBRedF("%s", userConfig)
 
 	core = &Core{
 		Version:     config.Version,
