@@ -29,15 +29,21 @@ func main() {
 	flag.Var(&configPaths, "config", "list to config files")
 	flag.Parse()
 
+	// ENV key
+	// "M" = managed
+	// "C" = containerized
+	// "" = standalone
+
 	host, port := config.Localhost, config.ProcmPort
-	if os.Getenv("ENV") == "C" {
+	env := os.Getenv("ENV")
+	if env == "C" {
 		host, port = os.Getenv("PROCMHOST"), os.Getenv("PROCMPORT")
 	}
 
 	// start a remote process manager
 	if *remoteMode {
 
-		rem, _ := remote.NewRemote(host, port, *verbose)
+		rem, _ := remote.NewRemote(host, port, env, *verbose)
 		for _, path := range configPaths {
 
 			sconfs, fingerprint, err := config.ParseServices(path)
@@ -60,7 +66,7 @@ func main() {
 	} else {
 
 		// start a process manager
-		p := NewProcessManager(host, port, *verbose)
+		p := NewProcessManager(host, port, env, *verbose)
 		err := p.Start()
 		if err != nil {
 			panic(err)

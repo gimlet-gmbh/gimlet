@@ -53,6 +53,9 @@ type Remote struct {
 	// The mode as read by the environment
 	mode string
 
+	// env is replacing
+	env string
+
 	// gmbhShutdown is marked true when sigusr1 has been sent to the pm process.
 	// When this flag is true services that exit will not be restarted as it is
 	// to be used in conjunction with the gmbh process launcher for graceful
@@ -97,7 +100,7 @@ type registration struct {
 var r *Remote
 
 // NewRemote returns a new remote object
-func NewRemote(host, port string, verbose bool) (*Remote, error) {
+func NewRemote(host, port, env string, verbose bool) (*Remote, error) {
 
 	if r != nil {
 		return r, nil
@@ -111,6 +114,7 @@ func NewRemote(host, port string, verbose bool) (*Remote, error) {
 		coreAddress:    host + port,
 		verbose:        verbose,
 		mode:           os.Getenv("SERVICEMODE"),
+		env:            env,
 		errors:         make([]error, 0),
 		mu:             &sync.Mutex{},
 	}
