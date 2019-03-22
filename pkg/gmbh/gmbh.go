@@ -152,7 +152,7 @@ func NewClient(opt ...Option) (*Client, error) {
 		g.env = "C"
 		g.opts.standalone.CoreAddress = os.Getenv("CORE")
 		g.printer("using core address from env=%s", os.Getenv("CORE"))
-		g.myAddress = os.Getenv("Addr")
+		g.myAddress = os.Getenv("ADDR")
 	} else {
 		g.printer("core address=%s", g.opts.standalone.CoreAddress)
 	}
