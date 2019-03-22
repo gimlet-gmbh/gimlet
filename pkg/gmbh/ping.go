@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"google.golang.org/grpc/metadata"
@@ -38,7 +37,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 				return
 			}
 
-			client, ctx, can, err := rpc.GetCabalRequest(config.DefaultSystemCore.Address, time.Second*30)
+			client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second*30)
 			if err != nil {
 				g.printer(err.Error())
 			}
@@ -59,6 +58,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 				Time: time.Now().Format(time.Stamp),
 			})
 			if err != nil {
+				g.printer("<- pong err=%s, addr=%s", err.Error(), g.opts.standalone.CoreAddress)
 				g.failed()
 				return
 			}
@@ -66,7 +66,7 @@ func (g *Client) sendPing(ph *pingHelper) {
 				can()
 				g.printer("<- pong")
 			} else {
-				g.printer("<- pong err=" + pong.GetError())
+				g.printer("<- pong err=%s, addr=%s", err.Error(), g.opts.standalone.CoreAddress)
 				g.failed()
 				return
 			}

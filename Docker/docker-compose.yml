@@ -1,7 +1,0 @@
-version: '0.9.5'
-services:
-  core:
-    image: "gmbh-img"
-    ports:
-      - "49500:49500"
-      - "59500:59500"
