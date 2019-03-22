@@ -33,6 +33,8 @@ func register() (*registration, error) {
 			IsClient:   true,
 			IsServer:   true,
 		},
+		Address: g.myAddress,
+		Env:     g.env,
 	}
 
 	reply, err := client.RegisterService(ctx, &request)

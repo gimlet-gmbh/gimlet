@@ -37,6 +37,8 @@ service Control {
 
 message NewServiceRequest {
     NewService Service = 1;
+    string Address = 2;
+    string Env = 3;
 }
 
 message Receipt {

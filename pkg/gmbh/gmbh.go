@@ -67,6 +67,12 @@ type Client struct {
 	PongTime  time.Duration
 	PingCount int
 
+	env string
+
+	// the address of the cabal server that the client hosts itself on.
+	// This member var is mostly used for use in "C" env mode, or containerized
+	myAddress string
+
 	state State
 
 	// parentID is used only when running inside of a remotepm
@@ -143,8 +149,10 @@ func NewClient(opt ...Option) (*Client, error) {
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
 	if os.Getenv("ENV") == "C" {
+		g.env = "C"
 		g.opts.standalone.CoreAddress = os.Getenv("CORE")
 		g.printer("using core address from env=%s", os.Getenv("CORE"))
+		g.myAddress = os.Getenv("Addr")
 	} else {
 		g.printer("core address=%s", g.opts.standalone.CoreAddress)
 	}

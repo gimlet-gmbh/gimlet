@@ -26,7 +26,7 @@ func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServi
 
 	newService := in.GetService()
 
-	ns, err := c.Router.AddService(newService.GetName(), newService.GetAliases(), newService.GetPeerGroups())
+	ns, err := c.Router.AddService(newService.GetName(), newService.GetAliases(), newService.GetPeerGroups(), in.GetEnv(), in.GetAddress())
 	if err != nil {
 		return &intrigue.Receipt{Error: err.Error()}, nil
 	}

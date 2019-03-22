@@ -218,18 +218,22 @@ func (r *Router) LookupService(name string) (*GmbhService, error) {
 }
 
 // AddService attaches a service to gmbH
-func (r *Router) AddService(name string, aliases []string, peerGroups []string) (*GmbhService, error) {
+func (r *Router) AddService(name string, aliases []string, peerGroups []string, env, addr string) (*GmbhService, error) {
 
-	addr, err := r.addressing.NextAddress()
-	if err != nil {
-		return nil, err
+	newAddr := addr
+	if env != "C" {
+		var err error
+		newAddr, err = r.addressing.NextAddress()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	newService := NewService(
 		r.assignNextID(),
 		name,
 		aliases,
-		addr,
+		newAddr,
 		peerGroups,
 	)
 
