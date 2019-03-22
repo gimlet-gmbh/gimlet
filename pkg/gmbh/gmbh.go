@@ -142,7 +142,8 @@ func NewClient(opt ...Option) (*Client, error) {
 	g.printer("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
 	g.printer(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
 	g.printer("  _|                                  ")
-	notify.SetHeader("[gmbh]")
+	tag := fmt.Sprintf("[%s]", g.opts.service.Name)
+	notify.SetHeader(tag)
 	g.printer("service started from %s", notify.Getpwd())
 	g.printer("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, " "))
 
