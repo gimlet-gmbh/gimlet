@@ -95,7 +95,7 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 	g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
 
 	if reply.Responder == nil {
-		return responderFromProto(intrigue.Responder{}), nil
+		return Responder{}, nil
 	}
 	return responderFromProto(*reply.Responder), nil
 }

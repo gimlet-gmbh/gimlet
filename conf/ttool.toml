@@ -1,0 +1,91 @@
+##################################################################################
+## gmbH Project
+##################################################################################
+
+
+##################################################################################
+[core]
+##################################################################################
+# 
+mode = "local"
+#
+# Print coreData to stdout and stdErr? This can be overriden with the --verbose 
+# command line flag
+verbose = true
+#
+# For instances where gmbh is running in a container
+daemom = false
+#
+# The address to start the coreData server
+address = "localhost:49500" #default is localhost:49500
+#
+# How long between keep alive messages
+keep_alive = "45s"
+#
+# Path to gmbhCore binary
+core_bin = ""   # default is $GOPATH/bin/gmbhCore
+                # Note cannot interpolate env vars in TOML
+
+##################################################################################
+[procm]
+##################################################################################
+# What address should the ProcM be started at
+address = "localhost:5900" #default is localhost:59500
+#
+# How long between keep alive messages
+keep_alive = "45s"
+#
+# Print gmbhProcM to stdout and stdErr
+verbose = false
+#
+# Path to gmbhProcm binary
+procm_bin = ""  # default is $GOPATH/bin/gmbhProcm
+                # Note cannot interpolate env vars in TOML
+
+
+##################################################################################
+# Services # Holds the array of services to launch from the service launcher and
+############ start in managed mode.
+##################################################################################
+
+    [[service]]
+        args = [""]
+        env = [""]
+        language = ""
+        bin_path = "./services/c0/c0"
+        src_path = ""
+
+    [[service]]
+        args = [""]
+        env = [""]
+        language = ""
+        bin_path = "./services/c1/c1"
+        src_path = ""
+
+    [[service]]
+        args = [""]
+        env = [""]
+        language = ""
+        bin_path = "./services/c2/c2"
+        src_path = ""
+
+    [[service]]
+        args = [""]
+        env = [""]
+        language = ""
+        bin_path = "./services/c3/c3"
+        src_path = ""
+
+    [[service]]
+        args = [""]
+        env = [""]
+        language = ""
+        bin_path = "./services/c4/c4"
+        src_path = ""
+
+    [[service]]
+        args = [""]
+        env = [""]
+        language = ""
+        bin_path = "./services/webserver/ws"
+        src_path = ""

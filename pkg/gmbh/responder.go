@@ -43,9 +43,18 @@ func (r *Responder) GetPayload() *Payload {
 // ResponderFromProto takes a gproto Responder and returns the corresponding
 // Responder object
 func responderFromProto(r intrigue.Responder) Responder {
-	return Responder{
-		payload:   payloadFromProto(r.GetPload()),
-		transport: transportFromProto(r.GetTport()),
-		err:       r.GetErr(),
+
+	ret := Responder{
+		err: r.GetErr(),
 	}
+
+	if r.Pload != nil {
+		ret.SetPayload(payloadFromProto(r.GetPload()))
+	}
+
+	if r.Tport != nil {
+		ret.transport = transportFromProto(r.GetTport())
+	}
+
+	return ret
 }
