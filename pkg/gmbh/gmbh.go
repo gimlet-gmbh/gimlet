@@ -67,8 +67,6 @@ type Client struct {
 	PongTime  time.Duration
 	PingCount int
 
-	env string
-
 	// the address of the cabal server that the client hosts itself on.
 	// This member var is mostly used for use in "C" env mode, or containerized
 	myAddress string
@@ -91,12 +89,12 @@ type Client struct {
 	errors   []string
 	warnings []string
 
-	// mode chooses between signint and sigusr2 for the shutdown listener
-	// depending how how SERVICEMODE environment variable is set
-	//
-	// sigusr 2 is used only if SERVICEMODE=managed and is intended to only be used
-	// in combination with gmbhServiceLauncher
-	mode string
+	// how to handle signals as set by the environment
+	// {M,C,""}
+	// M = managed; use sigusr
+	// C = containerized
+	// "" = standalone
+	env string
 
 	// if a log path can be determined from the environment, it will be stored here and
 	// the printer helper will use it instead of stdOut and stdErr
@@ -125,7 +123,7 @@ func NewClient(opt ...Option) (*Client, error) {
 		mu:                  &sync.Mutex{},
 		pingHelpers:         []*pingHelper{},
 		PongTime:            time.Second * 45,
-		mode:                os.Getenv("SERVICEMODE"),
+		env:                 os.Getenv("ENV"),
 		parentID:            os.Getenv("REMOTE"),
 	}
 
@@ -149,8 +147,7 @@ func NewClient(opt ...Option) (*Client, error) {
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
-	if os.Getenv("ENV") == "C" {
-		g.env = "C"
+	if g.env == "C" {
 		g.opts.standalone.CoreAddress = os.Getenv("CORE")
 		g.printer("using core address from env=%s", os.Getenv("CORE"))
 		g.myAddress = os.Getenv("ADDR")
@@ -160,9 +157,9 @@ func NewClient(opt ...Option) (*Client, error) {
 
 	// the mode is determined if it comes from the environment variable initially, otherwise it is set
 	// to unmanaged
-	if g.mode == "" {
-		g.mode = "unmanaged"
-	}
+	// if g.mode == "" {
+	// 	g.mode = "unmanaged"
+	// }
 
 	// @important -- the only service allowed to be named CoreData is the actual gmbhCore
 	if g.opts.service.Name == "CoreData" {
@@ -189,7 +186,7 @@ func (g *Client) Start() {
 func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
 
-	if g.mode == "managed" {
+	if g.env == "M" {
 		g.printer("managed mode; ignoring siging; listening for sigusr2")
 		signal.Ignore(syscall.SIGINT)
 		signal.Notify(sigs, syscall.SIGUSR2)
@@ -217,10 +214,10 @@ func (g *Client) Shutdown(src string) {
 	g.makeUnregisterRequest()
 	g.disconnect()
 
-	if g.mode == "managed" {
-		g.printer("managed shutdown on return")
-		defer os.Exit(0)
-	}
+	// if g.env == "M" {
+	// g.printer("managed shutdown on return")
+	// defer os.Exit(0)
+	// }
 	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
 	defer os.Exit(0)
 }

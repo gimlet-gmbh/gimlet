@@ -61,7 +61,7 @@ func (s *_server) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUp
 
 		// either shutdown for real or disconnect and try and reach again if
 		// the service wasn't forked from gmbh-core
-		if g.mode == "managed" {
+		if g.env == "M" {
 			go g.Shutdown("core")
 		} else if !g.closed {
 			go func() {
@@ -112,7 +112,7 @@ func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.S
 			&intrigue.CoreService{
 				Name:       g.opts.service.Name,
 				Address:    g.getReg().address,
-				Mode:       g.mode,
+				Mode:       g.env,
 				PeerGroups: g.opts.service.PeerGroups,
 				ParentID:   g.parentID,
 				Errors:     []string{},

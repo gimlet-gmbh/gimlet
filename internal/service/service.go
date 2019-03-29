@@ -87,7 +87,7 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	}
 
 	// in managed mode, a log file is set to capture stdout and stderr
-	if mode == "managed" {
+	if mode == "M" {
 		s.Mode = Managed
 		conf.Signal = syscall.SIGUSR2
 		if !verbose {

@@ -52,9 +52,6 @@ type Remote struct {
 	errors      []error
 
 	// The mode as read by the environment
-	mode string
-
-	// env is replacing
 	env string
 
 	addr  *address.Handler
@@ -121,7 +118,6 @@ func NewRemote(procmAddr, env string, verbose bool) (*Remote, error) {
 		startTime:      time.Now(),
 		coreAddress:    procmAddr,
 		verbose:        verbose,
-		mode:           os.Getenv("SERVICEMODE"),
 		env:            env,
 		errors:         make([]error, 0),
 		mu:             &sync.Mutex{},
@@ -149,12 +145,11 @@ func (r *Remote) Start() {
 
 	// setting mode and choosing shutdown mechanism
 	sig := make(chan os.Signal, 1)
-	if r.mode == "managed" {
+	if r.env == "M" {
 		print("remote is in managed mode; using sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT, syscall.SIGUSR1)
 	} else {
-		r.mode = "standalone"
 		print("remote is in standalone mode; using sigint")
 		signal.Notify(sig, syscall.SIGINT)
 	}
@@ -347,7 +342,7 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 
 	request := &intrigue.ServiceUpdate{
 		Request: "remote.register",
-		Message: r.mode,
+		Message: r.env, // TODO:
 		Env:     r.env,
 		Address: addr,
 	}
@@ -390,7 +385,7 @@ func (r *Remote) AddService(conf *config.ServiceConfig) {
 					return
 				}
 				service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
-				pid, err := service.Start(r.mode, r.verbose)
+				pid, err := service.Start(r.env, r.verbose)
 				if err != nil {
 					perr("could not start service; error=" + err.Error())
 					return
@@ -474,7 +469,7 @@ func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.Serv
 
 		r.pingHelpers = broadcast(r.pingHelpers)
 
-		if r.mode == "managed" {
+		if r.env == "M" {
 			go r.shutdown("procm")
 		} else if !r.closed {
 			go func() {

@@ -40,10 +40,9 @@ type Core struct {
 	// Router controls all aspects of data requests & handling in Core
 	Router *Router
 
-	// mode can be set to managed to indicate that the service launcher
-	// has launched core and it is being controlled by a remote
-	mode string
-	env  string
+	// env is set in the environment and controls the environment that the core is running
+	// in.
+	env string
 
 	// parent id is for remote instances of core
 	parentID string
@@ -93,11 +92,11 @@ func NewCore(cPath, env, addr string, verbose bool) (*Core, error) {
 		Router:      NewRouter(),
 		msgCounter:  1,
 		startTime:   time.Now(),
-		mode:        os.Getenv("SERVICEMODE"),
-		env:         env,
-		parentID:    os.Getenv("REMOTE"),
-		mu:          &sync.Mutex{},
-		verbose:     verbose,
+		// mode:        os.Getenv("SERVICEMODE"),
+		env:      env,
+		parentID: os.Getenv("REMOTE"),
+		mu:       &sync.Mutex{},
+		verbose:  verbose,
 	}
 
 	if core.ProjectPath == "" {
@@ -137,7 +136,7 @@ func (c *Core) Start() {
 func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 
-	if c.mode == "managed" {
+	if c.env == "M" {
 		logCore("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGUSR1, syscall.SIGINT)
@@ -157,7 +156,7 @@ func (c *Core) Wait() {
 func (c *Core) shutdown(remote bool, source string) {
 	logCore("shutdown procedure started from " + source)
 
-	if c.mode != "managed" {
+	if c.env != "M" {
 		done := make(chan bool)
 		go c.Router.sendShutdownNotices(done)
 		<-done

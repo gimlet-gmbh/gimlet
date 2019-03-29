@@ -133,7 +133,7 @@ func launch() {
 	gmbhCmd := exec.Command("gmbhProcm", "--remote", "--config=./gmbh/"+l.CoreServiceFName)
 
 	gmbhEnv := []string{
-		"SERVICEMODE=managed",
+		"ENV=M",
 	}
 
 	addEnv := setLogs(pmCmd, gmbhCmd)
@@ -144,7 +144,7 @@ func launch() {
 		)
 	}
 
-	pmCmd.Env = append(os.Environ(), "SERVICEMODE=managed")
+	pmCmd.Env = append(os.Environ(), "ENV=M")
 	gmbhCmd.Env = append(os.Environ(), gmbhEnv...)
 
 	err = pmCmd.Start()
@@ -329,7 +329,7 @@ func (l *launcher) launch() {
 	binPath := ""
 	args := []string{"--remote"}
 	env := []string{
-		"SERVICEMODE=managed",
+		"ENV=M",
 		"FINGERPRINT=" + l.fingerprint,
 		"PROJPATH=" + notify.Getpwd(),
 	}

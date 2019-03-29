@@ -18,35 +18,6 @@ import (
 	"github.com/rs/xid"
 )
 
-// Mode controls whether new processes can be attached during runtime or if they must be
-// specified before hand in a manifest
-type Mode int
-
-const (
-	// Dev mode allows processes to be attached during runtime
-	Dev Mode = 1 + iota
-
-	// Deploy mode does not allow new processes to be attached during runtime
-	Deploy
-
-	// Open mode works as a true process manager and makes no assumptions about the
-	// processes it will host
-	Open
-)
-
-var modes = [...]string{
-	"Dev",
-	"Deploy",
-	"Open",
-}
-
-func (m Mode) String() string {
-	if Dev <= m && m <= Open {
-		return modes[m-1]
-	}
-	return "%!Mode()"
-}
-
 // ProcessManager is the main controller of the control server.
 //
 // It is in control of managing all remote servers. Remote servers host processes.
@@ -60,14 +31,8 @@ type ProcessManager struct {
 	// This is the address that will host the control server
 	Address string
 
-	// The mode controls how processes are attached
-	mode Mode
-
-	// replacing mode with environment dependent options
+	// mode from env controls things such as how signals are handled
 	env string
-
-	// signalMode controls how signals are handled
-	signalMode string
 
 	// The connection that hosts the control server
 	con *rpc.Connection
@@ -91,19 +56,15 @@ func NewProcessManager(addr, env string, v bool) *ProcessManager {
 		return procm
 	}
 
-	// TODO: Need to parse the config, for now using defaults
-
 	procm = &ProcessManager{
-		Version:    config.Version,
-		CodeName:   config.Code,
-		startTime:  time.Now(),
-		Address:    addr,
-		router:     NewRouter(),
-		mode:       Dev,
-		env:        env,
-		verbose:    v,
-		signalMode: os.Getenv("SERVICEMODE"),
-		mu:         &sync.Mutex{},
+		Version:   config.Version,
+		CodeName:  config.Code,
+		startTime: time.Now(),
+		Address:   addr,
+		router:    NewRouter(),
+		env:       env,
+		verbose:   v,
+		mu:        &sync.Mutex{},
 	}
 
 	notify.LnCyanF("                    _                 ")
@@ -142,7 +103,7 @@ func (p *ProcessManager) Wait() {
 
 	// set up the listener for shutdown
 	sig := make(chan os.Signal, 1)
-	if p.signalMode == "managed" {
+	if p.env == "M" {
 		p.print("procm is in managed mode; overriding sigusr2; ignoring sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT)
@@ -151,7 +112,7 @@ func (p *ProcessManager) Wait() {
 	}
 
 	_ = <-sig
-	fmt.Println() // deadline to align output after sigint
+	fmt.Println() // dead-line to align output after sigint
 
 	p.Shutdown(false)
 }
