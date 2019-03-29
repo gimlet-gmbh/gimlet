@@ -220,7 +220,6 @@ func (g *Client) Shutdown(src string) {
 	if g.mode == "managed" {
 		g.printer("managed shutdown on return")
 		defer os.Exit(0)
-
 	}
 	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
 	defer os.Exit(0)
