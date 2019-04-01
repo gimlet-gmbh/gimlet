@@ -64,7 +64,7 @@ func genDeploy(cfile string) {
 	}
 
 	// why must you be like this, go?
-	numNodes := math.Ceil(float64(len(conf.Service)) / float64(3))
+	numNodes := math.Ceil(float64(len(conf.Service)) / float64(conf.MaxPerNode))
 	fmt.Println("generating node files")
 	fmt.Printf("generating %d services in %d nodes\n", len(conf.Service), int(numNodes))
 
@@ -72,8 +72,8 @@ func genDeploy(cfile string) {
 	ports := make(map[int][]string)
 
 	for i := 0; i < int(numNodes); i++ {
-		start := i * 3
-		end := start + 3
+		start := i * conf.MaxPerNode
+		end := start + conf.MaxPerNode
 		if end > len(conf.Service) {
 			end = len(conf.Service)
 		}
@@ -247,7 +247,7 @@ func genBuildScript(nodes []string, dashboard bool) error {
 	h.WriteString("docker build -t gmbh-dashboard-image -f ./dashboard.Dockerfile ../\n")
 	h.WriteString(config.CheckBash)
 	for _, v := range nodes {
-		h.WriteString(v + "\n")
+		h.WriteString(v)
 		h.WriteString(config.CheckBash)
 	}
 	h.Close()
