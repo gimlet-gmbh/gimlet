@@ -65,9 +65,10 @@ var DefaultSystemCore = &SystemCore{
 
 // DefaultSystemConfig is the complete default system config
 var DefaultSystemConfig = SystemConfig{
-	Core:    DefaultSystemCore,
-	Procm:   DefaultSystemProcm,
-	Service: make([]*ServiceConfig, 0),
+	Core:       DefaultSystemCore,
+	Procm:      DefaultSystemProcm,
+	Service:    make([]*ServiceConfig, 0),
+	MaxPerNode: 1,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////

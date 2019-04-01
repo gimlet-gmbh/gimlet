@@ -62,8 +62,14 @@ func main() {
 	restartOneFlag := flag.String("restart-one", "", "list all processes")
 	shutdownFlag := flag.Bool("q", false, "shutdown gmbh")
 
+	deployFlag := flag.Bool("d", false, "")
+
 	flag.Parse()
 
+	if *deployFlag {
+		genDeploy(*l.config)
+		return
+	}
 	if *core {
 		startGmbh()
 	} else if *listAllFlag {

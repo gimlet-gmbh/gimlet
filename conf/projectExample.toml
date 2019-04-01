@@ -3,6 +3,8 @@
 ##################################################################################
 
 
+max_services_per_node = 3
+
 ##################################################################################
 [core]
 ##################################################################################
@@ -53,6 +55,9 @@ procm_bin = ""  # default is $GOPATH/bin/gmbhProcm
     # Note that either a language and src_path need to be specifed or a bin_path needs
     # to be specified for the service launcher to successfully start the service.
     [[service]]
+    # A name to give the services
+    id = ""
+    #
     # Arguments that will be passed on to the service
     args = [""]
     #
