@@ -18,6 +18,7 @@ type SystemConfig struct {
 	Service     []*ServiceConfig `toml:"service"`
 	Fingerprint string           `toml:"fingerprint"`
 	MaxPerNode  int              `toml:"max_services_per_node"`
+	Dashboard   bool             `toml:"include_dashboard"`
 }
 
 // SystemCore stores gmbhCore settings

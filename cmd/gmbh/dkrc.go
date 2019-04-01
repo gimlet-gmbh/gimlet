@@ -106,8 +106,18 @@ func genDeploy(cfile string) {
 	g.WriteString(config.ProcMDkr)
 	g.Close()
 
+	if conf.Dashboard {
+		fmt.Println("...for dashboard")
+		p, err := fileutil.CreateFile(filepath.Join(deployDir, "dashboard.Dockerfile"))
+		if err != nil {
+			return
+		}
+		p.WriteString(fmt.Sprintf(config.Dashboard))
+		p.Close()
+	}
+
 	fmt.Println("generating build file")
-	genBuildScript(nodes)
+	genBuildScript(nodes, conf.Dashboard)
 
 	fmt.Println("generating docker compose file")
 	m, err := fileutil.CreateFile(filepath.Join(deployDir, "docker-compose.yml"))
@@ -115,6 +125,11 @@ func genDeploy(cfile string) {
 		return
 	}
 	m.WriteString(config.Compose)
+
+	if conf.Dashboard {
+		m.WriteString(config.ComposeDashboard)
+	}
+
 	for i := 1; i < int(numNodes)+1; i++ {
 		portStr := genPortStr(i, ports)
 		m.WriteString(fmt.Sprintf(config.ComposeNode, i, i, portStr, i))
@@ -219,7 +234,7 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 	return nil
 }
 
-func genBuildScript(nodes []string) error {
+func genBuildScript(nodes []string, dashboard bool) error {
 	h, err := fileutil.CreateFile(filepath.Join(deployDir, "build.sh"))
 	if err != nil {
 		return err
@@ -228,6 +243,8 @@ func genBuildScript(nodes []string) error {
 	h.WriteString("docker build -t gmbh-img-core -f ./core.Dockerfile --build-arg CACHEBUST=$(date +%s) ../\n")
 	h.WriteString(config.CheckBash)
 	h.WriteString("docker build -t gmbh-img-procm -f ./procm.Dockerfile --build-arg CACHEBUST=$(date +%s)  ../\n")
+	h.WriteString(config.CheckBash)
+	h.WriteString("docker build -t gmbh-dashboard-image -f ./dashboard.Dockerfile ../\n")
 	h.WriteString(config.CheckBash)
 	for _, v := range nodes {
 		h.WriteString(v + "\n")
