@@ -158,7 +158,7 @@ services:
     environment:
       - "HOSTNAME=node_0"
     env_file:
-	  - gmbh.env
+      - gmbh.env
 
   dashboard:
     image: "gmbh-dashboard-image"
@@ -170,7 +170,7 @@ services:
 
 const ComposeNode = `
   node_%d:
-    image: "gmbh-img-node_%d"
+    image: "gmbh-img-node_%d"%s
     environment:
       - "HOSTNAME=node_%d"
     env_file:

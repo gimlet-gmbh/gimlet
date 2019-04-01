@@ -74,3 +74,6 @@ procm_bin = ""  # default is $GOPATH/bin/gmbhProcm
     # NOTE: For Go projects -- Specify a path that will be able to be started using
     #       *.go (with *_test.go filtered out)
     src_path = ""
+    #
+    # If this service will require a port to be opened, specify it here.
+    ports = [""]

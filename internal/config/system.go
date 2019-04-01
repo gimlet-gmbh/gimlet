@@ -46,6 +46,7 @@ type ServiceConfig struct {
 	Language string   `toml:"language"`
 	BinPath  string   `toml:"bin_path"`
 	SrcPath  string   `toml:"src_path"`
+	Ports    []string `toml:"ports"`
 	ProjPath string
 }
 
