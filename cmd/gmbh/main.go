@@ -53,7 +53,7 @@ func main() {
 		if *run {
 			start(*config, *verbose, *nolog, *daemon)
 		} else {
-			builddeploy(*config)
+			builddeploy(*config, *verbose)
 		}
 
 	} else if *report {

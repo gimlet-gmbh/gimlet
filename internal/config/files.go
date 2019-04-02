@@ -178,6 +178,8 @@ PROCM=node_procm:59500
 CORE=node_0:49500
 `
 
+const EnvLog = `LOGGING=1`
+
 const Dashboard = `FROM ubuntu:18.04
 
 RUN apt-get update && \

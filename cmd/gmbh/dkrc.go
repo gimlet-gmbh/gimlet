@@ -44,7 +44,7 @@ type compNode struct {
 
 // genDeploy generates the gmbh-deploy folder containing everything needed to build a docker cluster
 // of the gmbh project.
-func builddeploy(cfile string) {
+func builddeploy(cfile string, verbose bool) {
 	fmt.Println("Generating gmbh deployment")
 	fmt.Println(". . .")
 
@@ -143,6 +143,9 @@ func builddeploy(cfile string) {
 		return
 	}
 	n.WriteString(config.EnvFile)
+	if verbose {
+		n.WriteString(config.EnvLog + "\n")
+	}
 	n.Close()
 }
 

@@ -3,6 +3,7 @@ package gmbh
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -84,7 +85,7 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	if g.env != "C" {
+	if g.env != "C" || os.Getenv("LOGGING") == "1" {
 		g.printer("<=" + mcs + "= target: " + target + ", method: " + method)
 	}
 
@@ -94,7 +95,7 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 		return r, err
 
 	}
-	if g.env != "C" {
+	if g.env != "C" || os.Getenv("LOGGING") == "1" {
 		g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
 	}
 

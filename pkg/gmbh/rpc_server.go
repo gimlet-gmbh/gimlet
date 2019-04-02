@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -74,7 +75,7 @@ func (s *_server) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	if g.env != "C" {
+	if g.env != "C" || os.Getenv("LOGGING") == "1" {
 		g.printer("=="+mcs+"==> from=%s; method=%s", in.GetRequest().GetTport().GetSender(), in.GetRequest().GetTport().GetMethod())
 	}
 
