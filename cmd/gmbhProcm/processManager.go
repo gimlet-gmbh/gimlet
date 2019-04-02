@@ -322,9 +322,6 @@ func NewRouter() *Router {
 		mu:        &sync.Mutex{},
 		Verbose:   true,
 	}
-	// start the ping handler
-	go r.pingHandler()
-
 	return r
 }
 
@@ -397,33 +394,6 @@ func (r *Router) addToMap(rm *RemoteServer) error {
 	r.mu.Unlock()
 
 	return nil
-}
-
-// pingHandler looks through each of the remotes in the map. if it has been more than n amount of
-// time since a remote has sent a ping, it will be pinged. If the ping is not retured after n more
-// seconds, the remote will be marked as Failed After n amount of time, failed remotes will
-// be removed from the map
-func (r *Router) pingHandler() {
-	for {
-		time.Sleep(time.Second * 45)
-		r.verbose("checking pings")
-		for _, v := range r.GetAllAttached() {
-			if v.State == Failed {
-				if time.Since(v.StateUpdate) > time.Second*30 {
-					r.removeRemote(v.ID)
-				}
-
-			} else if v.State == Shutdown {
-				if time.Since(v.StateUpdate) > time.Second*90 {
-					r.removeRemote(v.ID)
-				}
-			} else if v.State == Running {
-				if time.Since(v.LastPing) > time.Second*90 {
-					v.UpdateState(Failed)
-				}
-			}
-		}
-	}
 }
 
 // removeRemote from the map
@@ -515,12 +485,5 @@ func NewRemoteServer(id, address, mode string) *RemoteServer {
 func (rs *RemoteServer) UpdateState(newState State) {
 	rs.mu.Lock()
 	rs.State = newState
-	rs.mu.Unlock()
-}
-
-// UpdatePing marks the time
-func (rs *RemoteServer) UpdatePing(t time.Time) {
-	rs.mu.Lock()
-	rs.LastPing = t
 	rs.mu.Unlock()
 }

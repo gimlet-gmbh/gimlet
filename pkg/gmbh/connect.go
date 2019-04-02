@@ -43,9 +43,6 @@ func (g *Client) connect() {
 	g.con = rpc.NewCabalConnection(reg.address, &_server{})
 	g.state = Connected
 
-	// add a new channel to communicate to this goroutine
-	ph := newPingHelper()
-	g.pingHelpers = append(g.pingHelpers, ph)
 	g.mu.Unlock()
 
 	err := g.con.Connect()
@@ -55,5 +52,4 @@ func (g *Client) connect() {
 	}
 	g.printer("connected; coreAddress=(" + reg.address + ")")
 
-	go g.sendPing(ph)
 }

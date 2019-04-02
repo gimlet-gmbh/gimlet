@@ -23,8 +23,6 @@ import (
 	"github.com/gmbh-micro/rpc/address"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/gmbh-micro/service"
-
-	"google.golang.org/grpc/metadata"
 )
 
 // Remote ; as in remote process manager client; holds the process
@@ -42,14 +40,9 @@ type Remote struct {
 	// the connection handler to gmbh over control server
 	con *rpc.Connection
 
-	// ping helpers help with gothread synchronization
-	pingHelpers []*pingHelper
-
-	pingCounter int
-	PongDelay   time.Duration
-	startTime   time.Time
-	logPath     string
-	errors      []error
+	startTime time.Time
+	logPath   string
+	errors    []error
 
 	// The mode as read by the environment
 	env string
@@ -113,8 +106,6 @@ func NewRemote(procmAddr, env string, verbose bool) (*Remote, error) {
 
 	r = &Remote{
 		serviceManager: NewServiceManager(),
-		pingHelpers:    make([]*pingHelper, 0),
-		PongDelay:      time.Second * 45,
 		startTime:      time.Now(),
 		coreAddress:    procmAddr,
 		verbose:        verbose,
@@ -176,8 +167,6 @@ func (r *Remote) shutdown(src string) {
 	r.notifyCore()
 
 	print("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
-	// p := int64(time.Since(r.startTime) / r.PongDelay)
-	// print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
 	os.Exit(0)
 }
 
@@ -220,8 +209,6 @@ func (r *Remote) connect() {
 	r.reg = reg
 	r.id = reg.id
 	r.con = rpc.NewRemoteConnection(reg.address, &remoteServer{})
-	ph := newPingHelper()
-	r.pingHelpers = append(r.pingHelpers, ph)
 	r.mu.Unlock()
 
 	err := r.con.Connect()
@@ -232,8 +219,6 @@ func (r *Remote) connect() {
 		return
 	}
 	print("connected")
-
-	go r.sendPing(ph)
 }
 
 func (r *Remote) disconnect() {
@@ -267,61 +252,6 @@ func (r *Remote) failed() {
 
 }
 
-func (r *Remote) sendPing(ph *pingHelper) {
-	for {
-
-		time.Sleep(r.PongDelay)
-
-		// r.mu.Lock()
-		// r.pingCounter++
-		// r.mu.Unlock()
-
-		// print("-> ping " + strconv.Itoa(r.pingCounter))
-
-		select {
-		case _ = <-ph.pingChan: // case in which this channel has a message in the buffer
-			close(ph.pingChan)
-			print("<- buffer")
-			ph.mu.Lock()
-			ph.received = true
-			ph.mu.Unlock()
-			return
-		default:
-			if r.con == nil || (r.con != nil && !r.con.IsConnected()) {
-				return
-			}
-
-			client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second*30)
-			if err != nil {
-				perr(err.Error())
-				r.failed()
-			}
-
-			ctx = metadata.AppendToOutgoingContext(
-				ctx,
-				"sender", r.id,
-				"target", "procm",
-				"fingerprint", r.reg.fingerprint,
-			)
-
-			pong, err := client.Alive(ctx, &intrigue.Ping{Status: r.id, Time: time.Now().Format(time.Stamp)})
-			can()
-			if err != nil {
-				perr("did not receive pong response")
-				r.failed()
-				return
-			}
-			if pong.GetError() == "" {
-				// print("<- pong")
-			} else {
-				print("<- pong error=" + pong.GetError())
-				r.failed()
-				return
-			}
-		}
-	}
-}
-
 func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second*10)
 	if err != nil {
@@ -342,7 +272,7 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 
 	request := &intrigue.ServiceUpdate{
 		Request: "remote.register",
-		Message: r.env, // TODO:
+		Message: r.env,
 		Env:     r.env,
 		Address: addr,
 	}
@@ -466,8 +396,6 @@ func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.Serv
 	request := in.GetRequest()
 
 	if request == "core.shutdown" {
-
-		r.pingHelpers = broadcast(r.pingHelpers)
 
 		if r.env == "M" {
 			go r.shutdown("procm")
@@ -634,44 +562,6 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 	}
 
 	return si
-}
-
-type pingHelper struct {
-	pingChan  chan bool
-	contacted bool
-	received  bool
-	mu        *sync.Mutex
-}
-
-func newPingHelper() *pingHelper {
-	return &pingHelper{
-		pingChan: make(chan bool, 1),
-		mu:       &sync.Mutex{},
-	}
-}
-
-func broadcast(phs []*pingHelper) []*pingHelper {
-	for _, p := range phs {
-		p.mu.Lock()
-		p.pingChan <- true
-		p.contacted = true
-		p.mu.Unlock()
-	}
-	return update(phs)
-}
-
-func update(phs []*pingHelper) []*pingHelper {
-	n := []*pingHelper{}
-	c := 0
-	for _, p := range phs {
-		if p.contacted && p.received {
-			n = append(n, p)
-		} else {
-			c++
-		}
-	}
-	print("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
-	return n
 }
 
 /**********************************************************************************

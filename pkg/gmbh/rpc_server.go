@@ -51,14 +51,6 @@ func (s *_server) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUp
 	if request == "core.shutdown" {
 		g.printer("recieved shutdown")
 
-		g.printer("sending message over chans to ping")
-		for _, c := range g.pingHelpers {
-			c.pingChan <- true
-			c.contacted = true
-		}
-
-		g.pingHelpers = update(g.pingHelpers)
-
 		// either shutdown for real or disconnect and try and reach again if
 		// the service wasn't forked from gmbh-core
 		if g.env == "M" {

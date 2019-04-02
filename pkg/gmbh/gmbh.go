@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -61,11 +62,7 @@ type Client struct {
 	// The map that handles function from the user's service
 	registeredFunctions map[string]HandlerFunc
 
-	// pingHelper keeps track of channels
-	pingHelpers []*pingHelper
-
-	PongTime  time.Duration
-	PingCount int
+	PongTime time.Duration
 
 	// the address of the cabal server that the client hosts itself on.
 	// This member var is mostly used for use in "C" env mode, or containerized
@@ -121,7 +118,6 @@ func NewClient(opt ...Option) (*Client, error) {
 		registeredFunctions: make(map[string]HandlerFunc),
 		whoIs:               make(map[string]string),
 		mu:                  &sync.Mutex{},
-		pingHelpers:         []*pingHelper{},
 		PongTime:            time.Second * 45,
 		env:                 os.Getenv("ENV"),
 		parentID:            os.Getenv("REMOTE"),
@@ -142,7 +138,7 @@ func NewClient(opt ...Option) (*Client, error) {
 	g.printer("  _|                                  ")
 	tag := fmt.Sprintf("[%s]", g.opts.service.Name)
 	notify.SetHeader(tag)
-	g.printer("service started from %s", notify.Getpwd())
+	g.printer("service started from %s", fileutil.Getpwd())
 	g.printer("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, " "))
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
@@ -154,12 +150,6 @@ func NewClient(opt ...Option) (*Client, error) {
 	} else {
 		g.printer("core address=%s", g.opts.standalone.CoreAddress)
 	}
-
-	// the mode is determined if it comes from the environment variable initially, otherwise it is set
-	// to unmanaged
-	// if g.mode == "" {
-	// 	g.mode = "unmanaged"
-	// }
 
 	// @important -- the only service allowed to be named CoreData is the actual gmbhCore
 	if g.opts.service.Name == "CoreData" {
@@ -208,16 +198,11 @@ func (g *Client) Shutdown(src string) {
 	g.mu.Lock()
 	g.closed = true
 	g.reg = nil
-	g.pingHelpers = []*pingHelper{}
 	g.mu.Unlock()
 
 	g.makeUnregisterRequest()
 	g.disconnect()
 
-	// if g.env == "M" {
-	// g.printer("managed shutdown on return")
-	// defer os.Exit(0)
-	// }
 	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
 	defer os.Exit(0)
 }
