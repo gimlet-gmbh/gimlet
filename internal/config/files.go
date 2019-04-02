@@ -23,8 +23,6 @@ ARG CACHEBUST=1
 
 RUN git clone https://github.com/gmbh-micro/gmbh.git \ 
     && cd gmbh \
-    # && git checkout containerBuild \
-    # && git fetch \
     && mkdir -p $GOPATH"/src/github.com/gmbh-micro" \ 
     && cp -a ./internal/* $GOPATH"/src/github.com/gmbh-micro"/ 
 
@@ -61,8 +59,6 @@ ARG CACHEBUST=1
 
 RUN git clone https://github.com/gmbh-micro/gmbh.git \ 
     && cd gmbh \
-    # && git checkout containerBuild \
-    # && git fetch \
     && mkdir -p $GOPATH"/src/github.com/gmbh-micro" \ 
     && cp -a ./internal/* $GOPATH"/src/github.com/gmbh-micro"/ \
     && cp -a ./pkg/* $GOPATH"/src/github.com/gmbh-micro"/
@@ -105,8 +101,6 @@ ARG CACHEBUST=1
 
 RUN git clone https://github.com/gmbh-micro/gmbh.git \ 
     && cd gmbh \
-    && git checkout containerBuild \
-    && git fetch \
     && mkdir -p $GOPATH"/src/github.com/gmbh-micro" \ 
     && cp -a ./internal/* $GOPATH"/src/github.com/gmbh-micro"/ \
     && cp -a ./pkg/* $GOPATH"/src/github.com/gmbh-micro"/

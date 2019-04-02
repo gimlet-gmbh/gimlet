@@ -93,20 +93,24 @@ func pprintListOne(pm []*intrigue.ProcessManager) {
 
 func pprintListAll(remotes []*intrigue.ProcessManager, services []*intrigue.CoreService) {
 	fmt.Println(reportRemoteHeader())
-	rs := matchRemotesCores(remotes, services)
-	for _, pm := range remotes {
-		fmt.Println(reportRemotePM(pm))
-		for _, s := range rs {
-			if s.id == pm.ID {
-				fmt.Println(reportRemote(s.pm, s.s))
-			}
-		}
-	}
-	for _, s := range rs {
-		if s.id == "" {
-			fmt.Println(reportRemote(s.pm, s.s))
-		}
-	}
+
+	// fmt.Println(remotes)
+	// for
+
+	// rs := matchRemotesCores(remotes, services)
+	// for _, pm := range remotes {
+	// 	fmt.Println(reportRemotePM(pm))
+	// 	for _, s := range rs {
+	// 		if s.id == pm.ID {
+	// 			fmt.Println(reportRemote(s.pm, s.s))
+	// 		}
+	// 	}
+	// }
+	// for _, s := range rs {
+	// 	if s.id == "" {
+	// 		fmt.Println(reportRemote(s.pm, s.s))
+	// 	}
+	// }
 }
 
 func matchRemotesCores(remotes []*intrigue.ProcessManager, services []*intrigue.CoreService) []*remoteservice {

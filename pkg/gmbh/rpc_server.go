@@ -74,7 +74,9 @@ func (s *_server) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	g.printer("=="+mcs+"==> from=%s; method=%s", in.GetRequest().GetTport().GetSender(), in.GetRequest().GetTport().GetMethod())
+	if g.env != "C" {
+		g.printer("=="+mcs+"==> from=%s; method=%s", in.GetRequest().GetTport().GetSender(), in.GetRequest().GetTport().GetMethod())
+	}
 
 	responder, err := handleDataRequest(*in.GetRequest())
 	if err != nil {

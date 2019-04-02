@@ -14,6 +14,7 @@ import (
 )
 
 func listAll() {
+
 	remotes := []*intrigue.ProcessManager{}
 	{
 		client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second*2)
@@ -35,7 +36,6 @@ func listAll() {
 		}
 		remotes = resp.GetRemotes()
 	}
-
 	services := []*intrigue.CoreService{}
 	{
 		client, ctx, can, err := rpc.GetCabalRequest(config.DefaultSystemCore.Address, time.Second*2)
@@ -56,7 +56,6 @@ func listAll() {
 		}
 		services = resp.GetServices()
 	}
-
 	pprintListAll(remotes, services)
 }
 

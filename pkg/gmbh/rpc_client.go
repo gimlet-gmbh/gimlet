@@ -84,7 +84,9 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	g.printer("<=" + mcs + "= target: " + target + ", method: " + method)
+	if g.env != "C" {
+		g.printer("<=" + mcs + "= target: " + target + ", method: " + method)
+	}
 
 	reply, err := client.Data(ctx, &request)
 	if err != nil {
@@ -92,7 +94,9 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 		return r, err
 
 	}
-	g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
+	if g.env != "C" {
+		g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
+	}
 
 	if reply.Responder == nil {
 		return Responder{}, nil
