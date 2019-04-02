@@ -547,8 +547,8 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 	procRuntime := s.Process.GetInfo()
 
 	si := &intrigue.Service{
-		Id: r.id + "-" + s.ID,
-		// Name:      s.Static.Name,
+		Id:        r.id + "-" + s.ID,
+		Name:      s.Static.ID,
 		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
 		LogPath:   s.LogPath,

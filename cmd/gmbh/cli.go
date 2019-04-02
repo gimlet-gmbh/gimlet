@@ -89,12 +89,11 @@ func restartAll() {
 	request := &intrigue.Action{
 		Request: "restart.all",
 	}
-	reply, err := client.RestartService(ctx, request)
+	_, err = client.RestartService(ctx, request)
 	if err != nil {
 		notify.LnRedF("error: " + err.Error())
 		return
 	}
-	notify.LnBlueF(reply.GetMessage())
 }
 
 func listOne(id string) {
