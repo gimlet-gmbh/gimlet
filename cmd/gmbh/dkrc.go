@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -151,6 +152,8 @@ func genCoreConf(path, fname string, config *config.SystemConfig) error {
 	if err != nil {
 		return err
 	}
+
+	args, _ := json.Marshal([]string{"--verbose", "--config=" + fname})
 	w := f.WriteString
 	w(doNotEdit)
 	w("\n\n")
@@ -158,7 +161,7 @@ func genCoreConf(path, fname string, config *config.SystemConfig) error {
 	w("\n")
 	w(fmt.Sprintf(
 		core,
-		strArrtoStr([]string{"--verbose", "--config=" + fname}),
+		args,
 		"gmbhCore"),
 	)
 	f.Close()
@@ -186,11 +189,13 @@ func genNodeConf(node int, services []*config.ServiceConfig) error {
 
 	for i, s := range services {
 
+		args, _ := json.Marshal(s.Args)
+		env, _ := json.Marshal(append(s.Env, "ADDR="+"node_"+strconv.Itoa(node)+":"+strconv.Itoa(base+((i+1)*20))))
 		w(fmt.Sprintf(
 			service,
 			s.ID,
-			strArrtoStr(s.Args),
-			strArrtoStr(append(s.Env, "ADDR="+"node_"+strconv.Itoa(node)+":"+strconv.Itoa(base+((i+1)*20)))),
+			args,
+			env,
 			s.Language,
 			"/services/"+s.ID+"/"+filepath.Base(s.BinPath),
 			s.SrcPath,

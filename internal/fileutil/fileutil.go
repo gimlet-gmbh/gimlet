@@ -32,31 +32,33 @@ func GetAbsFpath(path string) string {
 	return abs
 }
 
-// CopyFile from sname to dname
-func CopyFile(sname, dname string) error {
+// FileExists at path?
+func FileExists(path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
 
-	src, err := os.Open(sname)
+// GetLogFile attempts to add the desired path as an extension to the current
+// directory as reported by os.GetWd(). The file is then opened or created
+// and returned
+func GetLogFile(desiredPathExt, filename string) (*os.File, error) {
+	// get pwd
+	dir, err := os.Getwd()
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	dst, err := os.Create(dname)
+	// make sure that the path extension exists or make the directories needed
+	dirPath := filepath.Join(dir, desiredPathExt)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		os.Mkdir(dirPath, 0755)
+	}
+	// create the file
+	filePath := filepath.Join(dirPath, filename)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	_, err = io.Copy(dst, src)
-	if err != nil {
-		return err
-	}
-
-	srcinfo, err := os.Stat(sname)
-	if err != nil {
-		return err
-	}
-	err = os.Chmod(dname, srcinfo.Mode())
-	if err != nil {
-		return err
-	}
-	return nil
+	return file, nil
 }

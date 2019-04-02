@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
@@ -19,19 +20,9 @@ import (
 	"github.com/rs/xid"
 )
 
-const (
-	coreService = "core.toml"
-)
+const coreService = "core.toml"
 
-var (
-	procmcmd *exec.Cmd
-	procmlog *os.File
-
-	corecmd *exec.Cmd
-	corelog *os.File
-
-	fingerprint = xid.New().String()
-)
+var fingerprint = xid.New().String()
 
 func main() {
 
@@ -104,7 +95,7 @@ func start(cfile string, verbose, nolog, daemon bool) {
 
 	fileutil.MkDir("gmbh")
 
-	if !fileExists(filepath.Join("gmbh", coreService)) {
+	if !fileutil.FileExists(filepath.Join("gmbh", coreService)) {
 		notify.LnF("Generating core service config file...")
 		err = genCoreConf(filepath.Join("gmbh", coreService), cfile, conf)
 		if err != nil {
@@ -113,13 +104,13 @@ func start(cfile string, verbose, nolog, daemon bool) {
 		}
 	}
 
-	err = startProcm(nolog)
+	proccmd, proclog, err := startProcm(nolog)
 	if err != nil {
 		notify.LnRedF("could not start ProcM, err=%s", err.Error())
 		os.Exit(1)
 	}
 
-	err = startCore(nolog, verbose)
+	_, corelog, err := startCore(nolog, verbose)
 	if err != nil {
 		notify.LnRedF("could not start core, err=%s", err.Error())
 		os.Exit(1)
@@ -136,17 +127,17 @@ func start(cfile string, verbose, nolog, daemon bool) {
 
 		// signal the processes
 		notify.LnF("signaled sigusr1")
-		procmcmd.Process.Signal(syscall.SIGUSR1)
+		proccmd.Process.Signal(syscall.SIGUSR1)
 
 		// shutdown the process manager
 		time.Sleep(time.Second * 3)
-		procmcmd.Process.Signal(syscall.SIGUSR2)
-		procmcmd.Wait()
+		proccmd.Process.Signal(syscall.SIGUSR2)
+		proccmd.Wait()
 		notify.LnF("procm shutdown")
 
 		// close the logs
-		if procmlog != nil {
-			procmlog.Close()
+		if proclog != nil {
+			proclog.Close()
 		}
 		if corelog != nil {
 			corelog.Close()
@@ -155,42 +146,44 @@ func start(cfile string, verbose, nolog, daemon bool) {
 	}
 }
 
-func startProcm(nolog bool) error {
+func startProcm(nolog bool) (*exec.Cmd, *os.File, error) {
 
-	procmcmd = exec.Command("gmbhProcm")
-	procmcmd.Env = append(os.Environ(), "ENV=M")
+	cmd := exec.Command("gmbhProcm")
+	cmd.Env = append(os.Environ(), "ENV=M")
 
+	var log *os.File
+	var err error
 	if !nolog {
-		var err error
-		procmlog, err = getLogFile(config.LogPath, config.ProcmLogName)
+		log, err = fileutil.GetLogFile(config.LogPath, config.ProcmLogName)
 		if err == nil {
-			procmcmd.Stdout = procmlog
-			procmcmd.Stderr = procmlog
+			cmd.Stdout = log
+			cmd.Stderr = log
 			notify.LnF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
 		} else {
 			notify.LnRedF("could not create procm log, err=%s", err.Error())
 		}
 	}
 
-	return procmcmd.Start()
+	return cmd, log, cmd.Start()
 }
 
-func startCore(nolog, verbose bool) error {
+func startCore(nolog, verbose bool) (*exec.Cmd, *os.File, error) {
 
-	corecmd = exec.Command("gmbhProcm", "--remote", "--config=./gmbh/"+coreService)
-	corecmd.Env = append(os.Environ(), "ENV=M")
+	cmd := exec.Command("gmbhProcm", "--remote", "--config=./gmbh/"+coreService)
+	cmd.Env = append(os.Environ(), "ENV=M")
 
+	var log *os.File
+	var err error
 	if !nolog {
 		if verbose {
-			corecmd.Args = append(corecmd.Args, "--verbose")
-			corecmd.Stdout = os.Stdout
-			corecmd.Stderr = os.Stderr
+			cmd.Args = append(cmd.Args, "--verbose")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
 		} else {
-			var err error
-			corelog, err = getLogFile(config.LogPath, config.ProcmLogName)
+			log, err = fileutil.GetLogFile(config.LogPath, config.ProcmLogName)
 			if err == nil {
-				corecmd.Stdout = corelog
-				corecmd.Stderr = corelog
+				cmd.Stdout = log
+				cmd.Stderr = log
 				notify.LnF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
 			} else {
 				notify.LnRedF("could not create core log, err=%s", err.Error())
@@ -198,7 +191,7 @@ func startCore(nolog, verbose bool) error {
 		}
 	}
 
-	return corecmd.Start()
+	return cmd, log, cmd.Start()
 }
 
 func startServices(conf *config.SystemConfig) {
@@ -222,6 +215,27 @@ func startServices(conf *config.SystemConfig) {
 
 }
 
+func launchService(node int) error {
+
+	cmd := exec.Command("gmbhProcm", "--remote", "--config=./gmbh/node_"+strconv.Itoa(node)+".toml")
+	cmd.Env = append(os.Environ(), []string{
+		"ENV=M",
+		"FINGERPRINT=" + fingerprint,
+		"PROJPATH=" + notify.Getpwd(),
+	}...)
+
+	f, err := fileutil.GetLogFile(config.LogPath, "node-"+strconv.Itoa(node)+".log")
+	if err == nil {
+		notify.LnF("%s", filepath.Join(notify.Getpwd(), config.LogPath, "node-"+strconv.Itoa(node)+".log"))
+		cmd.Stdout = f
+		cmd.Stderr = f
+	} else {
+		notify.LnRedF("could not create log file: " + err.Error())
+	}
+
+	return cmd.Start()
+}
+
 func genNode(node int, services []*config.ServiceConfig) error {
 	f, err := fileutil.CreateFile(filepath.Join("gmbh", "node_"+strconv.Itoa(node)+".toml"))
 	if err != nil {
@@ -238,88 +252,12 @@ func genNode(node int, services []*config.ServiceConfig) error {
 	w(fmt.Sprintf("fingerprint = \"%s\"", fingerprint))
 
 	for _, s := range services {
-
-		w(fmt.Sprintf(
-			service,
-			s.ID,
-			strArrtoStr(s.Args),
-			s.Env,
-			s.Language,
-			s.BinPath,
-			s.SrcPath,
-		))
+		args, _ := json.Marshal(s.Args)
+		w(fmt.Sprintf(service, s.ID, args, s.Env, s.Language, s.BinPath, s.SrcPath))
 	}
 
 	f.Close()
 	return nil
-}
-
-func launchService(node int) error {
-
-	cmd := exec.Command("gmbhProcm", "--remote", "--config=./gmbh/node_"+strconv.Itoa(node)+".toml")
-	cmd.Env = append(os.Environ(), []string{
-		"ENV=M",
-		"FINGERPRINT=" + fingerprint,
-		"PROJPATH=" + notify.Getpwd(),
-	}...)
-
-	f, err := getLogFile(config.LogPath, "node-"+strconv.Itoa(node)+".log")
-	if err == nil {
-		notify.LnF("%s", filepath.Join(notify.Getpwd(), config.LogPath, "node-"+strconv.Itoa(node)+".log"))
-		cmd.Stdout = f
-		cmd.Stderr = f
-	} else {
-		notify.LnRedF("could not create log file: " + err.Error())
-	}
-
-	return cmd.Start()
-}
-
-func strArrtoStr(arr []string) string {
-	ret := "["
-	for i, v := range arr {
-		if v == "" {
-			continue
-		}
-		ret += "\"" + v + "\""
-		if i != len(arr)-1 {
-			ret += ","
-		}
-	}
-	ret += "]"
-	return ret
-}
-
-// getLogFile attempts to add the desired path as an extension to the current
-// directory as reported by os.GetWd(). The file is then opened or created
-// and returned
-func getLogFile(desiredPathExt, filename string) (*os.File, error) {
-	// get pwd
-	dir, err := os.Getwd()
-	if err != nil {
-		notify.LnRedF("getlogfile, pwd err=%s", err.Error())
-		return nil, err
-	}
-	// make sure that the path extension exists or make the directories needed
-	dirPath := filepath.Join(dir, desiredPathExt)
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		os.Mkdir(dirPath, 0755)
-	}
-	// create the file
-	filePath := filepath.Join(dirPath, filename)
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		notify.LnRedF("openfile err=%s", err.Error())
-		return nil, err
-	}
-	return file, nil
-}
-
-func fileExists(path string) bool {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return false
-	}
-	return true
 }
 
 func checkInstall() bool {
@@ -342,14 +280,4 @@ func checkInstall() bool {
 	}
 	notify.LnRedF(fmt.Sprintf("OS support not implemented for %s", runtime.GOOS))
 	return false
-}
-
-// basePath attempts to get the absolute path to the directory in which the config file is specified
-func basePath(configPath string) string {
-	abs, err := filepath.Abs(configPath)
-	if err != nil {
-		notify.LnRedF("error=%v", err.Error())
-		return ""
-	}
-	return filepath.Dir(abs)
 }
