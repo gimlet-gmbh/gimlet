@@ -549,6 +549,7 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 	si := &intrigue.Service{
 		Id:        r.id + "-" + s.ID,
 		Name:      s.Static.ID,
+		Language:  s.Static.Language,
 		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
 		LogPath:   s.LogPath,

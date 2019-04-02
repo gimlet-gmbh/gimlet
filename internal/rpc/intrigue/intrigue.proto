@@ -144,6 +144,7 @@ message Service {
     int32 Pid = 16;
     string StartTime = 17;
     string FailTime = 18;
+    string Language = 25;
     repeated string Errors = 19;
 }
 
