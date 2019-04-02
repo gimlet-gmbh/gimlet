@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/config"
+	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
 )
@@ -155,7 +156,8 @@ func (s *Service) EnableGracefulShutdown() {
 // createAbsPathToBin attempts to resolve an absolute path to the binary file to start
 func (s *Service) createAbsPathToBin(path, binPath string) string {
 	if binPath[0] == '.' {
-		return path + binPath[1:]
+		return fileutil.GetAbsFpath(binPath)
+		// return path + binPath[1:]
 	}
 	return binPath
 }

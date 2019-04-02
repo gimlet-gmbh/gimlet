@@ -43,7 +43,7 @@ type compNode struct {
 
 // genDeploy generates the gmbh-deploy folder containing everything needed to build a docker cluster
 // of the gmbh project.
-func genDeploy(cfile string) {
+func builddeploy(cfile string) {
 	fmt.Println("Generating gmbh deployment")
 	fmt.Println(". . .")
 
@@ -57,7 +57,7 @@ func genDeploy(cfile string) {
 	fileutil.MkDir("gmbh-deploy")
 
 	fmt.Println("generating core node file")
-	err = genCoreConf(conf)
+	err = genCoreConf(filepath.Join(deployDir, "core.toml"), "./configFile.toml", conf)
 	if err != nil {
 		notify.LnRedF("could not create core node config")
 		return
@@ -146,19 +146,19 @@ func genDeploy(cfile string) {
 }
 
 // genCoreConf generates the core config for the core service.
-func genCoreConf(config *config.SystemConfig) error {
-	f, err := fileutil.CreateFile(filepath.Join(deployDir, "core.toml"))
+func genCoreConf(path, fname string, config *config.SystemConfig) error {
+	f, err := fileutil.CreateFile(path)
 	if err != nil {
 		return err
 	}
 	w := f.WriteString
 	w(doNotEdit)
 	w("\n\n")
-	w("fingerprint = \"" + l.fingerprint + "\"\n")
+	w("fingerprint = \"" + fingerprint + "\"\n")
 	w("\n")
 	w(fmt.Sprintf(
 		core,
-		strArrtoStr([]string{"--verbose", "--config=./configFile.toml"}),
+		strArrtoStr([]string{"--verbose", "--config=" + fname}),
 		"gmbhCore"),
 	)
 	f.Close()
