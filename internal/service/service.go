@@ -104,7 +104,7 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 			}
 			notify.LnMagentaF("log at %s", s.LogPath)
 			var e error
-			conf.LogF, e = notify.OpenFile(s.LogPath)
+			conf.LogF, e = fileutil.OpenFile(s.LogPath)
 			if e != nil {
 				notify.LnRedF("Error creating log")
 			}

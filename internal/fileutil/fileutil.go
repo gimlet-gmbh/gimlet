@@ -32,6 +32,16 @@ func GetAbsFpath(path string) string {
 	return abs
 }
 
+// GetAbs returns the abolute filepath if it can be optained, else returns
+// the same path it was given
+func GetAbs(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return filepath.Dir(abs)
+}
+
 // FileExists at path?
 func FileExists(path string) bool {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -57,6 +67,38 @@ func GetLogFile(desiredPathExt, filename string) (*os.File, error) {
 	// create the file
 	filePath := filepath.Join(dirPath, filename)
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+// Getpwd returns the directory that the process was launched from according to the os package
+// Unlike the os package it never returns and error, only an empty string
+func Getpwd() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
+// OpenFile makes sure that the directory path exists, else creates the necessary folders
+// and then creates the file
+func OpenFile(fPath string) (*os.File, error) {
+	isAbs := filepath.IsAbs(fPath)
+	if !isAbs {
+		var err error
+		fPath, err = filepath.Abs(fPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, err := os.Stat(filepath.Dir(fPath)); os.IsNotExist(err) {
+		os.Mkdir(filepath.Dir(fPath), 0755)
+	}
+	// create the file
+	file, err := os.OpenFile(fPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}

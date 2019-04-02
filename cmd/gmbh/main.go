@@ -158,7 +158,7 @@ func startProcm(nolog bool) (*exec.Cmd, *os.File, error) {
 		if err == nil {
 			cmd.Stdout = log
 			cmd.Stderr = log
-			notify.LnF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
+			notify.LnF(filepath.Join(fileutil.Getpwd(), config.LogPath, config.ProcmLogName))
 		} else {
 			notify.LnRedF("could not create procm log, err=%s", err.Error())
 		}
@@ -184,7 +184,7 @@ func startCore(nolog, verbose bool) (*exec.Cmd, *os.File, error) {
 			if err == nil {
 				cmd.Stdout = log
 				cmd.Stderr = log
-				notify.LnF(filepath.Join(notify.Getpwd(), config.LogPath, config.ProcmLogName))
+				notify.LnF(filepath.Join(fileutil.Getpwd(), config.LogPath, config.ProcmLogName))
 			} else {
 				notify.LnRedF("could not create core log, err=%s", err.Error())
 			}
@@ -221,12 +221,12 @@ func launchService(node int) error {
 	cmd.Env = append(os.Environ(), []string{
 		"ENV=M",
 		"FINGERPRINT=" + fingerprint,
-		"PROJPATH=" + notify.Getpwd(),
+		"PROJPATH=" + fileutil.Getpwd(),
 	}...)
 
 	f, err := fileutil.GetLogFile(config.LogPath, "node-"+strconv.Itoa(node)+".log")
 	if err == nil {
-		notify.LnF("%s", filepath.Join(notify.Getpwd(), config.LogPath, "node-"+strconv.Itoa(node)+".log"))
+		notify.LnF("%s", filepath.Join(fileutil.Getpwd(), config.LogPath, "node-"+strconv.Itoa(node)+".log"))
 		cmd.Stdout = f
 		cmd.Stderr = f
 	} else {

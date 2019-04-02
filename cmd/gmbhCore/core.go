@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/config"
+	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/address"
@@ -69,14 +70,14 @@ func NewCore(cPath, env, addr string, verbose bool) (*Core, error) {
 	if cPath == "" {
 		userConfig = config.DefaultSystemCore
 		userConfig.Address = addr
-		projpath = notify.Getpwd()
+		projpath = fileutil.Getpwd()
 	} else {
 		userConfig, err = config.ParseSystemCore(cPath)
 		if err != nil {
 			logCore("could not parse config; err=%v", err.Error())
 			return nil, err
 		}
-		projpath = notify.GetAbs(cPath)
+		projpath = fileutil.GetAbs(cPath)
 	}
 
 	if env == "C" {
