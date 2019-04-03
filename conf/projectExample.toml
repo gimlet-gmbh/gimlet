@@ -57,6 +57,8 @@ procm_bin = ""  # default is $GOPATH/bin/gmbhProcm
     # to be specified for the service launcher to successfully start the service.
     [[service]]
     # A name to give the services
+    # NOTE: This should match the name assigned in the client config to ensure that
+    #       the dashboard and cli tools will match the service to its' process.
     id = ""
     #
     # Arguments that will be passed on to the service

@@ -139,7 +139,7 @@ func NewClient(opt ...Option) (*Client, error) {
 	tag := fmt.Sprintf("[%s]", g.opts.service.Name)
 	notify.SetHeader(tag)
 	g.printer("service started from %s", fileutil.Getpwd())
-	g.printer("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, " "))
+	g.printer("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, ","))
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
