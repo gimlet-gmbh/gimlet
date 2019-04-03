@@ -28,6 +28,7 @@ language = "%s"
 bin_path = "%s"
 src_path = "%s"`
 	core = `[[service]]
+id = "CoreData"
 args = %s
 bin_path = "%s"`
 )
