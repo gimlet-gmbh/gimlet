@@ -142,7 +142,7 @@ func builddeploy(cfile string, verbose bool) {
 	if err != nil {
 		return
 	}
-	n.WriteString(config.EnvFile)
+	n.WriteString(fmt.Sprintf(config.EnvFile, "FINGERPRINT="+fingerprint))
 	if verbose {
 		n.WriteString(config.EnvLog + "\n")
 	}
@@ -186,7 +186,7 @@ func genNodeConf(node int, services []*config.ServiceConfig) error {
 		w(fmt.Sprintf("# - %s\n", fileutil.GetAbsFpath(s.BinPath)))
 	}
 	w("#\n# Fingerprint - the id that refers to this cluster\n")
-	w(fmt.Sprintf("fingerprint = %s", "\"\""))
+	w(fmt.Sprintf("fingerprint = \"%s\"", fingerprint))
 
 	base := 49500
 

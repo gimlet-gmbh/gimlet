@@ -175,6 +175,7 @@ const ComposeNode = `
 
 const EnvFile = `ENV=C
 PROCM=node_procm:59500
+%s
 CORE=node_0:49500
 `
 

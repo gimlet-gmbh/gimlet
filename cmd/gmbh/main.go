@@ -171,8 +171,14 @@ func startCore(nolog, verbose bool) (*exec.Cmd, *os.File, error) {
 	cmd := exec.Command("gmbhProcm", "--remote", "--config=./gmbh/"+coreService)
 	cmd.Env = append(os.Environ(), "ENV=M")
 
+	_, f, err := config.ParseServices("./gmbh/" + coreService)
+	if err != nil {
+		print("could not parse core service config; err=%s", err.Error())
+		os.Exit(1)
+	}
+	cmd.Env = append(os.Environ(), "FINGERPRINT="+f)
+
 	var log *os.File
-	var err error
 	if !nolog {
 		if verbose {
 			cmd.Args = append(cmd.Args, "--verbose")

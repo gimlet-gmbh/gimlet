@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -48,14 +49,14 @@ func main() {
 		rem, _ := remote.NewRemote(procmAddr, env, *verbose)
 		for _, path := range configPaths {
 
-			sconfs, _, err := config.ParseServices(path)
+			sconfs, fp, err := config.ParseServices(path)
 			if err != nil {
 				panic(err)
 			}
 
-			// if fingerprint != os.Getenv("FINGERPRINT") {
-			// 	panic(fmt.Errorf("fingerprints do not match (%s != %s)", fingerprint, os.Getenv("FINGERPRINT")))
-			// }
+			if fp != os.Getenv("FINGERPRINT") {
+				panic(fmt.Errorf("fingerprints do not match (%s != %s)", fp, os.Getenv("FINGERPRINT")))
+			}
 
 			for _, sconf := range sconfs {
 				if os.Getenv("PROJPATH") != "" {
