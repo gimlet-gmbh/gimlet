@@ -40,7 +40,7 @@ func handleDataRequest(req intrigue.Request) (*intrigue.Responder, error) {
 
 	handler, ok := g.registeredFunctions[request.transport.Method]
 	if !ok {
-		g.printer("could not find hander=%s", request.transport.Method)
+		print("could not find hander=%s", request.transport.Method)
 		responder.err = "could not find method in service map"
 	} else {
 		handler(request, &responder)

@@ -43,7 +43,7 @@ func register() (*registration, error) {
 		if grpc.Code(err) == codes.Unavailable {
 			return nil, errors.New("registration.gmbhUnavailable")
 		}
-		g.printer(grpc.Code(err).String())
+		print(grpc.Code(err).String())
 		return nil, errors.New("registration.gmbhUnavailable")
 	}
 
@@ -86,7 +86,7 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
 	if g.env != "C" || os.Getenv("LOGGING") == "1" {
-		g.printer("<=" + mcs + "= target: " + target + ", method: " + method)
+		print("<=" + mcs + "= target: " + target + ", method: " + method)
 	}
 
 	reply, err := client.Data(ctx, &request)
@@ -96,7 +96,7 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
 	}
 	if g.env != "C" || os.Getenv("LOGGING") == "1" {
-		g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
+		print(" =" + mcs + "=> " + "time=" + time.Since(t).String())
 	}
 
 	if reply.Responder == nil {

@@ -44,13 +44,13 @@ func (s *_server) RegisterService(ctx context.Context, in *intrigue.NewServiceRe
 
 func (s *_server) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 
-	g.printer(fmt.Sprintf("-> Update Registration; Message=%s", in.String()))
+	print(fmt.Sprintf("-> Update Registration; Message=%s", in.String()))
 
 	request := in.GetRequest()
 	// target := in.GetMessage()
 
 	if request == "core.shutdown" {
-		g.printer("recieved shutdown")
+		print("recieved shutdown")
 
 		// either shutdown for real or disconnect and try and reach again if
 		// the service wasn't forked from gmbh-core
@@ -76,7 +76,7 @@ func (s *_server) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
 	if g.env != "C" || os.Getenv("LOGGING") == "1" {
-		g.printer("=="+mcs+"==> from=%s; method=%s", in.GetRequest().GetTport().GetSender(), in.GetRequest().GetTport().GetMethod())
+		print("=="+mcs+"==> from=%s; method=%s", in.GetRequest().GetTport().GetSender(), in.GetRequest().GetTport().GetMethod())
 	}
 
 	responder, err := handleDataRequest(*in.GetRequest())
@@ -88,17 +88,17 @@ func (s *_server) Data(ctx context.Context, in *intrigue.DataRequest) (*intrigue
 
 func (s *_server) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
 
-	g.printer(fmt.Sprintf("-> Summary Request; Action=%s", in.String()))
+	print(fmt.Sprintf("-> Summary Request; Action=%s", in.String()))
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		g.printer("Could not get metadata from summary request")
+		print("Could not get metadata from summary request")
 		return &intrigue.SummaryReceipt{Error: "unknown.id"}, nil
 	}
 
 	fp := strings.Join(md.Get("fingerprint"), "")
 	if fp != g.getReg().fingerprint {
-		g.printer("Could not match fingerprint from summary request; incoming fp=%s", fp)
+		print("Could not match fingerprint from summary request; incoming fp=%s", fp)
 		return &intrigue.SummaryReceipt{Error: "unknown.id"}, nil
 	}
 

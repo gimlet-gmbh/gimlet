@@ -127,10 +127,10 @@ func NewRemote(procmAddr, env string, verbose bool) (*Remote, error) {
 // Start the remote
 func (r *Remote) Start() {
 
-	println("                    _                       ")
-	println("  _  ._ _  |_  |_| |_)  _  ._ _   _ _|_  _  ")
-	println(" (_| | | | |_) | | | \\ (/_ | | | (_) |_ (/_ ")
-	println("  _|                                          ")
+	print("                    _                       ")
+	print("  _  ._ _  |_  |_| |_)  _  ._ _   _ _|_  _  ")
+	print(" (_| | | | |_) | | | \\ (/_ | | | (_) |_ (/_ ")
+	print("  _|                                          ")
 	print("started, time=" + time.Now().Format(time.Stamp))
 	print("env=%s; ProcmAddress=%s; hostname=%s", r.env, r.coreAddress, r.host)
 
@@ -155,7 +155,7 @@ func (r *Remote) Start() {
 
 // shutdown procedures
 func (r *Remote) shutdown(src string) {
-	print("[remote] Shutdown procedures started in remote from " + src)
+	// print("[remote] Shutdown procedures started in remote from " + src)
 	r.mu.Lock()
 	r.closed = true
 	r.mu.Unlock()
@@ -166,7 +166,7 @@ func (r *Remote) shutdown(src string) {
 	r.serviceManager.Shutdown()
 	r.notifyCore()
 
-	print("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
+	print("shutdown complete...")
 	os.Exit(0)
 }
 
@@ -188,7 +188,7 @@ func (r *Remote) connect() {
 	reg, status := r.makeCoreConnectRequest()
 	for status != nil {
 		if status.Error() != "registration.Unavailable" {
-			perr("internal error=" + status.Error())
+			print("internal error=" + status.Error())
 			return
 		}
 
@@ -196,7 +196,7 @@ func (r *Remote) connect() {
 			return
 		}
 
-		perr("Could not reach core, try again in 5s")
+		print("Could not reach core, try again in 5s")
 		time.Sleep(time.Second * 5)
 		reg, status = r.makeCoreConnectRequest()
 	}
@@ -213,8 +213,8 @@ func (r *Remote) connect() {
 
 	err := r.con.Connect()
 	if err != nil {
-		perr("connection error=" + err.Error())
-		perr("handle this; for now return")
+		print("connection error=" + err.Error())
+		print("handle this; for now return")
 		r.closed = true
 		return
 	}
@@ -311,13 +311,13 @@ func (r *Remote) AddService(conf *config.ServiceConfig) {
 			if r.id != "" {
 				service, err := r.serviceManager.AddServiceFromConfig(conf)
 				if err != nil {
-					perr("could add start service; error=" + err.Error())
+					print("could add start service; error=" + err.Error())
 					return
 				}
 				service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
 				pid, err := service.Start(r.env, r.verbose)
 				if err != nil {
-					perr("could not start service; error=" + err.Error())
+					print("could not start service; error=" + err.Error())
 					return
 				}
 				print("service started with pid=%s", pid)
@@ -370,7 +370,7 @@ func (r *Remote) notifyCore() {
 		Request: "shutdown.notif",
 	}
 	client.UpdateRegistration(ctx, request)
-	print("notice sent")
+	// print("notice sent")
 	return
 }
 
@@ -391,7 +391,7 @@ type remoteServer struct{}
 func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 	// md, ok := metadata.FromIncomingContext(ctx)
 
-	vrpc("-> %s", in.String())
+	print("-> %s", in.String())
 
 	request := in.GetRequest()
 
@@ -428,7 +428,7 @@ func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.Serv
 func (s *remoteServer) NotifyAction(ctx context.Context, in *intrigue.Action) (*intrigue.Action, error) {
 	// md, ok := metadata.FromIncomingContext(ctx)
 
-	vrpc("-> %s", in.String())
+	print("-> %s", in.String())
 
 	request := in.GetRequest()
 	TargetID := in.GetTarget()
@@ -460,7 +460,7 @@ func (s *remoteServer) NotifyAction(ctx context.Context, in *intrigue.Action) (*
 func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
 	// md, ok := metadata.FromIncomingContext(ctx)
 
-	vrpc("-> %s", in.String())
+	print("-> %s", in.String())
 
 	request := in.GetRequest()
 	targetID := in.GetTarget()
@@ -500,11 +500,11 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 
 		service, err := r.LookupService(targetID)
 		if err != nil {
-			vrpc("not found")
+			print("not found")
 			return &intrigue.SummaryReceipt{Error: "service.notFound"}, nil
 		}
 
-		vrpc("returning service info " + service.ID)
+		print("returning service info " + service.ID)
 
 		errs := []string{}
 		for _, e := range r.errors {
@@ -536,10 +536,6 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 
 func (s *remoteServer) Alive(ctx context.Context, in *intrigue.Ping) (*intrigue.Pong, error) {
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
-}
-
-func vrpc(format string, a ...interface{}) {
-	print("[rpc] "+format, a...)
 }
 
 func serviceToRPC(s *service.Service) *intrigue.Service {
@@ -610,7 +606,7 @@ func (s *ServiceManager) AddServiceFromConfig(conf *config.ServiceConfig) (*serv
 
 // NotifyGracefulShutdown of all attached services
 func (s *ServiceManager) NotifyGracefulShutdown() {
-	print("sending graceful shutdown notices")
+	// print("sending graceful shutdown notices")
 	for _, v := range s.services {
 		v.EnableGracefulShutdown()
 	}
@@ -637,7 +633,7 @@ func (s *ServiceManager) LookupByID(id string) (*service.Service, error) {
 // Shutdown kills all attached processes
 func (s *ServiceManager) Shutdown() {
 	for _, s := range s.services {
-		print("sending shutdown to " + s.ID)
+		// print("sending shutdown to " + s.ID)
 		s.Kill()
 	}
 }
@@ -648,7 +644,7 @@ func (s *ServiceManager) RestartAll() {
 		print("sending restart to " + s.ID)
 		pid, err := s.Restart()
 		if err != nil {
-			perr("could not restart; err=" + err.Error())
+			print("could not restart; err=" + err.Error())
 		}
 		print("Pid=" + pid)
 	}
@@ -686,21 +682,6 @@ func (s *ServiceManager) assignID() string {
 }
 
 func print(format string, a ...interface{}) {
-	tag := "[" + r.id + "] "
-	if r.id == "" {
-		tag = "[remote] "
-	}
-	notify.LnMagentaF(tag+format, a...)
-}
-
-func println(format string, a ...interface{}) {
+	format = "[" + time.Now().Format(config.LogStamp) + "] [repm] " + format
 	notify.LnMagentaF(format, a...)
-}
-
-func perr(format string, a ...interface{}) {
-	tag := "[" + r.id + "] "
-	if r.id == "" {
-		tag = "[remote] "
-	}
-	notify.LnRedF(tag+format, a...)
 }

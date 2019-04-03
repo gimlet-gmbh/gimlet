@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/config"
-	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/address"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -40,8 +39,9 @@ type ProcessManager struct {
 	// Router manages all addresses and instances of remotes
 	router *Router
 
-	mu      *sync.Mutex
-	verbose bool
+	mu         *sync.Mutex
+	shutdownmu *sync.Mutex
+	verbose    bool
 }
 
 var procm *ProcessManager
@@ -57,22 +57,23 @@ func NewProcessManager(addr, env string, v bool) *ProcessManager {
 	}
 
 	procm = &ProcessManager{
-		Version:   config.Version,
-		CodeName:  config.Code,
-		startTime: time.Now(),
-		Address:   addr,
-		router:    NewRouter(),
-		env:       env,
-		verbose:   v,
-		mu:        &sync.Mutex{},
+		Version:    config.Version,
+		CodeName:   config.Code,
+		startTime:  time.Now(),
+		Address:    addr,
+		router:     NewRouter(),
+		env:        env,
+		verbose:    v,
+		mu:         &sync.Mutex{},
+		shutdownmu: &sync.Mutex{},
 	}
 
-	notify.LnCyanF("                    _                 ")
-	notify.LnCyanF("  _  ._ _  |_  |_| |_) ._ _   _ |\\/| ")
-	notify.LnCyanF(" (_| | | | |_) | | |   | (_) (_ |  |  ")
-	notify.LnCyanF("  _|                                  ")
-	procm.print("version=%s", procm.Version)
-	procm.print("env=%s; address=%s", procm.env, procm.Address)
+	print("                    _                 ")
+	print("  _  ._ _  |_  |_| |_) ._ _   _ |\\/| ")
+	print(" (_| | | | |_) | | |   | (_) (_ |  |  ")
+	print("  _|                                  ")
+	print("version=%s", procm.Version)
+	print("env=%s; address=%s", procm.env, procm.Address)
 	return procm
 }
 
@@ -104,7 +105,7 @@ func (p *ProcessManager) Wait() {
 	// set up the listener for shutdown
 	sig := make(chan os.Signal, 1)
 	if p.env == "M" {
-		p.print("procm is in managed mode; overriding sigusr2; ignoring sigint")
+		print("procm is in managed mode; overriding sigusr2; ignoring sigint")
 		signal.Notify(sig, syscall.SIGUSR2)
 		signal.Ignore(syscall.SIGINT)
 	} else {
@@ -113,7 +114,7 @@ func (p *ProcessManager) Wait() {
 
 	_ = <-sig
 	fmt.Println() // dead-line to align output after sigint
-
+	p.shutdownmu.Lock()
 	p.Shutdown(false)
 }
 
@@ -124,13 +125,15 @@ func (p *ProcessManager) gracefulShutdownListener() {
 	signal.Notify(shutdown, syscall.SIGUSR1)
 
 	_ = <-shutdown
-	p.print("SIGUSR1 reported")
+	// print("SIGUSR1 reported")
+	p.shutdownmu.Lock()
 	p.sendGmbhShutdown()
+	p.shutdownmu.Unlock()
 }
 
 // RegisterRemote adds the remote to the router and sends back the id and address
 func (p *ProcessManager) RegisterRemote(mode, env, addr string) (id, address, fingerprint string, err error) {
-	p.print("registering new remote")
+	print("registering new remote")
 	rm, err := p.router.AttachNewRemote(mode, env, addr)
 	if err != nil {
 		return "", "", "", err
@@ -183,17 +186,17 @@ func (p *ProcessManager) RestartAll() []error {
 	}
 	if len(errors) != 0 {
 		for _, e := range errors {
-			p.perr("restart error=" + e.Error())
+			print("restart error=" + e.Error())
 		}
 	} else {
-		p.print("sent all restart requests with no errors")
+		print("sent all restart requests with no errors")
 	}
 	return errors
 }
 
 // sendRestart sends a restart request to a remote
 func (p *ProcessManager) sendRestart(address, id string, all bool) error {
-	p.print("sending restart request to " + id)
+	print("sending restart request to " + id)
 
 	client, ctx, can, err := rpc.GetRemoteRequest(address, time.Second*2)
 	if err != nil {
@@ -219,15 +222,10 @@ func (p *ProcessManager) sendRestart(address, id string, all bool) error {
 // processes because gmbh process manager has signaled shutdown time
 func (p *ProcessManager) sendGmbhShutdown() {
 
-	p.print("gmbh shutdown initiated")
-
 	remotes := p.router.GetAllAttached()
-	p.print(strconv.Itoa(len(remotes)))
 	for _, r := range remotes {
-		p.print("sending gmbh shutdown notice to " + r.ID)
 		client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
 		if err != nil {
-			p.perr("could not get client; err=%s", err.Error())
 			continue
 		}
 		update := &intrigue.ServiceUpdate{
@@ -235,7 +233,6 @@ func (p *ProcessManager) sendGmbhShutdown() {
 		}
 		_, err = client.UpdateRegistration(ctx, update)
 		if err != nil {
-			p.perr("could not contact client; err=%s", err.Error())
 			continue
 		}
 		can()
@@ -250,10 +247,10 @@ func (p *ProcessManager) sendShutdown(done chan bool) {
 		wg.Add(1)
 		go func(r *RemoteServer) {
 			defer wg.Done()
-			p.print("sending shutdown notice to " + r.ID)
+			print("sending shutdown notice to " + r.ID)
 			client, ctx, can, err := rpc.GetRemoteRequest(r.Address, time.Second*2)
 			if err != nil {
-				p.perr("could not get client; err=%s", err.Error())
+				print("could not get client; err=%s", err.Error())
 				return
 			}
 			update := &intrigue.ServiceUpdate{
@@ -261,7 +258,7 @@ func (p *ProcessManager) sendShutdown(done chan bool) {
 			}
 			_, err = client.UpdateRegistration(ctx, update)
 			if err != nil {
-				p.perr("could not contact client; err=%s", err.Error())
+				print("could not contact client; err=%s", err.Error())
 				return
 			}
 			can()
@@ -279,21 +276,15 @@ func (p *ProcessManager) MarkShutdown(id string) {
 // Shutdown starts shutdown procedures. If remote it indicates tat the signal came from the control
 // tool
 func (p *ProcessManager) Shutdown(remote bool) {
-	p.print("shutdown signal received")
+	print("shutting down...")
 	noticesSent := make(chan bool)
 	go p.sendShutdown(noticesSent)
 	<-noticesSent
 	p.con.Disconnect()
 
-	p.print("shutdown; time=%s", time.Now().Format(time.Stamp))
+	// print("shutdown; time=%s", time.Now().Format(time.Stamp))
+	p.shutdownmu.Unlock()
 	return
-}
-
-func (p *ProcessManager) print(format string, a ...interface{}) {
-	notify.LnCyanF("[proc] "+format, a...)
-}
-func (p *ProcessManager) perr(format string, a ...interface{}) {
-	notify.LnRedF("[proc] "+format, a...)
 }
 
 // Router controls the handling of attached remote servers including assigning addresses
@@ -328,13 +319,11 @@ func NewRouter() *Router {
 // LookupRemote scans through the remote map and returns if a match is found, otherwise an
 // an error is returned
 func (r *Router) LookupRemote(id string) (*RemoteServer, error) {
-	// r.verbose("looking up remote with id=" + id)
 	rm := r.remotes[id]
 	if rm == nil {
-		r.verbose("attempted to lookkup up remote with id=" + id + "; not found")
+		print("attempted to lookkup up remote with id=" + id + "; not found")
 		return nil, errors.New("router.LookupRemote.notFound")
 	}
-	// r.verbose("found remote")
 	return rm, nil
 }
 
@@ -353,10 +342,10 @@ func (r *Router) AttachNewRemote(mode, env, addr string) (*RemoteServer, error) 
 	newRemote := NewRemoteServer(r.assignID(), address, mode)
 	err := r.addToMap(newRemote)
 	if err != nil {
-		r.verbose(err.Error())
+		print(err.Error())
 		return nil, err
 	}
-	r.verbose("attached new remote; id=" + newRemote.ID + "; address=" + newRemote.Address)
+	print("attached new remote; id=" + newRemote.ID + "; address=" + newRemote.Address)
 	return newRemote, nil
 }
 
@@ -371,7 +360,7 @@ func (r *Router) GetAllAttached() []*RemoteServer {
 
 // Shutdown marks the remoteServer as shutdown
 func (r *Router) Shutdown(id string) {
-	r.verbose("marking shutdown; id=" + id)
+	print("marking shutdown; id=" + id)
 	remote := r.remotes[id]
 	if remote == nil {
 		return
@@ -384,10 +373,10 @@ func (r *Router) Shutdown(id string) {
 // addToMap the remote server, otherwise return error
 func (r *Router) addToMap(rm *RemoteServer) error {
 	if _, ok := r.remotes[rm.ID]; ok {
-		r.verbose("could not add to map, id error")
+		print("could not add to map, id error")
 		return errors.New("router.addToMap.error")
 	}
-	r.verbose("added new router to map=" + rm.ID)
+	print("added new router to map=" + rm.ID)
 
 	r.mu.Lock()
 	r.remotes[rm.ID] = rm
@@ -398,7 +387,7 @@ func (r *Router) addToMap(rm *RemoteServer) error {
 
 // removeRemote from the map
 func (r *Router) removeRemote(remoteID string) {
-	r.verbose("removing " + remoteID)
+	print("removing " + remoteID)
 	delete(r.remotes, remoteID)
 }
 
@@ -410,13 +399,6 @@ func (r *Router) assignID() string {
 		r.mu.Unlock()
 	}()
 	return "r" + strconv.Itoa(r.idCounter)
-}
-
-// verbose sends message to notify if in verbose mode
-func (r *Router) verbose(msg string) {
-	if r.Verbose {
-		notify.LnBlueF("[rtr] " + msg)
-	}
 }
 
 // State controls the state of a remote server

@@ -100,4 +100,7 @@ const (
 
 	// DefaultServiceLogName ;
 	DefaultServiceLogName = "stdout.log"
+
+	// LogStamp for output to logs
+	LogStamp = "06/01/02 15:04"
 )

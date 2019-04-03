@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"github.com/gmbh-micro/config"
+	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/remote"
 )
 
@@ -73,4 +75,9 @@ func main() {
 		}
 		p.Wait()
 	}
+}
+
+func print(format string, a ...interface{}) {
+	format = "[" + time.Now().Format(config.LogStamp) + "] [procm] " + format
+	notify.LnMagentaF(format, a...)
 }

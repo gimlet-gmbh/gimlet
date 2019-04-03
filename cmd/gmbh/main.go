@@ -46,7 +46,7 @@ func main() {
 	if *run || *deploy {
 
 		if *config == "" {
-			notify.LnRedF("error, must specify a gmbh config file")
+			print("error, must specify a gmbh config file")
 			os.Exit(1)
 		}
 
@@ -74,45 +74,45 @@ func main() {
 // start validates if gmbh is installed and checks if the core service file has been created
 func start(cfile string, verbose, nolog, daemon bool) {
 
-	notify.LnF("                  ")
-	notify.LnF("  _  ._ _  |_  |_|")
-	notify.LnF(" (_| | | | |_) | |")
-	notify.LnF("  _|              ")
-	notify.LnF("Version=%s; Code=%s", config.Version, config.Code)
+	print("                  ")
+	print("  _  ._ _  |_  |_|")
+	print(" (_| | | | |_) | |")
+	print("  _|              ")
+	print("Version=%s; Code=%s", config.Version, config.Code)
 
 	// make sure that gmbhCore is installed
 	installed := checkInstall()
 	if !installed {
-		notify.LnRedF("gmbhCore or gmbhProcm does not seem to be installed")
+		print("gmbhCore or gmbhProcm does not seem to be installed")
 		os.Exit(1)
 	}
 
 	conf, err := config.ParseSystemConfig(cfile)
 	if err != nil {
-		notify.LnRedF("specified config file cannot be parsed, err=%s", err.Error())
+		print("specified config file cannot be parsed, err=%s", err.Error())
 		os.Exit(1)
 	}
 
 	fileutil.MkDir("gmbh")
 
 	if !fileutil.FileExists(filepath.Join("gmbh", coreService)) {
-		notify.LnF("Generating core service config file...")
+		print("Generating core service config file...")
 		err = genCoreConf(filepath.Join("gmbh", coreService), cfile, conf)
 		if err != nil {
-			notify.LnRedF("cannot create core config file, err=%s", err.Error())
+			print("cannot create core config file, err=%s", err.Error())
 			os.Exit(1)
 		}
 	}
 
 	proccmd, proclog, err := startProcm(nolog)
 	if err != nil {
-		notify.LnRedF("could not start ProcM, err=%s", err.Error())
+		print("could not start ProcM, err=%s", err.Error())
 		os.Exit(1)
 	}
 
 	_, corelog, err := startCore(nolog, verbose)
 	if err != nil {
-		notify.LnRedF("could not start core, err=%s", err.Error())
+		print("could not start core, err=%s", err.Error())
 		os.Exit(1)
 	}
 
@@ -126,14 +126,13 @@ func start(cfile string, verbose, nolog, daemon bool) {
 		fmt.Println() //dead line to line up output
 
 		// signal the processes
-		notify.LnF("signaled sigusr1")
+		// print("signaled sigusr1")
 		proccmd.Process.Signal(syscall.SIGUSR1)
 
 		// shutdown the process manager
-		time.Sleep(time.Second * 3)
 		proccmd.Process.Signal(syscall.SIGUSR2)
 		proccmd.Wait()
-		notify.LnF("procm shutdown")
+		// print("procm shutdown")
 
 		// close the logs
 		if proclog != nil {
@@ -142,7 +141,7 @@ func start(cfile string, verbose, nolog, daemon bool) {
 		if corelog != nil {
 			corelog.Close()
 		}
-		notify.LnF("shutdown complete")
+		print("shutdown complete...")
 	}
 }
 
@@ -158,9 +157,9 @@ func startProcm(nolog bool) (*exec.Cmd, *os.File, error) {
 		if err == nil {
 			cmd.Stdout = log
 			cmd.Stderr = log
-			notify.LnF(filepath.Join(fileutil.Getpwd(), config.LogPath, config.ProcmLogName))
+			print(filepath.Join(fileutil.Getpwd(), config.LogPath, config.ProcmLogName))
 		} else {
-			notify.LnRedF("could not create procm log, err=%s", err.Error())
+			print("could not create procm log, err=%s", err.Error())
 		}
 	}
 
@@ -184,9 +183,9 @@ func startCore(nolog, verbose bool) (*exec.Cmd, *os.File, error) {
 			if err == nil {
 				cmd.Stdout = log
 				cmd.Stderr = log
-				notify.LnF(filepath.Join(fileutil.Getpwd(), config.LogPath, config.ProcmLogName))
+				print(filepath.Join(fileutil.Getpwd(), config.LogPath, config.ProcmLogName))
 			} else {
-				notify.LnRedF("could not create core log, err=%s", err.Error())
+				print("could not create core log, err=%s", err.Error())
 			}
 		}
 	}
@@ -209,7 +208,7 @@ func startServices(conf *config.SystemConfig) {
 
 		err := launchService(i + 1)
 		if err != nil {
-			notify.LnRedF("error starting node %d; error=%s", i+1, err.Error())
+			print("error starting node %d; error=%s", i+1, err.Error())
 		}
 	}
 
@@ -226,11 +225,11 @@ func launchService(node int) error {
 
 	f, err := fileutil.GetLogFile(config.LogPath, "node-"+strconv.Itoa(node)+".log")
 	if err == nil {
-		notify.LnF("%s", filepath.Join(fileutil.Getpwd(), config.LogPath, "node-"+strconv.Itoa(node)+".log"))
+		print("%s", filepath.Join(fileutil.Getpwd(), config.LogPath, "node-"+strconv.Itoa(node)+".log"))
 		cmd.Stdout = f
 		cmd.Stderr = f
 	} else {
-		notify.LnRedF("could not create log file: " + err.Error())
+		print("could not create log file: " + err.Error())
 	}
 
 	return cmd.Start()
@@ -278,6 +277,11 @@ func checkInstall() bool {
 		}
 		return true
 	}
-	notify.LnRedF(fmt.Sprintf("OS support not implemented for %s", runtime.GOOS))
+	print(fmt.Sprintf("OS support not implemented for %s", runtime.GOOS))
 	return false
+}
+
+func print(format string, a ...interface{}) {
+	format = "[" + time.Now().Format(config.LogStamp) + "] [gmbh] " + format
+	notify.LnYellowF(format, a...)
 }

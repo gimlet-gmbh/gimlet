@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
@@ -132,23 +133,21 @@ func NewClient(opt ...Option) (*Client, error) {
 		return nil, fmt.Errorf("must set ServiceOptions to include a name for the service")
 	}
 
-	g.printer("                    _                 ")
-	g.printer("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
-	g.printer(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
-	g.printer("  _|                                  ")
-	tag := fmt.Sprintf("[%s]", g.opts.service.Name)
-	notify.SetHeader(tag)
-	g.printer("service started from %s", fileutil.Getpwd())
-	g.printer("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, ","))
+	print("                    _                 ")
+	print("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
+	print(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
+	print("  _|                                  ")
+	print("service started from %s", fileutil.Getpwd())
+	print("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, ","))
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
 	if g.env == "C" {
 		g.opts.standalone.CoreAddress = os.Getenv("CORE")
-		g.printer("using core address from env=%s", os.Getenv("CORE"))
+		print("using core address from env=%s", os.Getenv("CORE"))
 		g.myAddress = os.Getenv("ADDR")
 	} else {
-		g.printer("core address=%s", g.opts.standalone.CoreAddress)
+		print("core address=%s", g.opts.standalone.CoreAddress)
 	}
 
 	// @important -- the only service allowed to be named CoreData is the actual gmbhCore
@@ -177,14 +176,14 @@ func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
 
 	if g.env == "M" {
-		g.printer("managed mode; ignoring siging; listening for sigusr2")
+		print("managed mode; ignoring siging; listening for sigusr2")
 		signal.Ignore(syscall.SIGINT)
 		signal.Notify(sigs, syscall.SIGUSR2)
 	} else {
 		signal.Notify(sigs, syscall.SIGINT)
 	}
 
-	g.printer("started, time=" + time.Now().Format(time.RFC3339))
+	print("started, time=" + time.Now().Format(time.RFC3339))
 
 	go g.connect()
 
@@ -194,7 +193,7 @@ func (g *Client) start() {
 
 // Shutdown starts shutdown procedures
 func (g *Client) Shutdown(src string) {
-	g.printer("Shutdown procedures started in client from " + src)
+	// print("Shutdown procedures started in client from " + src)
 	g.mu.Lock()
 	g.closed = true
 	g.reg = nil
@@ -203,7 +202,8 @@ func (g *Client) Shutdown(src string) {
 	g.makeUnregisterRequest()
 	g.disconnect()
 
-	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
+	// print("shutdown, time=" + time.Now().Format(time.RFC3339))
+	print("shutdown complete...")
 	defer os.Exit(0)
 }
 
@@ -217,7 +217,7 @@ func (g *Client) resolveAddress(target string) string {
 	}
 
 	// ask the core for the address
-	g.printer("getting address for " + target)
+	print("getting address for " + target)
 
 	err := makeWhoIsRequest(target)
 	if err == nil {
@@ -235,16 +235,16 @@ func (g *Client) resolveAddress(target string) string {
 // disconnect from gmbh-core and go back into connecting mode
 func (g *Client) disconnect() {
 
-	g.printer("disconnecting from gmbh-core")
+	print("disconnecting from gmbh-core")
 
 	g.mu.Lock()
 	if g.con != nil {
-		g.printer("con exists; can send formal disconnect")
+		print("con exists; can send formal disconnect")
 		g.con.Disconnect()
 		g.con.Server = nil
 		g.con.SetAddress("-")
 	} else {
-		g.printer("con is nil")
+		print("con is nil")
 	}
 	g.reg = nil
 	g.state = Disconnected
@@ -257,7 +257,7 @@ func (g *Client) disconnect() {
 }
 
 func (g *Client) failed() {
-	g.printer("failed to receive pong; disconnecting")
+	print("failed to receive pong; disconnecting")
 
 	if g.con.IsConnected() {
 		g.con.Disconnect()
@@ -294,14 +294,17 @@ func (g *Client) makeUnregisterRequest() {
 // getReg gets the registration or an empty one, keeps from causing a panic
 func (g *Client) getReg() *registration {
 	if g.reg == nil {
-		g.printer("nil reg err")
+		print("nil reg err")
 		return &registration{}
 	}
 	return g.reg
 }
 
-func (g *Client) printer(msg string, a ...interface{}) {
-	if g.opts.runtime.Verbose {
-		notify.LnMagentaF(msg, a...)
+func print(format string, a ...interface{}) {
+	name := "client"
+	if g.opts.service.Name != "" {
+		name = g.opts.service.Name
 	}
+	format = "[" + time.Now().Format(config.LogStamp) + "] [" + name + "] " + format
+	notify.LnMagentaF(format, a...)
 }
