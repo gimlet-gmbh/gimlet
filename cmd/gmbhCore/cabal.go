@@ -156,9 +156,10 @@ func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrig
 
 	// add core itself
 	ccs := &intrigue.CoreService{
-		Name:     "CoreData",
-		Address:  c.conf.Address,
-		ParentID: c.parentID,
+		Name:       "CoreData",
+		PeerGroups: []string{"core"},
+		Address:    c.conf.Address,
+		ParentID:   c.parentID,
 	}
 
 	request := in.GetRequest()
