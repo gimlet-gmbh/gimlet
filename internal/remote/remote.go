@@ -307,7 +307,6 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 func (r *Remote) AddService(conf *config.ServiceConfig) {
 	go func() {
 		for {
-			time.Sleep(time.Second * 3)
 			if r.id != "" {
 				service, err := r.serviceManager.AddServiceFromConfig(conf)
 				if err != nil {
@@ -323,6 +322,7 @@ func (r *Remote) AddService(conf *config.ServiceConfig) {
 				print("service started with pid=%s", pid)
 				break
 			}
+			time.Sleep(time.Second * 1)
 		}
 	}()
 }

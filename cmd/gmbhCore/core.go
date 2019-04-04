@@ -209,7 +209,7 @@ func (r *Router) LookupService(name string) (*GmbhService, error) {
 	// r.v("looking up %s", name)
 	retrievedService := r.services[name]
 	if retrievedService == nil {
-		print("%s not found in router", name)
+		// print("%s not found in router", name)
 		return nil, errors.New("router.LookupService.NotFound")
 	}
 	// r.v("found")
