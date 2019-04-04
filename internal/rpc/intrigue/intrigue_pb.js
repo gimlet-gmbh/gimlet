@@ -209,7 +209,7 @@ proto.intrigue.NewServiceRequest.prototype.clearService = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.NewServiceRequest.prototype.hasService = function() {
   return jspb.Message.getField(this, 1) != null;
@@ -434,7 +434,7 @@ proto.intrigue.Receipt.prototype.clearServiceinfo = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.Receipt.prototype.hasServiceinfo = function() {
   return jspb.Message.getField(this, 1) != null;
@@ -650,7 +650,7 @@ proto.intrigue.DataRequest.prototype.clearRequest = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.DataRequest.prototype.hasRequest = function() {
   return jspb.Message.getField(this, 1) != null;
@@ -836,7 +836,7 @@ proto.intrigue.DataResponse.prototype.clearResponder = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.DataResponse.prototype.hasResponder = function() {
   return jspb.Message.getField(this, 2) != null;
@@ -1978,15 +1978,15 @@ proto.intrigue.SummaryReceipt.serializeBinaryToWriter = function(message, writer
 
 /**
  * repeated ProcessManager Remotes = 1;
- * @return {!Array.<!proto.intrigue.ProcessManager>}
+ * @return {!Array<!proto.intrigue.ProcessManager>}
  */
 proto.intrigue.SummaryReceipt.prototype.getRemotesList = function() {
-  return /** @type{!Array.<!proto.intrigue.ProcessManager>} */ (
+  return /** @type{!Array<!proto.intrigue.ProcessManager>} */ (
     jspb.Message.getRepeatedWrapperField(this, proto.intrigue.ProcessManager, 1));
 };
 
 
-/** @param {!Array.<!proto.intrigue.ProcessManager>} value */
+/** @param {!Array<!proto.intrigue.ProcessManager>} value */
 proto.intrigue.SummaryReceipt.prototype.setRemotesList = function(value) {
   jspb.Message.setRepeatedWrapperField(this, 1, value);
 };
@@ -2009,15 +2009,15 @@ proto.intrigue.SummaryReceipt.prototype.clearRemotesList = function() {
 
 /**
  * repeated CoreService Services = 4;
- * @return {!Array.<!proto.intrigue.CoreService>}
+ * @return {!Array<!proto.intrigue.CoreService>}
  */
 proto.intrigue.SummaryReceipt.prototype.getServicesList = function() {
-  return /** @type{!Array.<!proto.intrigue.CoreService>} */ (
+  return /** @type{!Array<!proto.intrigue.CoreService>} */ (
     jspb.Message.getRepeatedWrapperField(this, proto.intrigue.CoreService, 4));
 };
 
 
-/** @param {!Array.<!proto.intrigue.CoreService>} value */
+/** @param {!Array<!proto.intrigue.CoreService>} value */
 proto.intrigue.SummaryReceipt.prototype.setServicesList = function(value) {
   jspb.Message.setRepeatedWrapperField(this, 4, value);
 };
@@ -2728,21 +2728,21 @@ proto.intrigue.ProcessManager.prototype.setStarttime = function(value) {
 
 /**
  * repeated string Errors = 8;
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 proto.intrigue.ProcessManager.prototype.getErrorsList = function() {
-  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 8));
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 8));
 };
 
 
-/** @param {!Array.<string>} value */
+/** @param {!Array<string>} value */
 proto.intrigue.ProcessManager.prototype.setErrorsList = function(value) {
   jspb.Message.setField(this, 8, value || []);
 };
 
 
 /**
- * @param {!string} value
+ * @param {string} value
  * @param {number=} opt_index
  */
 proto.intrigue.ProcessManager.prototype.addErrors = function(value, opt_index) {
@@ -2787,15 +2787,15 @@ proto.intrigue.ProcessManager.prototype.setLogpath = function(value) {
 
 /**
  * repeated Service Services = 4;
- * @return {!Array.<!proto.intrigue.Service>}
+ * @return {!Array<!proto.intrigue.Service>}
  */
 proto.intrigue.ProcessManager.prototype.getServicesList = function() {
-  return /** @type{!Array.<!proto.intrigue.Service>} */ (
+  return /** @type{!Array<!proto.intrigue.Service>} */ (
     jspb.Message.getRepeatedWrapperField(this, proto.intrigue.Service, 4));
 };
 
 
-/** @param {!Array.<!proto.intrigue.Service>} value */
+/** @param {!Array<!proto.intrigue.Service>} value */
 proto.intrigue.ProcessManager.prototype.setServicesList = function(value) {
   jspb.Message.setRepeatedWrapperField(this, 4, value);
 };
@@ -3015,21 +3015,21 @@ proto.intrigue.NewService.prototype.setName = function(value) {
 
 /**
  * repeated string Aliases = 2;
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 proto.intrigue.NewService.prototype.getAliasesList = function() {
-  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 2));
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 2));
 };
 
 
-/** @param {!Array.<string>} value */
+/** @param {!Array<string>} value */
 proto.intrigue.NewService.prototype.setAliasesList = function(value) {
   jspb.Message.setField(this, 2, value || []);
 };
 
 
 /**
- * @param {!string} value
+ * @param {string} value
  * @param {number=} opt_index
  */
 proto.intrigue.NewService.prototype.addAliases = function(value, opt_index) {
@@ -3078,21 +3078,21 @@ proto.intrigue.NewService.prototype.setIsclient = function(value) {
 
 /**
  * repeated string PeerGroups = 6;
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 proto.intrigue.NewService.prototype.getPeergroupsList = function() {
-  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 6));
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 6));
 };
 
 
-/** @param {!Array.<string>} value */
+/** @param {!Array<string>} value */
 proto.intrigue.NewService.prototype.setPeergroupsList = function(value) {
   jspb.Message.setField(this, 6, value || []);
 };
 
 
 /**
- * @param {!string} value
+ * @param {string} value
  * @param {number=} opt_index
  */
 proto.intrigue.NewService.prototype.addPeergroups = function(value, opt_index) {
@@ -3788,21 +3788,21 @@ proto.intrigue.Service.prototype.setLanguage = function(value) {
 
 /**
  * repeated string Errors = 19;
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 proto.intrigue.Service.prototype.getErrorsList = function() {
-  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 19));
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 19));
 };
 
 
-/** @param {!Array.<string>} value */
+/** @param {!Array<string>} value */
 proto.intrigue.Service.prototype.setErrorsList = function(value) {
   jspb.Message.setField(this, 19, value || []);
 };
 
 
 /**
- * @param {!string} value
+ * @param {string} value
  * @param {number=} opt_index
  */
 proto.intrigue.Service.prototype.addErrors = function(value, opt_index) {
@@ -4056,21 +4056,21 @@ proto.intrigue.CoreService.prototype.setMode = function(value) {
 
 /**
  * repeated string PeerGroups = 7;
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 proto.intrigue.CoreService.prototype.getPeergroupsList = function() {
-  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 7));
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 7));
 };
 
 
-/** @param {!Array.<string>} value */
+/** @param {!Array<string>} value */
 proto.intrigue.CoreService.prototype.setPeergroupsList = function(value) {
   jspb.Message.setField(this, 7, value || []);
 };
 
 
 /**
- * @param {!string} value
+ * @param {string} value
  * @param {number=} opt_index
  */
 proto.intrigue.CoreService.prototype.addPeergroups = function(value, opt_index) {
@@ -4100,21 +4100,21 @@ proto.intrigue.CoreService.prototype.setParentid = function(value) {
 
 /**
  * repeated string Errors = 4;
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 proto.intrigue.CoreService.prototype.getErrorsList = function() {
-  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 4));
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 4));
 };
 
 
-/** @param {!Array.<string>} value */
+/** @param {!Array<string>} value */
 proto.intrigue.CoreService.prototype.setErrorsList = function(value) {
   jspb.Message.setField(this, 4, value || []);
 };
 
 
 /**
- * @param {!string} value
+ * @param {string} value
  * @param {number=} opt_index
  */
 proto.intrigue.CoreService.prototype.addErrors = function(value, opt_index) {
@@ -4401,7 +4401,7 @@ proto.intrigue.Request.prototype.clearTport = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.Request.prototype.hasTport = function() {
   return jspb.Message.getField(this, 55) != null;
@@ -4431,7 +4431,7 @@ proto.intrigue.Request.prototype.clearPload = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.Request.prototype.hasPload = function() {
   return jspb.Message.getField(this, 60) != null;
@@ -4699,7 +4699,7 @@ proto.intrigue.Responder.prototype.clearTport = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.Responder.prototype.hasTport = function() {
   return jspb.Message.getField(this, 55) != null;
@@ -4729,7 +4729,7 @@ proto.intrigue.Responder.prototype.clearPload = function() {
 
 /**
  * Returns whether this field is set.
- * @return {!boolean}
+ * @return {boolean}
  */
 proto.intrigue.Responder.prototype.hasPload = function() {
   return jspb.Message.getField(this, 60) != null;
@@ -5044,67 +5044,67 @@ proto.intrigue.Payload.deserializeBinaryFromReader = function(msg, reader) {
     case 50:
       var value = msg.getFieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.intrigue.subFields.deserializeBinaryFromReader);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.intrigue.subFields.deserializeBinaryFromReader, "");
          });
       break;
     case 55:
       var value = msg.getJsonMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readBytes);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readBytes, null, "");
          });
       break;
     case 60:
       var value = msg.getTextfieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString, null, "");
          });
       break;
     case 62:
       var value = msg.getBoolfieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readBool);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readBool, null, "");
          });
       break;
     case 64:
       var value = msg.getBytefieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readBytes);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readBytes, null, "");
          });
       break;
     case 66:
       var value = msg.getIntfieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
          });
       break;
     case 68:
       var value = msg.getInt64fieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt64);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt64, null, "");
          });
       break;
     case 70:
       var value = msg.getUintfieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readUint32);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readUint32, null, "");
          });
       break;
     case 72:
       var value = msg.getUint64fieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readUint64);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readUint64, null, "");
          });
       break;
     case 74:
       var value = msg.getDoublefieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readDouble);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readDouble, null, "");
          });
       break;
     case 76:
       var value = msg.getFloatfieldsMap();
       reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readFloat);
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readFloat, null, "");
          });
       break;
     default:
@@ -5517,21 +5517,21 @@ proto.intrigue.subFields.serializeBinaryToWriter = function(message, writer) {
 
 /**
  * repeated string Sub = 1;
- * @return {!Array.<string>}
+ * @return {!Array<string>}
  */
 proto.intrigue.subFields.prototype.getSubList = function() {
-  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 1));
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 1));
 };
 
 
-/** @param {!Array.<string>} value */
+/** @param {!Array<string>} value */
 proto.intrigue.subFields.prototype.setSubList = function(value) {
   jspb.Message.setField(this, 1, value || []);
 };
 
 
 /**
- * @param {!string} value
+ * @param {string} value
  * @param {number=} opt_index
  */
 proto.intrigue.subFields.prototype.addSub = function(value, opt_index) {
