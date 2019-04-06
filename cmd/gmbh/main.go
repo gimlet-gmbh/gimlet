@@ -129,14 +129,8 @@ func launch() {
 	var datalog *os.File
 	var err error
 
-	var pmCmd, gmbhCmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		pmCmd = exec.Command("cmd", "/C gmbhProcm")
-		gmbhCmd = exec.Command("cmd", "/C gmbhProcm", "--remote", "--config=./"+l.CoreServiceFName)
-	} else {
-		pmCmd = exec.Command("gmbhProcm")
-		gmbhCmd = exec.Command("gmbhProcm", "--remote", "--config=./"+l.CoreServiceFName)
-	}
+	pmCmd := exec.Command("gmbhProcm")
+	gmbhCmd := exec.Command("gmbhProcm", "--remote", "--config=./"+l.CoreServiceFName)
 
 	gmbhEnv := []string{
 		"SERVICEMODE=managed",
@@ -355,16 +349,7 @@ func (l *launcher) launch() {
 
 	for i, f := range l.NodeFiles {
 
-		var cmd *exec.Cmd
-		argSlice := append(args, "--config=\""+f+"\"")
-		winArgSlice := []string{"/C", binPath}
-		winCmdSlice := append(winArgSlice, argSlice...)
-		fmt.Println(winCmdSlice)
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("cmd", winCmdSlice...)
-		} else {
-			cmd = exec.Command(binPath, append(args, "--config=\""+f+"\"")...)
-		}
+		cmd := exec.Command(binPath, append(args, "--config="+f)...)
 
 		f, err := getLogFile(config.LogPath, "node-"+strconv.Itoa(i+1)+".log")
 		if err == nil {

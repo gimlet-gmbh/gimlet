@@ -39,10 +39,10 @@ var (
 	CoreBinPathLinux = os.Getenv("GOPATH") + "/bin/gmbhCore"
 
 	// ProcmBinPathLinux runtime.GOOS ==  windows
-	ProcmBinPathWindows = os.Getenv("GOPATH") + "/bin/gmbhProcm"
+	ProcmBinPathWindows = os.Getenv("GOPATH") + "/bin/gmbhProcm.exe"
 
 	// CoreBinPathLinux runtime.GOOS == windows
-	CoreBinPathWindows = os.Getenv("GOPATH") + "/bin/gmbhCore"
+	CoreBinPathWindows = os.Getenv("GOPATH") + "/bin/gmbhCore.exe"
 )
 
 // DefaultSystemProcm holds the default procm settings
