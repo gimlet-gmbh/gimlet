@@ -17,6 +17,8 @@ type SystemConfig struct {
 	Procm       *SystemProcm     `toml:"procm"`
 	Service     []*ServiceConfig `toml:"service"`
 	Fingerprint string           `toml:"fingerprint"`
+	MaxPerNode  int              `toml:"max_services_per_node"`
+	Dashboard   bool             `toml:"include_dashboard"`
 }
 
 // SystemCore stores gmbhCore settings
@@ -39,11 +41,13 @@ type SystemProcm struct {
 
 // ServiceConfig is the static data needed to launch a service from the service launcher
 type ServiceConfig struct {
+	ID       string   `toml:"id"`
 	Args     []string `toml:"args"`
 	Env      []string `toml:"env"`
 	Language string   `toml:"language"`
 	BinPath  string   `toml:"bin_path"`
 	SrcPath  string   `toml:"src_path"`
+	Ports    []string `toml:"ports"`
 	ProjPath string
 }
 
@@ -113,6 +117,9 @@ func setDefaults(c *SystemConfig) {
 		if c.Procm.BinPath == "" {
 			c.Procm.BinPath = DefaultSystemProcm.BinPath
 		}
+	}
+	if c.MaxPerNode == 0 {
+		c.MaxPerNode = DefaultSystemConfig.MaxPerNode
 	}
 }
 

@@ -17,7 +17,7 @@ type cabalServer struct{}
 
 func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServiceRequest) (*intrigue.Receipt, error) {
 
-	logData("-> Incoming registration; Request=%s", in.String())
+	print("-> Incoming registration; Request=%s", in.String())
 
 	c, err := GetCore()
 	if err != nil {
@@ -26,7 +26,7 @@ func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServi
 
 	newService := in.GetService()
 
-	ns, err := c.Router.AddService(newService.GetName(), newService.GetAliases())
+	ns, err := c.Router.AddService(newService.GetName(), newService.GetAliases(), newService.GetPeerGroups(), in.GetEnv(), in.GetAddress())
 	if err != nil {
 		return &intrigue.Receipt{Error: err.Error()}, nil
 	}
@@ -44,7 +44,7 @@ func (s *cabalServer) RegisterService(ctx context.Context, in *intrigue.NewServi
 
 func (s *cabalServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 
-	logData("-> Update Registration; Update=%s", in.String())
+	print("-> Update Registration; Update=%s", in.String())
 
 	request := in.GetRequest()
 	name := in.GetMessage()
@@ -75,38 +75,38 @@ func (s *cabalServer) Data(ctx context.Context, in *intrigue.DataRequest) (*intr
 	defer func() { cnt++ }()
 
 	tport := in.GetRequest().GetTport()
-	logData("-%d-> Data request: %s", cnt, tport.String())
+	print("-%d-> Data request: %s", cnt, tport.String())
 
 	c, err := GetCore()
 	if err != nil {
-		logData("<-%d- could not get core error=%s", cnt, err.Error())
+		print("<-%d- could not get core error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "core.ref"}, nil
 	}
 
 	fwd, err := c.Router.LookupService(tport.GetTarget())
 	if err != nil {
-		logData("<-%d- service not found error=%s", cnt, err.Error())
+		print("<-%d- service not found error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "service.notFound"}, nil
 	}
 
 	client, ctx, can, err := rpc.GetCabalRequest(fwd.Address, time.Second*2)
 	if err != nil {
-		logData("<-%d- rpc error=%s", cnt, err.Error())
+		print("<-%d- rpc error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "rpc error=" + err.Error()}, nil
 	}
 	defer can()
 	final, err := client.Data(ctx, in)
 	if err != nil {
-		logData("<-%d- could not forward error=%s", cnt, err.Error())
+		print("<-%d- could not forward error=%s", cnt, err.Error())
 		return &intrigue.DataResponse{Error: "unableToForward"}, nil
 	}
-	logData("<-%d- elapsed time=%s", cnt, time.Since(t))
+	print("<-%d- elapsed time=%s", cnt, time.Since(t))
 	return final, nil
 }
 
 func (s *cabalServer) WhoIs(ctx context.Context, in *intrigue.WhoIsRequest) (*intrigue.WhoIsResponse, error) {
 
-	logData("-> WhoIsRequest=%s", in.String())
+	print("-> WhoIsRequest=%s", in.String())
 	target := in.GetTarget()
 	sender := in.GetSender()
 
@@ -125,44 +125,41 @@ func (s *cabalServer) WhoIs(ctx context.Context, in *intrigue.WhoIsRequest) (*in
 
 	verified := c.Router.Verify(name, fp)
 	if verified != nil {
-		logData("could not verify %s; err=%s", name, verified.Error())
+		print("could not verify %s; err=%s", name, verified.Error())
 		return &intrigue.WhoIsResponse{Error: verified.Error()}, nil
 	}
 
-	fromserv, err := c.Router.LookupService(sender)
+	addr, err := c.Router.GrantPermissions(sender, target)
 	if err != nil {
-		logData("could not verify %s; err=%s", name, verified.Error())
-		return &intrigue.WhoIsResponse{Error: err.Error()}, nil
+		if err.Error() == "denied" {
+			print("<- mismatch peer groups; %s -> %s", sender, target)
+			return &intrigue.WhoIsResponse{Error: "permission.denied"}, nil
+		}
+		print("<- peer group err=%s; %s -> %s", err.Error(), sender, target)
+		return &intrigue.WhoIsResponse{Error: "server.error"}, nil
 	}
 
-	serv, err := c.Router.LookupService(target)
-	if err != nil {
-		return &intrigue.WhoIsResponse{Error: "core.router.notFound"}, nil
-	}
+	print("<- granted; %s -> %s", sender, target)
+	return &intrigue.WhoIsResponse{TargetAddress: addr}, nil
 
-	if fromserv.PeerGroup == serv.PeerGroup || serv.PeerGroup == "universal" {
-		logData("<- granted; %s -> %s", fromserv.Name, serv.Name)
-		return &intrigue.WhoIsResponse{TargetAddress: serv.Address}, nil
-	}
-	logData("<- mismatch peer groups; %s -> %s; err=%s", fromserv.Name, serv.Name, verified.Error())
-	return &intrigue.WhoIsResponse{Error: "permission.denied"}, nil
 }
 
 func (s *cabalServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
 
-	logData("-> Update Registration; Update=%s", in.String())
+	print("-> Update Registration; Update=%s", in.String())
 
 	c, err := GetCore()
 	if err != nil {
-		logData("could not get core error=%s", cnt, err.Error())
+		print("could not get core error=%s", cnt, err.Error())
 		return &intrigue.SummaryReceipt{Error: "core.ref"}, nil
 	}
 
 	// add core itself
 	ccs := &intrigue.CoreService{
-		Name:     "CoreData",
-		Address:  c.conf.Address,
-		ParentID: c.parentID,
+		Name:       "CoreData",
+		PeerGroups: []string{"core"},
+		Address:    c.conf.Address,
+		ParentID:   c.parentID,
 	}
 
 	request := in.GetRequest()
@@ -193,7 +190,7 @@ func (s *cabalServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrigue
 
 	verified := c.Router.Verify(name, fp)
 	if verified != nil {
-		logData("could not verify %s; err=%s", name, verified.Error())
+		print("could not verify %s; err=%s", name, verified.Error())
 		return &intrigue.Pong{Error: verified.Error()}, nil
 	}
 

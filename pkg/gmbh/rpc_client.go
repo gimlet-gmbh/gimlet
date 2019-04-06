@@ -2,6 +2,8 @@ package gmbh
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -18,7 +20,7 @@ import (
 
 func register() (*registration, error) {
 
-	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second)
+	client, ctx, can, err := rpc.GetCabalRequest(g.opts.standalone.CoreAddress, time.Second*3)
 	if err != nil {
 		return nil, errors.New("registration.gmbhUnavailable")
 	}
@@ -26,12 +28,14 @@ func register() (*registration, error) {
 
 	request := intrigue.NewServiceRequest{
 		Service: &intrigue.NewService{
-			Name:      g.opts.service.Name,
-			Aliases:   g.opts.service.Aliases,
-			PeerGroup: g.opts.service.PeerGroup,
-			IsClient:  true,
-			IsServer:  true,
+			Name:       g.opts.service.Name,
+			Aliases:    g.opts.service.Aliases,
+			PeerGroups: g.opts.service.PeerGroups,
+			IsClient:   true,
+			IsServer:   true,
 		},
+		Address: g.myAddress,
+		Env:     g.env,
 	}
 
 	reply, err := client.RegisterService(ctx, &request)
@@ -39,7 +43,7 @@ func register() (*registration, error) {
 		if grpc.Code(err) == codes.Unavailable {
 			return nil, errors.New("registration.gmbhUnavailable")
 		}
-		g.printer(grpc.Code(err).String())
+		print(grpc.Code(err).String())
 		return nil, errors.New("registration.gmbhUnavailable")
 	}
 
@@ -59,20 +63,10 @@ func register() (*registration, error) {
 
 func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
-	_, ok := g.whoIs[target]
-	if !ok {
-		g.printer("getting address for " + target)
-
-		err := makeWhoIsRequest(target)
-		if err != nil {
-			r := Responder{err: err.Error()}
-			g.printer("could not get " + target + " from core")
-			return r, err
-		}
-	}
+	addr := g.resolveAddress(target)
 
 	t := time.Now()
-	client, ctx, can, err := rpc.GetCabalRequest(g.whoIs[target], time.Second)
+	client, ctx, can, err := rpc.GetCabalRequest(addr, time.Second)
 	if err != nil {
 		return Responder{}, errors.New("data.gmbhUnavailable")
 	}
@@ -91,7 +85,9 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 
 	mcs := strconv.Itoa(g.msgCounter)
 	g.msgCounter++
-	g.printer("<=" + mcs + "= target: " + target + ", method: " + method)
+	if g.env != "C" || os.Getenv("LOGGING") == "1" {
+		print("<=" + mcs + "= target: " + target + ", method: " + method)
+	}
 
 	reply, err := client.Data(ctx, &request)
 	if err != nil {
@@ -99,10 +95,12 @@ func makeDataRequest(target, method string, data *Payload) (Responder, error) {
 		return r, err
 
 	}
-	g.printer(" =" + mcs + "=> " + "time=" + time.Since(t).String())
+	if g.env != "C" || os.Getenv("LOGGING") == "1" {
+		print(" =" + mcs + "=> " + "time=" + time.Since(t).String())
+	}
 
 	if reply.Responder == nil {
-		return responderFromProto(intrigue.Responder{}), nil
+		return Responder{}, nil
 	}
 	return responderFromProto(*reply.Responder), nil
 }
@@ -126,6 +124,10 @@ func makeWhoIsRequest(target string) error {
 	reply, err := client.WhoIs(ctx, &request)
 	if err != nil {
 		return err
+	}
+
+	if reply.GetError() != "" {
+		return fmt.Errorf(reply.GetError())
 	}
 
 	g.whoIs[target] = reply.TargetAddress

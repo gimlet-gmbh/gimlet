@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version of gmbh{Core,Procm,Data}
-	Version = "0.9.4"
+	Version = "0.9.5"
 
 	// Code name of gmbh release
 	Code = "launching"
@@ -20,6 +20,12 @@ const (
 
 	// ServicePort is starting port for assignment to services
 	ServicePort = 49502
+
+	// CorePort ; the default core port
+	CorePort = ":49500"
+
+	// ProcmPort ; the default procm port
+	ProcmPort = ":59500"
 
 	// RemotePort is tarting port for assignment to procm remotes
 	RemotePort = 59502
@@ -65,9 +71,10 @@ var DefaultSystemCore = &SystemCore{
 
 // DefaultSystemConfig is the complete default system config
 var DefaultSystemConfig = SystemConfig{
-	Core:    DefaultSystemCore,
-	Procm:   DefaultSystemProcm,
-	Service: make([]*ServiceConfig, 0),
+	Core:       DefaultSystemCore,
+	Procm:      DefaultSystemProcm,
+	Service:    make([]*ServiceConfig, 0),
+	MaxPerNode: 1,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -99,4 +106,7 @@ const (
 
 	// DefaultServiceLogName ;
 	DefaultServiceLogName = "stdout.log"
+
+	// LogStamp for output to logs
+	LogStamp = "06/01/02 15:04"
 )

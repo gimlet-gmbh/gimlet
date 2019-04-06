@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"google.golang.org/grpc/metadata"
@@ -18,18 +17,18 @@ import (
 type controlServer struct{}
 
 func (c *controlServer) StartService(ctx context.Context, in *intrigue.Action) (*intrigue.Receipt, error) {
-	rpcprint("<- Start; action=" + in.String())
+	print("<- Start; action=" + in.String())
 	return &intrigue.Receipt{Error: "request.action.invalid"}, nil
 }
 
 func (c *controlServer) KillService(ctx context.Context, in *intrigue.Action) (*intrigue.Receipt, error) {
-	rpcprint("<- Kill; action=" + in.String())
+	print("<- Kill; action=" + in.String())
 	return &intrigue.Receipt{Error: "request.action.invalid"}, nil
 }
 
 func (c *controlServer) RestartService(ctx context.Context, in *intrigue.Action) (*intrigue.Receipt, error) {
 
-	rpcprint("<- Restart; action=" + in.String())
+	print("<- Restart; action=" + in.String())
 
 	request := in.GetRequest()
 	remoteID := in.GetRemoteID()
@@ -37,7 +36,7 @@ func (c *controlServer) RestartService(ctx context.Context, in *intrigue.Action)
 
 	pm, err := GetProcM()
 	if err != nil {
-		rpcprint("internal system error")
+		print("internal system error")
 		return &intrigue.Receipt{Error: "internal.pmref"}, nil
 	}
 
@@ -49,15 +48,15 @@ func (c *controlServer) RestartService(ctx context.Context, in *intrigue.Action)
 
 		remote, err := pm.LookupRemote(remoteID)
 		if err != nil {
-			rpcperr("could not find remote")
+			print("could not find remote")
 			return &intrigue.Receipt{Error: "remote.notFound"}, nil
 		}
-		rpcprint("found parent remote")
+		print("found parent remote")
 		pid := "-1"
 		{
 			client, ctx, can, err := rpc.GetRemoteRequest(remote.Address, time.Second*15)
 			if err != nil {
-				rpcperr("could not contact " + remote.ID)
+				print("could not contact " + remote.ID)
 			}
 			request := &intrigue.Action{
 				Request: "service.restart.one",
@@ -65,12 +64,12 @@ func (c *controlServer) RestartService(ctx context.Context, in *intrigue.Action)
 			}
 			reply, err := client.NotifyAction(ctx, request)
 			if err != nil {
-				rpcperr("could not contact " + remote.ID)
+				print("could not contact " + remote.ID)
 			}
 			pid = reply.GetMessage()
 			can()
 		}
-		rpcprint("new pid=" + pid)
+		print("new pid=" + pid)
 		return &intrigue.Receipt{Message: "pid=" + pid}, nil
 	}
 
@@ -80,7 +79,7 @@ func (c *controlServer) RestartService(ctx context.Context, in *intrigue.Action)
 
 func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
 
-	rpcprint("<- summary; action=" + in.String())
+	print("<- summary; action=" + in.String())
 
 	request := in.GetRequest()
 	remoteID := in.GetRemoteID()
@@ -88,7 +87,7 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 
 	pm, err := GetProcM()
 	if err != nil {
-		rpcperr("internal system error")
+		print("internal system error")
 		return &intrigue.SummaryReceipt{Error: "internal.pmref"}, nil
 	}
 
@@ -99,7 +98,7 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 			{
 				client, ctx, can, err := rpc.GetRemoteRequest(re.Address, time.Second*2)
 				if err != nil {
-					rpcperr("failed to contact\nid=%s; address=%s\nerr=%s", re.ID, re.Address, err.Error())
+					print("failed to contact\nid=%s; address=%s\nerr=%s", re.ID, re.Address, err.Error())
 					continue
 				}
 				request := &intrigue.Action{
@@ -107,7 +106,7 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 				}
 				reply, err := client.Summary(ctx, request)
 				if err != nil {
-					rpcperr("failed to contact\nid=%s; address=%s\nerr=%s", re.ID, re.Address, err.Error())
+					print("failed to contact\nid=%s; address=%s\nerr=%s", re.ID, re.Address, err.Error())
 					continue
 				}
 
@@ -124,7 +123,7 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 
 		rmt, err := pm.LookupRemote(remoteID)
 		if err != nil {
-			rpcperr("could not find remote")
+			print("could not find remote")
 			return &intrigue.SummaryReceipt{Error: "remote.notFound"}, nil
 		}
 
@@ -133,7 +132,7 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 			client, ctx, can, err := rpc.GetRemoteRequest(rmt.Address, time.Second*5)
 			if err != nil {
 				// TODO add return here
-				rpcperr("could not contact " + rmt.ID)
+				print("could not contact " + rmt.ID)
 			}
 			request := &intrigue.Action{
 				Target:  serviceID,
@@ -142,7 +141,7 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 			reply, err := client.Summary(ctx, request)
 			if err != nil {
 				// TODO add return here
-				rpcperr("could not contact " + rmt.ID)
+				print("could not contact " + rmt.ID)
 			}
 			rpcRemotes = append(rpcRemotes, reply.GetRemotes()...)
 			can()
@@ -161,11 +160,11 @@ func (c *controlServer) Summary(ctx context.Context, in *intrigue.Action) (*intr
 
 func (c *controlServer) StopServer(ctx context.Context, in *intrigue.EmptyRequest) (*intrigue.Receipt, error) {
 
-	rpcprint("<- stop server request; action=" + in.String())
+	print("<- stop server request; action=" + in.String())
 
 	pm, err := GetProcM()
 	if err != nil {
-		rpcperr("internal system error")
+		print("internal system error")
 		return &intrigue.Receipt{Error: "internal.pmref"}, nil
 	}
 	go func() {
@@ -178,27 +177,29 @@ func (c *controlServer) StopServer(ctx context.Context, in *intrigue.EmptyReques
 
 func (c *controlServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 
-	rpcprint("<- UpdateRegistration; serviceUpdate=" + in.String())
+	print("<- UpdateRegistration; serviceUpdate=" + in.String())
 
 	request := in.GetRequest()
 	message := in.GetMessage()
+	env := in.GetEnv()
+	addr := in.GetAddress()
 
 	pm, err := GetProcM()
 	if err != nil {
-		rpcperr("internal system error")
+		print("internal system error")
 		return &intrigue.Receipt{Error: "internal.pmref"}, nil
 	}
 
 	if request == "remote.register" {
 
 		// message is mode
-		id, address, fingerprint, err := pm.RegisterRemote(message)
+		id, address, fingerprint, err := pm.RegisterRemote(message, env, addr)
 		if err != nil {
-			rpcperr("router.err=" + err.Error())
+			print("router.err=" + err.Error())
 			return &intrigue.Receipt{Error: "router.err=" + err.Error()}, nil
 		}
 
-		rpcprint("sent registration response")
+		print("sent registration response")
 		return &intrigue.Receipt{
 			Message: "registered",
 			ServiceInfo: &intrigue.ServiceSummary{
@@ -223,12 +224,12 @@ func (c *controlServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrig
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		rpcperr("Could not get metadata")
+		print("Could not get metadata")
 	}
 
 	pm, err := GetProcM()
 	if err != nil {
-		rpcperr("internal system error")
+		print("internal system error")
 		return &intrigue.Pong{Error: "internal.pmref"}, nil
 	}
 
@@ -237,7 +238,7 @@ func (c *controlServer) Alive(ctx context.Context, ping *intrigue.Ping) (*intrig
 
 	verified := pm.Verify(id, fp)
 	if !verified {
-		rpcperr("<- (nil)pong; could not verify: " + id)
+		print("<- (nil)pong; could not verify: " + id)
 		return &intrigue.Pong{Error: "verification.error"}, nil
 	}
 
@@ -250,13 +251,4 @@ func remoteToRPC(r *RemoteServer, services []*intrigue.Service) *intrigue.Proces
 		Address:  r.Address,
 		Services: services,
 	}
-}
-
-func rpcprint(format string, a ...interface{}) {
-	notify.LnMagentaF("[control] "+format, a...)
-
-}
-
-func rpcperr(format string, a ...interface{}) {
-	notify.LnRedF("[control] "+format, a...)
 }

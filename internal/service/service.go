@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/config"
-	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/service/process"
 )
 
@@ -87,7 +87,7 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	}
 
 	// in managed mode, a log file is set to capture stdout and stderr
-	if mode == "managed" {
+	if mode == "M" {
 		s.Mode = Managed
 		conf.Signal = syscall.SIGQUIT
 		if !verbose {
@@ -101,14 +101,14 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 			} else {
 				s.LogPath = filepath.Join(s.Path, config.LogPath, config.DefaultServiceLogName)
 			}
-			notify.LnMagentaF("log at %s", s.LogPath)
+			// notify.LnMagentaF("log at %s", s.LogPath)
 			var e error
-			conf.LogF, e = notify.OpenFile(s.LogPath)
+			conf.LogF, e = fileutil.OpenFile(s.LogPath)
 			if e != nil {
-				notify.LnRedF("Error creating log")
+				// notify.LnRedF("Error creating log")
 			}
 		} else {
-			notify.LnMagentaF("verbose; service output directed to os.stdout")
+			// notify.LnMagentaF("verbose; service output directed to os.stdout")
 		}
 	} else {
 		s.Mode = Remote
@@ -116,7 +116,7 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	s.Process = process.NewLocalBinaryManager(conf)
 	p, err := s.Process.Start()
 	if err != nil {
-		notify.LnMagentaF("failed to start; err=%s", err.Error())
+		// notify.LnMagentaF("failed to start; err=%s", err.Error())
 		return "-1", errors.New("service.StartService.couldNotStartNewService")
 	}
 	return strconv.Itoa(p), nil
@@ -155,7 +155,8 @@ func (s *Service) EnableGracefulShutdown() {
 // createAbsPathToBin attempts to resolve an absolute path to the binary file to start
 func (s *Service) createAbsPathToBin(path, binPath string) string {
 	if binPath[0] == '.' {
-		return path + binPath[1:]
+		return fileutil.GetAbsFpath(binPath)
+		// return path + binPath[1:]
 	}
 	return binPath
 }

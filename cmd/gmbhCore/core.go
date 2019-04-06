@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gmbh-micro/config"
-	"github.com/gmbh-micro/notify"
+	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/address"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -40,9 +40,9 @@ type Core struct {
 	// Router controls all aspects of data requests & handling in Core
 	Router *Router
 
-	// mode can be set to managed to indicate that the service launcher
-	// has launched core and it is being controlled by a remote
-	mode string
+	// env is set in the environment and controls the environment that the core is running
+	// in.
+	env string
 
 	// parent id is for remote instances of core
 	parentID string
@@ -55,29 +55,32 @@ type Core struct {
 
 // NewCore initializes settings of the core and instantiates the core struct which includes the
 // service router and handlers
-func NewCore(cPath, address string, verbose bool) (*Core, error) {
+func NewCore(cPath, env, addr string, verbose bool) (*Core, error) {
 
 	// cannot reinit core once it has been created
+	// TODO use a "once" function here
 	if core != nil {
 		return core, nil
 	}
 
-	projpath := ""
 	var userConfig *config.SystemCore
+	projpath := ""
 	var err error
 	if cPath == "" {
 		userConfig = config.DefaultSystemCore
-		if address != "" {
-			userConfig.Address = address
-		}
-		projpath = notify.Getpwd()
+		userConfig.Address = addr
+		projpath = fileutil.Getpwd()
 	} else {
 		userConfig, err = config.ParseSystemCore(cPath)
 		if err != nil {
-			logCore("could not parse config; err=%v", err.Error())
+			print("could not parse config; err=%v", err.Error())
 			return nil, err
 		}
-		projpath = notify.GetAbs(cPath)
+		projpath = fileutil.GetAbs(cPath)
+	}
+
+	if env == "C" {
+		userConfig.Address = addr
 	}
 
 	core = &Core{
@@ -89,22 +92,23 @@ func NewCore(cPath, address string, verbose bool) (*Core, error) {
 		Router:      NewRouter(),
 		msgCounter:  1,
 		startTime:   time.Now(),
-		mode:        os.Getenv("SERVICEMODE"),
-		parentID:    os.Getenv("REMOTE"),
-		mu:          &sync.Mutex{},
-		verbose:     verbose,
+		// mode:        os.Getenv("SERVICEMODE"),
+		env:      env,
+		parentID: os.Getenv("REMOTE"),
+		mu:       &sync.Mutex{},
+		verbose:  verbose,
 	}
 
 	if core.ProjectPath == "" {
-		logCore("could not get path to project")
+		print("could not get path to project")
 		return nil, errors.New("config path error")
 	}
 
-	notify.LnCyanF("                    _            _              ")
-	notify.LnCyanF("  _  ._ _  |_  |_| /   _  ._ _  | \\  _. _|_  _. ")
-	notify.LnCyanF(" (_| | | | |_) | | \\_ (_) | (/_ |_/ (_|  |_ (_| ")
-	notify.LnCyanF("  _|                                            ")
-	notify.LnCyanF("version=%v; code=%v; startTime=%s", core.Version, core.Code, core.startTime.Format(time.Stamp))
+	print("                    _            _              ")
+	print("  _  ._ _  |_  |_| /   _  ._ _  | \\  _. _|_  _. ")
+	print(" (_| | | | |_) | | \\_ (_) | (/_ |_/ (_|  |_ (_| ")
+	print("  _|                                            ")
+	print("version=%v; code=%v; env=%s, startTime=%s", core.Version, core.Code, core.env, core.startTime.Format(time.Stamp))
 	return core, nil
 }
 
@@ -120,10 +124,10 @@ func GetCore() (*Core, error) {
 func (c *Core) Start() {
 	err := c.con.Connect()
 	if err != nil {
-		logCore("could not connected; err=%s", err.Error())
+		print("could not connected; err=%s", err.Error())
 		return
 	}
-	logCore("connected; address=%s", c.con.Address)
+	print("connected; address=%s", c.con.Address)
 
 	c.Wait()
 }
@@ -132,17 +136,17 @@ func (c *Core) Start() {
 func (c *Core) Wait() {
 	sig := make(chan os.Signal, 1)
 
-	if c.mode == "managed" {
-		logCore("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
+	if c.env == "M" {
+		print("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGQUIT)
 		signal.Ignore(syscall.SIGTRAP, syscall.SIGINT)
 	} else {
 		signal.Notify(sig, syscall.SIGINT)
 	}
 
-	logCore("main thread waiting")
+	print("main thread waiting")
 	_ = <-sig
-	fmt.Println() //dead line to line up output
+	// fmt.Println() //dead line to line up output
 
 	c.shutdown(false, "signal")
 	return
@@ -150,15 +154,15 @@ func (c *Core) Wait() {
 
 // shutdown begins graceful shutdown procedures
 func (c *Core) shutdown(remote bool, source string) {
-	logCore("shutdown procedure started from " + source)
+	// print("shutdown procedure started from " + source)
 
-	if c.mode != "managed" {
+	if c.env != "M" {
 		done := make(chan bool)
 		go c.Router.sendShutdownNotices(done)
 		<-done
 	}
 
-	notify.LnBlueF("shutdown; time=%s", time.Now().Format(time.Stamp))
+	print("shutdown complete...")
 	return
 }
 
@@ -205,7 +209,7 @@ func (r *Router) LookupService(name string) (*GmbhService, error) {
 	// r.v("looking up %s", name)
 	retrievedService := r.services[name]
 	if retrievedService == nil {
-		logRtr("%s not found in router", name)
+		// print("%s not found in router", name)
 		return nil, errors.New("router.LookupService.NotFound")
 	}
 	// r.v("found")
@@ -213,18 +217,23 @@ func (r *Router) LookupService(name string) (*GmbhService, error) {
 }
 
 // AddService attaches a service to gmbH
-func (r *Router) AddService(name string, aliases []string) (*GmbhService, error) {
+func (r *Router) AddService(name string, aliases []string, peerGroups []string, env, addr string) (*GmbhService, error) {
 
-	addr, err := r.addressing.NextAddress()
-	if err != nil {
-		return nil, err
+	newAddr := addr
+	if env != "C" {
+		var err error
+		newAddr, err = r.addressing.NextAddress()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	newService := NewService(
 		r.assignNextID(),
 		name,
 		aliases,
-		addr,
+		newAddr,
+		peerGroups,
 	)
 
 	// check to see if it exists in map already
@@ -232,28 +241,28 @@ func (r *Router) AddService(name string, aliases []string) (*GmbhService, error)
 	if err == nil {
 		// r.v("found new service already in map")
 		if s.State == Shutdown {
-			logRtr("correct params reported for this service to assume role of one found")
+			print("correct params reported for this service to assume role of one found")
 			s.UpdateState(Running)
 			return s, nil
 		}
 		alive := r.CheckIsAlive(s.Address)
 		if !alive {
-			logRtr("could not get a response from service on file, treating new service as one found")
+			print("could not get a response from service on file, treating new service as one found")
 			s.UpdateState(Running)
 			return s, nil
 		}
-		logRtr("service in map reporting still alive; naming err; not adding new service")
+		print("service in map reporting still alive; naming err; not adding new service")
 		return nil, fmt.Errorf("duplicate service")
 	}
 
 	err = r.addToMap(newService)
 	if err != nil {
-		logRtr(newService.String())
-		logRtr("could not add service to map; err=%s", err.Error())
+		print(newService.String())
+		print("could not add service to map; err=%s", err.Error())
 		return nil, err
 	}
 
-	logRtr("added service=%s", newService.String())
+	print("added service=%s", newService.String())
 	return newService, nil
 }
 
@@ -279,13 +288,13 @@ func (r *Router) Verify(name, fp string) error {
 func (r *Router) addToMap(newService *GmbhService) error {
 
 	if _, ok := r.services[newService.Name]; ok {
-		logRtr("could not add to map, duplicate name")
+		print("could not add to map, duplicate name")
 		return errors.New("router.addToMap: duplicate service with same name found")
 	}
 
 	for _, alias := range newService.Aliases {
 		if _, ok := r.services[alias]; ok {
-			logRtr("could not add to map, duplicate alias=" + alias)
+			print("could not add to map, duplicate alias=" + alias)
 			return errors.New("router.addToMap: duplicate service with same alias found")
 		}
 	}
@@ -312,10 +321,10 @@ func (r *Router) sendShutdownNotices(done chan bool) {
 		go func(n string) {
 			defer wg.Done()
 			service := r.services[n]
-			logRtr("sending shutdown to %s at %s", service.Name, service.Address)
+			// print("sending shutdown to %s at %s", service.Name, service.Address)
 			client, ctx, can, err := rpc.GetCabalRequest(service.Address, time.Millisecond*500)
 			if err != nil {
-				logRtr("could not create client")
+				// print("could not create client")
 				can()
 				return
 			}
@@ -326,7 +335,7 @@ func (r *Router) sendShutdownNotices(done chan bool) {
 			_, err = client.UpdateRegistration(ctx, req)
 			if err != nil {
 				if service.State != Shutdown {
-					logRtr("error contacting service; id=%s; err=%s", service.ID, err.Error())
+					// print("error contacting service; id=%s; err=%s", service.ID, err.Error())
 				}
 			}
 		}(name)
@@ -356,10 +365,10 @@ func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.Core
 	ret := []*intrigue.CoreService{core}
 	for _, n := range r.serviceNames {
 		service := r.services[n]
-		// logRtr("sending summary request to %s at %s", service.Name, service.Address)
+		// print("sending summary request to %s at %s", service.Name, service.Address)
 		client, ctx, can, err := rpc.GetCabalRequest(service.Address, time.Second*1)
 		if err != nil {
-			// logRtr("could not create client")
+			// print("could not create client")
 			can()
 			continue
 		}
@@ -374,7 +383,7 @@ func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.Core
 		}
 		resp, err := client.Summary(ctx, req)
 		if err != nil {
-			logRtr("error contacting service; id=%s; err=%s", service.ID, err.Error())
+			print("error contacting service; id=%s; err=%s", service.ID, err.Error())
 			continue
 		}
 		if resp.GetServices() == nil {
@@ -387,6 +396,27 @@ func (r *Router) GetCoreServiceData(core *intrigue.CoreService) []*intrigue.Core
 		ret = append(ret, resp.Services...)
 	}
 	return ret
+}
+
+// GrantPermissions checks the peer groups of from and to; If they have a common element,
+// then permission for them to speek is granted, else error
+func (r *Router) GrantPermissions(from, to string) (string, error) {
+	fromserv, err := r.LookupService(from)
+	if err != nil {
+		return "", err
+	}
+
+	serv, err := r.LookupService(to)
+	if err != nil {
+		return "", err
+	}
+
+	for k := range fromserv.PeerGroups {
+		if serv.PeerGroups[k] {
+			return serv.Address, nil
+		}
+	}
+	return "", fmt.Errorf("denied")
 }
 
 func (r *Router) assignNextID() string {
@@ -415,8 +445,8 @@ type GmbhService struct {
 	// the address to the service
 	Address string
 
-	// the peer group is the service defined group of
-	PeerGroup string
+	// the peer group is the service defined group id
+	PeerGroups map[string]bool
 
 	// The time that the service was added to the router
 	Added time.Time
@@ -438,17 +468,26 @@ func (g *GmbhService) String() string {
 }
 
 // NewService returns a gmbhService object with data filled in
-func NewService(id string, name string, aliases []string, address string) *GmbhService {
-	return &GmbhService{
+func NewService(id string, name string, aliases []string, address string, peerGroups []string) *GmbhService {
+	serv := &GmbhService{
 		ID:          id,
 		Name:        name,
 		Aliases:     aliases,
 		Address:     address,
+		PeerGroups:  make(map[string]bool),
 		Added:       time.Now(),
 		State:       Running,
 		LastPing:    time.Now().Add(time.Hour),
 		Fingerprint: xid.New().String(),
 		mu:          &sync.Mutex{},
+	}
+	serv.setPeerGroups(peerGroups)
+	return serv
+}
+
+func (g *GmbhService) setPeerGroups(pg []string) {
+	for _, v := range pg {
+		g.PeerGroups[v] = true
 	}
 }
 
@@ -457,7 +496,7 @@ func (g *GmbhService) UpdateState(s State) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if s != g.State {
-		logCore("marking %s(%s) as %s", g.Name, g.ID, s.String())
+		print("marking %s(%s) as %s", g.Name, g.ID, s.String())
 		g.State = s
 	}
 }

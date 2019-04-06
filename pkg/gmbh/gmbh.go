@@ -11,10 +11,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/gmbh-micro/config"
+	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -60,11 +63,11 @@ type Client struct {
 	// The map that handles function from the user's service
 	registeredFunctions map[string]HandlerFunc
 
-	// pingHelper keeps track of channels
-	pingHelpers []*pingHelper
+	PongTime time.Duration
 
-	PongTime  time.Duration
-	PingCount int
+	// the address of the cabal server that the client hosts itself on.
+	// This member var is mostly used for use in "C" env mode, or containerized
+	myAddress string
 
 	state State
 
@@ -84,12 +87,12 @@ type Client struct {
 	errors   []string
 	warnings []string
 
-	// mode chooses between signint and sigusr2 for the shutdown listener
-	// depending how how SERVICEMODE environment variable is set
-	//
-	// sigusr 2 is used only if SERVICEMODE=managed and is intended to only be used
-	// in combination with gmbhServiceLauncher
-	mode string
+	// how to handle signals as set by the environment
+	// {M,C,""}
+	// M = managed; use sigusr
+	// C = containerized
+	// "" = standalone
+	env string
 
 	// if a log path can be determined from the environment, it will be stored here and
 	// the printer helper will use it instead of stdOut and stdErr
@@ -116,9 +119,8 @@ func NewClient(opt ...Option) (*Client, error) {
 		registeredFunctions: make(map[string]HandlerFunc),
 		whoIs:               make(map[string]string),
 		mu:                  &sync.Mutex{},
-		pingHelpers:         []*pingHelper{},
 		PongTime:            time.Second * 45,
-		mode:                os.Getenv("SERVICEMODE"),
+		env:                 os.Getenv("ENV"),
 		parentID:            os.Getenv("REMOTE"),
 	}
 
@@ -131,26 +133,21 @@ func NewClient(opt ...Option) (*Client, error) {
 		return nil, fmt.Errorf("must set ServiceOptions to include a name for the service")
 	}
 
-	g.printer("                    _                 ")
-	g.printer("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
-	g.printer(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
-	g.printer("  _|                                  ")
-	notify.SetHeader("[gmbh]")
-	g.printer("service started from %s", notify.Getpwd())
+	print("                    _                 ")
+	print("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
+	print(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
+	print("  _|                                  ")
+	print("service started from %s", fileutil.Getpwd())
+	print("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, ","))
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
 	// use the one from opts which defaults to the default set from the config package
-	if os.Getenv("GMBHCORE") != "" {
-		g.opts.standalone.CoreAddress = os.Getenv("GMBHCORE")
-		g.printer("using core address from env=%s", os.Getenv("GMBHCORE"))
+	if g.env == "C" {
+		g.opts.standalone.CoreAddress = os.Getenv("CORE")
+		print("using core address from env=%s", os.Getenv("CORE"))
+		g.myAddress = os.Getenv("ADDR")
 	} else {
-		g.printer("core address=%s", g.opts.standalone.CoreAddress)
-	}
-
-	// the mode is determined if it comes from the environment variable initially, otherwise it is set
-	// to unmanaged
-	if g.mode == "" {
-		g.mode = "unmanaged"
+		print("core address=%s", g.opts.standalone.CoreAddress)
 	}
 
 	// @important -- the only service allowed to be named CoreData is the actual gmbhCore
@@ -178,15 +175,15 @@ func (g *Client) Start() {
 func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
 
-	if g.mode == "managed" {
-		g.printer("managed mode; ignoring siging; listening for sigusr2")
+	if g.env == "M" {
+		print("managed mode; ignoring siging; listening for sigusr2")
 		signal.Ignore(syscall.SIGINT)
 		signal.Notify(sigs, syscall.SIGQUIT)
 	} else {
 		signal.Notify(sigs, syscall.SIGINT)
 	}
 
-	g.printer("started, time=" + time.Now().Format(time.RFC3339))
+	print("started, time=" + time.Now().Format(time.RFC3339))
 
 	go g.connect()
 
@@ -196,23 +193,39 @@ func (g *Client) start() {
 
 // Shutdown starts shutdown procedures
 func (g *Client) Shutdown(src string) {
-	g.printer("Shutdown procedures started in client from " + src)
+	// print("Shutdown procedures started in client from " + src)
 	g.mu.Lock()
 	g.closed = true
 	g.reg = nil
-	g.pingHelpers = []*pingHelper{}
 	g.mu.Unlock()
 
 	g.makeUnregisterRequest()
 	g.disconnect()
 
-	if g.mode == "managed" {
-		g.printer("managed shutdown on return")
-		defer os.Exit(0)
-
-	}
-	g.printer("shutdown, time=" + time.Now().Format(time.RFC3339))
+	// print("shutdown, time=" + time.Now().Format(time.RFC3339))
+	print("shutdown complete...")
 	defer os.Exit(0)
+}
+
+func (g *Client) resolveAddress(target string) string {
+
+	addr, ok := g.whoIs[target]
+
+	// address already stored in whoIs map
+	if ok {
+		return addr
+	}
+
+	// ask the core for the address
+	print("getting address for " + target)
+
+	err := makeWhoIsRequest(target)
+	if err == nil {
+		return g.whoIs[target]
+	}
+
+	// send through to see if the core can process the request for us
+	return g.opts.standalone.CoreAddress
 }
 
 /**********************************************************************************
@@ -222,16 +235,16 @@ func (g *Client) Shutdown(src string) {
 // disconnect from gmbh-core and go back into connecting mode
 func (g *Client) disconnect() {
 
-	g.printer("disconnecting from gmbh-core")
+	print("disconnecting from gmbh-core")
 
 	g.mu.Lock()
 	if g.con != nil {
-		g.printer("con exists; can send formal disconnect")
+		print("con exists; can send formal disconnect")
 		g.con.Disconnect()
 		g.con.Server = nil
 		g.con.SetAddress("-")
 	} else {
-		g.printer("con is nil")
+		print("con is nil")
 	}
 	g.reg = nil
 	g.state = Disconnected
@@ -244,7 +257,7 @@ func (g *Client) disconnect() {
 }
 
 func (g *Client) failed() {
-	g.printer("failed to receive pong; disconnecting")
+	print("failed to receive pong; disconnecting")
 
 	if g.con.IsConnected() {
 		g.con.Disconnect()
@@ -281,14 +294,17 @@ func (g *Client) makeUnregisterRequest() {
 // getReg gets the registration or an empty one, keeps from causing a panic
 func (g *Client) getReg() *registration {
 	if g.reg == nil {
-		g.printer("nil reg err")
+		print("nil reg err")
 		return &registration{}
 	}
 	return g.reg
 }
 
-func (g *Client) printer(msg string, a ...interface{}) {
-	if g.opts.runtime.Verbose {
-		notify.LnMagentaF(msg, a...)
+func print(format string, a ...interface{}) {
+	name := "client"
+	if g.opts.service.Name != "" {
+		name = g.opts.service.Name
 	}
+	format = "[" + time.Now().Format(config.LogStamp) + "] [" + name + "] " + format
+	notify.LnMagentaF(format, a...)
 }

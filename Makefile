@@ -32,13 +32,13 @@ install-procm:
 
 deps:
 	$(GOGET) -u github.com/golang/protobuf/proto
-	$(GOGET) -u github.com/golang/protobuf/protoc-gen-go
+	$(GOGET) -u github.com/golang/protobuf/protoc-gen-go 
 	$(GOGET) -u google.golang.org/grpc
-	$(GOGET) -u github.com/fatih/color
 	$(GOGET) -u github.com/BurntSushi/toml
+	$(GOGET) -u github.com/fatih/color
 	$(GOGET) -u github.com/rs/xid
-
-clean:
+	
+clean: 
 	rm -f ./bin/*
 
 .PONY:

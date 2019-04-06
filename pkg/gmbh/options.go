@@ -48,7 +48,7 @@ type ServiceOptions struct {
 	// The id assignment is arbitrary as long as each intended one has the same id.
 	// NOTE: Any services where the group_id is undefined will be able to talk to
 	//       eachother freely.
-	PeerGroup string
+	PeerGroups []string
 }
 
 var defaultOptions = options{
@@ -60,9 +60,9 @@ var defaultOptions = options{
 		CoreAddress: config.DefaultSystemCore.Address,
 	},
 	service: &ServiceOptions{
-		Name:      "",
-		Aliases:   make([]string, 0),
-		PeerGroup: "universal",
+		Name:       "",
+		Aliases:    make([]string, 0),
+		PeerGroups: []string{"universal"},
 	},
 }
 
@@ -86,5 +86,8 @@ func SetService(s ServiceOptions) Option {
 	return func(o *options) {
 		o.service.Name = s.Name
 		o.service.Aliases = s.Aliases
+		if len(s.PeerGroups) != 0 {
+			o.service.PeerGroups = s.PeerGroups
+		}
 	}
 }

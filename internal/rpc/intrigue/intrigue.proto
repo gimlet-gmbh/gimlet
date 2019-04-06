@@ -37,6 +37,8 @@ service Control {
 
 message NewServiceRequest {
     NewService Service = 1;
+    string Address = 2;
+    string Env = 3;
 }
 
 message Receipt {
@@ -71,6 +73,8 @@ message EmptyRequest{}//empty
 message ServiceUpdate {
     string Request = 1;
     string Message = 2;
+    string Address = 4;
+    string Env = 5;
     string Error = 3;
 }
 
@@ -116,7 +120,8 @@ message NewService {
     repeated string Aliases = 2;
     bool IsServer = 3;
     bool IsClient = 4;
-    string PeerGroup = 5;
+    // string PeerGroup = 5;
+    repeated string PeerGroups = 6;
 }
 
 message ServiceSummary {
@@ -139,6 +144,7 @@ message Service {
     int32 Pid = 16;
     string StartTime = 17;
     string FailTime = 18;
+    string Language = 25;
     repeated string Errors = 19;
 }
 
@@ -146,6 +152,8 @@ message CoreService {
     string Name = 1;
     string Address = 2;
     string Mode = 3;
+    // string GroupName = 6;
+    repeated string PeerGroups = 7;
     string ParentID = 5;
     repeated string Errors = 4;
 }

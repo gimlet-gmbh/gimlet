@@ -20,10 +20,9 @@ import (
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
+	"github.com/gmbh-micro/rpc/address"
 	"github.com/gmbh-micro/rpc/intrigue"
 	"github.com/gmbh-micro/service"
-
-	"google.golang.org/grpc/metadata"
 )
 
 // Remote ; as in remote process manager client; holds the process
@@ -41,17 +40,19 @@ type Remote struct {
 	// the connection handler to gmbh over control server
 	con *rpc.Connection
 
-	// ping helpers help with gothread synchronization
-	pingHelpers []*pingHelper
-
-	pingCounter int
-	PongDelay   time.Duration
-	startTime   time.Time
-	logPath     string
-	errors      []error
+	startTime time.Time
+	logPath   string
+	errors    []error
 
 	// The mode as read by the environment
-	mode string
+	env string
+
+	addr  *address.Handler
+	raddr string
+
+	// in containers, this will be the hostname of the container currently being
+	// executed inside of
+	host string
 
 	// gmbhShutdown is marked true when sigusr1 has been sent to the pm process.
 	// When this flag is true services that exit will not be restarted as it is
@@ -97,7 +98,7 @@ type registration struct {
 var r *Remote
 
 // NewRemote returns a new remote object
-func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
+func NewRemote(procmAddr, env string, verbose bool) (*Remote, error) {
 
 	if r != nil {
 		return r, nil
@@ -105,14 +106,19 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 
 	r = &Remote{
 		serviceManager: NewServiceManager(),
-		pingHelpers:    make([]*pingHelper, 0),
-		PongDelay:      time.Second * 45,
 		startTime:      time.Now(),
-		coreAddress:    coreAddress,
+		coreAddress:    procmAddr,
 		verbose:        verbose,
-		mode:           os.Getenv("SERVICEMODE"),
+		env:            env,
 		errors:         make([]error, 0),
 		mu:             &sync.Mutex{},
+	}
+
+	if env == "C" {
+		r.host = os.Getenv("HOSTNAME")
+		r.addr = address.NewHandler(r.host, config.RemotePort+2, config.RemotePort+1002)
+	} else {
+		r.host = config.Localhost
 	}
 
 	return r, nil
@@ -121,20 +127,20 @@ func NewRemote(coreAddress string, verbose bool) (*Remote, error) {
 // Start the remote
 func (r *Remote) Start() {
 
-	println("                      _                       ")
-	println("  _  ._ _  |_  |_|   |_)  _  ._ _   _ _|_  _  ")
-	println(" (_| | | | |_) | |   | \\ (/_ | | | (_) |_ (/_ ")
-	println("  _|                                          ")
+	print("                    _                       ")
+	print("  _  ._ _  |_  |_| |_)  _  ._ _   _ _|_  _  ")
+	print(" (_| | | | |_) | | | \\ (/_ | | | (_) |_ (/_ ")
+	print("  _|                                          ")
 	print("started, time=" + time.Now().Format(time.Stamp))
+	print("env=%s; ProcmAddress=%s; hostname=%s", r.env, r.coreAddress, r.host)
 
 	// setting mode and choosing shutdown mechanism
 	sig := make(chan os.Signal, 1)
-	if r.mode == "managed" {
+	if r.env == "M" {
 		print("remote is in managed mode; using sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGQUIT)
 		signal.Ignore(syscall.SIGINT, syscall.SIGTRAP)
 	} else {
-		r.mode = "standalone"
 		print("remote is in standalone mode; using sigint")
 		signal.Notify(sig, syscall.SIGINT)
 	}
@@ -149,7 +155,7 @@ func (r *Remote) Start() {
 
 // shutdown procedures
 func (r *Remote) shutdown(src string) {
-	print("[remote] Shutdown procedures started in remote from " + src)
+	// print("[remote] Shutdown procedures started in remote from " + src)
 	r.mu.Lock()
 	r.closed = true
 	r.mu.Unlock()
@@ -160,9 +166,7 @@ func (r *Remote) shutdown(src string) {
 	r.serviceManager.Shutdown()
 	r.notifyCore()
 
-	print("[remote] shutdown, time=" + time.Now().Format(time.Stamp))
-	// p := int64(time.Since(r.startTime) / r.PongDelay)
-	// print("[remote] Ping counter should be around " + strconv.Itoa(int(p)))
+	print("shutdown complete...")
 	os.Exit(0)
 }
 
@@ -179,12 +183,12 @@ func (r *Remote) connect() {
 		return
 	}
 
-	print("attempting to connect to core")
+	print("attempting to connect to core @ " + r.coreAddress)
 
 	reg, status := r.makeCoreConnectRequest()
 	for status != nil {
 		if status.Error() != "registration.Unavailable" {
-			perr("internal error=" + status.Error())
+			print("internal error=" + status.Error())
 			return
 		}
 
@@ -192,7 +196,7 @@ func (r *Remote) connect() {
 			return
 		}
 
-		perr("Could not reach core, try again in 5s")
+		print("Could not reach core, try again in 5s")
 		time.Sleep(time.Second * 5)
 		reg, status = r.makeCoreConnectRequest()
 	}
@@ -205,20 +209,16 @@ func (r *Remote) connect() {
 	r.reg = reg
 	r.id = reg.id
 	r.con = rpc.NewRemoteConnection(reg.address, &remoteServer{})
-	ph := newPingHelper()
-	r.pingHelpers = append(r.pingHelpers, ph)
 	r.mu.Unlock()
 
 	err := r.con.Connect()
 	if err != nil {
-		perr("connection error=" + err.Error())
-		perr("handle this; for now return")
+		print("connection error=" + err.Error())
+		print("handle this; for now return")
 		r.closed = true
 		return
 	}
 	print("connected")
-
-	go r.sendPing(ph)
 }
 
 func (r *Remote) disconnect() {
@@ -252,61 +252,6 @@ func (r *Remote) failed() {
 
 }
 
-func (r *Remote) sendPing(ph *pingHelper) {
-	for {
-
-		time.Sleep(r.PongDelay)
-
-		// r.mu.Lock()
-		// r.pingCounter++
-		// r.mu.Unlock()
-
-		// print("-> ping " + strconv.Itoa(r.pingCounter))
-
-		select {
-		case _ = <-ph.pingChan: // case in which this channel has a message in the buffer
-			close(ph.pingChan)
-			print("<- buffer")
-			ph.mu.Lock()
-			ph.received = true
-			ph.mu.Unlock()
-			return
-		default:
-			if r.con == nil || (r.con != nil && !r.con.IsConnected()) {
-				return
-			}
-
-			client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second*30)
-			if err != nil {
-				perr(err.Error())
-				r.failed()
-			}
-
-			ctx = metadata.AppendToOutgoingContext(
-				ctx,
-				"sender", r.id,
-				"target", "procm",
-				"fingerprint", r.reg.fingerprint,
-			)
-
-			pong, err := client.Alive(ctx, &intrigue.Ping{Status: r.id, Time: time.Now().Format(time.Stamp)})
-			can()
-			if err != nil {
-				perr("did not receive pong response")
-				r.failed()
-				return
-			}
-			if pong.GetError() == "" {
-				// print("<- pong")
-			} else {
-				print("<- pong error=" + pong.GetError())
-				r.failed()
-				return
-			}
-		}
-	}
-}
-
 func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	client, ctx, can, err := rpc.GetControlRequest(r.coreAddress, time.Second*10)
 	if err != nil {
@@ -314,9 +259,22 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 	}
 	defer can()
 
+	// env = "C" - must assign own addresses
+	addr := ""
+	if r.env == "C" {
+		if r.raddr == "" {
+			addr, _ = r.addr.NextAddress()
+		} else {
+			addr = r.raddr
+		}
+		print("remote address=%s", addr)
+	}
+
 	request := &intrigue.ServiceUpdate{
 		Request: "remote.register",
-		Message: r.mode,
+		Message: r.env,
+		Env:     r.env,
+		Address: addr,
 	}
 
 	reply, err := client.UpdateRegistration(ctx, request)
@@ -334,6 +292,10 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 		fingerprint: reply.GetServiceInfo().GetFingerprint(),
 	}
 
+	if r.env == "C" {
+		reg.address = addr
+	}
+
 	print("registration; id=" + reg.id + "; address=" + reg.address + "; fingerprint=" + reg.fingerprint)
 
 	return reg, nil
@@ -345,22 +307,22 @@ func (r *Remote) makeCoreConnectRequest() (*registration, error) {
 func (r *Remote) AddService(conf *config.ServiceConfig) {
 	go func() {
 		for {
-			time.Sleep(time.Second * 3)
 			if r.id != "" {
 				service, err := r.serviceManager.AddServiceFromConfig(conf)
 				if err != nil {
-					perr("could add start service; error=" + err.Error())
+					print("could add start service; error=" + err.Error())
 					return
 				}
 				service.Static.Env = append(service.Static.Env, "REMOTE="+r.id)
-				pid, err := service.Start(r.mode, r.verbose)
+				pid, err := service.Start(r.env, r.verbose)
 				if err != nil {
-					perr("could not start service; error=" + err.Error())
+					print("could not start service; error=" + err.Error())
 					return
 				}
 				print("service started with pid=%s", pid)
 				break
 			}
+			time.Sleep(time.Second * 1)
 		}
 	}()
 }
@@ -408,7 +370,7 @@ func (r *Remote) notifyCore() {
 		Request: "shutdown.notif",
 	}
 	client.UpdateRegistration(ctx, request)
-	print("notice sent")
+	// print("notice sent")
 	return
 }
 
@@ -429,15 +391,13 @@ type remoteServer struct{}
 func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.ServiceUpdate) (*intrigue.Receipt, error) {
 	// md, ok := metadata.FromIncomingContext(ctx)
 
-	vrpc("-> %s", in.String())
+	print("-> %s", in.String())
 
 	request := in.GetRequest()
 
 	if request == "core.shutdown" {
 
-		r.pingHelpers = broadcast(r.pingHelpers)
-
-		if r.mode == "managed" {
+		if r.env == "M" {
 			go r.shutdown("procm")
 		} else if !r.closed {
 			go func() {
@@ -468,7 +428,7 @@ func (s *remoteServer) UpdateRegistration(ctx context.Context, in *intrigue.Serv
 func (s *remoteServer) NotifyAction(ctx context.Context, in *intrigue.Action) (*intrigue.Action, error) {
 	// md, ok := metadata.FromIncomingContext(ctx)
 
-	vrpc("-> %s", in.String())
+	print("-> %s", in.String())
 
 	request := in.GetRequest()
 	TargetID := in.GetTarget()
@@ -500,7 +460,7 @@ func (s *remoteServer) NotifyAction(ctx context.Context, in *intrigue.Action) (*
 func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intrigue.SummaryReceipt, error) {
 	// md, ok := metadata.FromIncomingContext(ctx)
 
-	vrpc("-> %s", in.String())
+	print("-> %s", in.String())
 
 	request := in.GetRequest()
 	targetID := in.GetTarget()
@@ -540,11 +500,11 @@ func (s *remoteServer) Summary(ctx context.Context, in *intrigue.Action) (*intri
 
 		service, err := r.LookupService(targetID)
 		if err != nil {
-			vrpc("not found")
+			print("not found")
 			return &intrigue.SummaryReceipt{Error: "service.notFound"}, nil
 		}
 
-		vrpc("returning service info " + service.ID)
+		print("returning service info " + service.ID)
 
 		errs := []string{}
 		for _, e := range r.errors {
@@ -578,17 +538,14 @@ func (s *remoteServer) Alive(ctx context.Context, in *intrigue.Ping) (*intrigue.
 	return &intrigue.Pong{Time: time.Now().Format(time.Stamp)}, nil
 }
 
-func vrpc(format string, a ...interface{}) {
-	print("[rpc] "+format, a...)
-}
-
 func serviceToRPC(s *service.Service) *intrigue.Service {
 
 	procRuntime := s.Process.GetInfo()
 
 	si := &intrigue.Service{
-		Id: r.id + "-" + s.ID,
-		// Name:      s.Static.Name,
+		Id:        r.id + "-" + s.ID,
+		Name:      s.Static.ID,
+		Language:  s.Static.Language,
 		Status:    s.Process.GetStatus().String(),
 		Path:      "-",
 		LogPath:   s.LogPath,
@@ -602,44 +559,6 @@ func serviceToRPC(s *service.Service) *intrigue.Service {
 	}
 
 	return si
-}
-
-type pingHelper struct {
-	pingChan  chan bool
-	contacted bool
-	received  bool
-	mu        *sync.Mutex
-}
-
-func newPingHelper() *pingHelper {
-	return &pingHelper{
-		pingChan: make(chan bool, 1),
-		mu:       &sync.Mutex{},
-	}
-}
-
-func broadcast(phs []*pingHelper) []*pingHelper {
-	for _, p := range phs {
-		p.mu.Lock()
-		p.pingChan <- true
-		p.contacted = true
-		p.mu.Unlock()
-	}
-	return update(phs)
-}
-
-func update(phs []*pingHelper) []*pingHelper {
-	n := []*pingHelper{}
-	c := 0
-	for _, p := range phs {
-		if p.contacted && p.received {
-			n = append(n, p)
-		} else {
-			c++
-		}
-	}
-	print("removed " + strconv.Itoa(len(phs)-c) + "/" + strconv.Itoa(len(phs)) + " channels")
-	return n
 }
 
 /**********************************************************************************
@@ -687,7 +606,7 @@ func (s *ServiceManager) AddServiceFromConfig(conf *config.ServiceConfig) (*serv
 
 // NotifyGracefulShutdown of all attached services
 func (s *ServiceManager) NotifyGracefulShutdown() {
-	print("sending graceful shutdown notices")
+	// print("sending graceful shutdown notices")
 	for _, v := range s.services {
 		v.EnableGracefulShutdown()
 	}
@@ -714,7 +633,7 @@ func (s *ServiceManager) LookupByID(id string) (*service.Service, error) {
 // Shutdown kills all attached processes
 func (s *ServiceManager) Shutdown() {
 	for _, s := range s.services {
-		print("sending shutdown to " + s.ID)
+		// print("sending shutdown to " + s.ID)
 		s.Kill()
 	}
 }
@@ -725,7 +644,7 @@ func (s *ServiceManager) RestartAll() {
 		print("sending restart to " + s.ID)
 		pid, err := s.Restart()
 		if err != nil {
-			perr("could not restart; err=" + err.Error())
+			print("could not restart; err=" + err.Error())
 		}
 		print("Pid=" + pid)
 	}
@@ -763,21 +682,6 @@ func (s *ServiceManager) assignID() string {
 }
 
 func print(format string, a ...interface{}) {
-	tag := "[" + r.id + "] "
-	if r.id == "" {
-		tag = "[remote] "
-	}
-	notify.LnMagentaF(tag+format, a...)
-}
-
-func println(format string, a ...interface{}) {
+	format = "[" + time.Now().Format(config.LogStamp) + "] [repm] " + format
 	notify.LnMagentaF(format, a...)
-}
-
-func perr(format string, a ...interface{}) {
-	tag := "[" + r.id + "] "
-	if r.id == "" {
-		tag = "[remote] "
-	}
-	notify.LnRedF(tag+format, a...)
 }

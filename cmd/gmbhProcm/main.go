@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gmbh-micro/config"
+	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/remote"
 )
 
@@ -29,18 +31,31 @@ func main() {
 	flag.Var(&configPaths, "config", "list to config files")
 	flag.Parse()
 
+	// ENV key
+	// "M" = managed 		-- on a single host (likely localhost)
+	//						   using sigusr{1,2} instead of sigint
+	// "" = development		-- on a single host (likely localhost)
+	// "C" = containerized	-- in a docker cluster
+
+	procmAddr := config.DefaultSystemProcm.Address
+	env := os.Getenv("ENV")
+	if env == "C" {
+		procmAddr = os.Getenv("PROCM")
+	}
+
 	// start a remote process manager
 	if *remoteMode {
-		rem, _ := remote.NewRemote(config.DefaultSystemProcm.Address, *verbose)
+
+		rem, _ := remote.NewRemote(procmAddr, env, *verbose)
 		for _, path := range configPaths {
 
-			sconfs, fingerprint, err := config.ParseServices(path)
+			sconfs, fp, err := config.ParseServices(path)
 			if err != nil {
 				panic(err)
 			}
 
-			if fingerprint != os.Getenv("FINGERPRINT") {
-				panic(fmt.Errorf("fingerprints do not match (%s != %s)", fingerprint, os.Getenv("FINGERPRINT")))
+			if fp != os.Getenv("FINGERPRINT") {
+				panic(fmt.Errorf("fingerprints do not match (%s != %s)", fp, os.Getenv("FINGERPRINT")))
 			}
 
 			for _, sconf := range sconfs {
@@ -54,11 +69,16 @@ func main() {
 	} else {
 
 		// start a process manager
-		p := NewProcessManager("", *verbose)
+		p := NewProcessManager(procmAddr, env, *verbose)
 		err := p.Start()
 		if err != nil {
 			panic(err)
 		}
 		p.Wait()
 	}
+}
+
+func print(format string, a ...interface{}) {
+	format = "[" + time.Now().Format(config.LogStamp) + "] [procm] " + format
+	notify.LnMagentaF(format, a...)
 }

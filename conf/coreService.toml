@@ -1,0 +1,7 @@
+# Automatically generated file
+fingerprint = ""
+
+[[service]]
+args = ["--verbose","--config=./ttool.toml"]
+bin_path = "gmbhCore"
+
