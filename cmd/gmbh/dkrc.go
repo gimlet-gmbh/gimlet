@@ -26,7 +26,10 @@ args = %s
 env = %s
 language = "%s"
 bin_path = "%s"
-src_path = "%s"`
+src_path = "%s"
+interpreter = "%s"
+entry_point = "%s"`
+
 	core = `[[service]]
 id = "CoreData"
 args = %s
@@ -203,6 +206,8 @@ func genNodeConf(node int, services []*config.ServiceConfig) error {
 			s.Language,
 			"/services/"+s.ID+"/"+filepath.Base(s.BinPath),
 			s.SrcPath,
+			s.Interpreter,
+			s.EntryPoint,
 		))
 	}
 

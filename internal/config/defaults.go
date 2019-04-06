@@ -104,3 +104,8 @@ const (
 	// LogStamp for output to logs
 	LogStamp = "06/01/02 15:04"
 )
+
+const (
+	// NodeInterpreter ; default for node services
+	NodeInterpreter = "/usr/local/bin/node"
+)

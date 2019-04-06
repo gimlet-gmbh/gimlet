@@ -305,7 +305,9 @@ func (r *Router) addToMap(newService *GmbhService) error {
 	r.services[newService.Name] = newService
 	r.serviceNames = append(r.serviceNames, newService.Name)
 	for _, alias := range newService.Aliases {
-		r.services[alias] = newService
+		if alias != "" {
+			r.services[alias] = newService
+		}
 	}
 
 	// r.v("added %s to map", newService.Name)

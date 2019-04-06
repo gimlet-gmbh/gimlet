@@ -257,7 +257,7 @@ func genNode(node int, services []*config.ServiceConfig) error {
 
 	for _, s := range services {
 		args, _ := json.Marshal(s.Args)
-		w(fmt.Sprintf(service, s.ID, args, s.Env, s.Language, s.BinPath, s.SrcPath))
+		w(fmt.Sprintf(service, s.ID, args, s.Env, s.Language, s.BinPath, s.SrcPath, s.Interpreter, fileutil.GetAbsFilePath(s.EntryPoint)))
 	}
 
 	f.Close()

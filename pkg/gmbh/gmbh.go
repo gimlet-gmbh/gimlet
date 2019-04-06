@@ -176,7 +176,7 @@ func (g *Client) start() {
 	sigs := make(chan os.Signal, 1)
 
 	if g.env == "M" {
-		print("managed mode; ignoring siging; listening for sigusr2")
+		print("managed mode; ignoring sigint; listening for sigusr2")
 		signal.Ignore(syscall.SIGINT)
 		signal.Notify(sigs, syscall.SIGUSR2)
 	} else {

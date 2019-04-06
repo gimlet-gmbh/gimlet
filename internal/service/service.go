@@ -10,6 +10,7 @@ import (
 
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/fileutil"
+	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
 )
 
@@ -79,11 +80,19 @@ func NewService(id string, conf *config.ServiceConfig) (*Service, error) {
 func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 
 	conf := &process.LocalProcessConfig{
-		Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
+		// Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
 		Dir:    s.Path,
 		Args:   s.Static.Args,
 		Env:    append(os.Environ(), s.Static.Env...),
 		Signal: syscall.SIGINT,
+	}
+
+	switch s.Static.Language {
+	case "node":
+		conf.Path = s.Static.SrcPath
+		conf.Entry = s.Static.EntryPoint
+	default:
+		conf.Path = s.createAbsPathToBin(s.Path, s.Static.BinPath)
 	}
 
 	// in managed mode, a log file is set to capture stdout and stderr
@@ -113,10 +122,15 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	} else {
 		s.Mode = Remote
 	}
-	s.Process = process.NewLocalBinaryManager(conf)
+	switch s.Static.Language {
+	case "node":
+		s.Process = process.NewInterpretedManager(conf, process.Node)
+	default:
+		s.Process = process.NewBinaryManager(conf)
+	}
 	p, err := s.Process.Start()
 	if err != nil {
-		// notify.LnMagentaF("failed to start; err=%s", err.Error())
+		notify.LnMagentaF("failed to start; err=%s", err.Error())
 		return "-1", errors.New("service.StartService.couldNotStartNewService")
 	}
 	return strconv.Itoa(p), nil

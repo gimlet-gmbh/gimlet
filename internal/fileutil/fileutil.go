@@ -22,7 +22,7 @@ func CreateFile(fpath string) (*os.File, error) {
 	return file, nil
 }
 
-// GetAbsFpath returns the abolute filepath if it can be optained, else returns
+// GetAbsFpath returns the abolute filepath if it can be obtained, else returns
 // the same path it was given
 func GetAbsFpath(path string) string {
 	abs, err := filepath.Abs(path)
@@ -32,7 +32,7 @@ func GetAbsFpath(path string) string {
 	return abs
 }
 
-// GetAbs returns the abolute filepath if it can be optained, else returns
+// GetAbs returns the abolute filepath if it can be obtained, else returns
 // the same path it was given
 func GetAbs(path string) string {
 	abs, err := filepath.Abs(path)
@@ -40,6 +40,16 @@ func GetAbs(path string) string {
 		return path
 	}
 	return filepath.Dir(abs)
+}
+
+// GetAbsFilePath returns the abolute filepath if it can be obtained,
+// includes the last part of the file extension
+func GetAbsFilePath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return abs
 }
 
 // FileExists at path?

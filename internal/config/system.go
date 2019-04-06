@@ -41,14 +41,16 @@ type SystemProcm struct {
 
 // ServiceConfig is the static data needed to launch a service from the service launcher
 type ServiceConfig struct {
-	ID       string   `toml:"id"`
-	Args     []string `toml:"args"`
-	Env      []string `toml:"env"`
-	Language string   `toml:"language"`
-	BinPath  string   `toml:"bin_path"`
-	SrcPath  string   `toml:"src_path"`
-	Ports    []string `toml:"ports"`
-	ProjPath string
+	ID          string   `toml:"id"`
+	Args        []string `toml:"args"`
+	Env         []string `toml:"env"`
+	Language    string   `toml:"language"`
+	BinPath     string   `toml:"bin_path"`
+	SrcPath     string   `toml:"src_path"`
+	Ports       []string `toml:"ports"`
+	Interpreter string   `toml:"interpreter"`
+	EntryPoint  string   `toml:"entry_point"`
+	ProjPath    string
 }
 
 // ParseSystemConfig parses the entire system config from the file passed in
