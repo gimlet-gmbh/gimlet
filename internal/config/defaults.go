@@ -108,4 +108,10 @@ const (
 const (
 	// NodeInterpreter ; default for node services
 	NodeInterpreter = "/usr/local/bin/node"
+
+	// NodeInterpreterAlpine ; location to node in alpine images
+	NodeInterpreterAlpine = "/usr/bin/node"
+
+	// GoInterpreter ; default for go services
+	GoInterpreter = "/usr/local/go/bin/go"
 )

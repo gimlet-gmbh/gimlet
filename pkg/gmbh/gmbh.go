@@ -94,11 +94,6 @@ type Client struct {
 	// "" = standalone
 	env string
 
-	// if a log path can be determined from the environment, it will be stored here and
-	// the printer helper will use it instead of stdOut and stdErr
-	outputFile *os.File
-	outputmu   *sync.Mutex
-
 	// closed is set true when shutdown procedures have been started
 	closed bool
 }

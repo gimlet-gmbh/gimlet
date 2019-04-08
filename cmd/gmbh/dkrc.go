@@ -228,7 +228,13 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 	makeInstrs := []string{}
 	for _, s := range services {
 		addLocs = append(addLocs, s.SrcPath+" ./"+s.ID)
-		makeInstrs = append(makeInstrs, "cd ./"+s.ID+"; make")
+		if s.Language == "go" {
+			makeStr := "cd ./" + s.ID + "; go get ./...; go build ."
+			makeInstrs = append(makeInstrs, makeStr)
+		} else if s.Language == "node" {
+			makeStr := "cd ./" + s.ID + "; npm rebuild"
+			makeInstrs = append(makeInstrs, makeStr)
+		}
 	}
 
 	addStr := ""

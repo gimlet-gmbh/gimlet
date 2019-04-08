@@ -8,8 +8,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/gmbh-micro/config"
 )
 
 // LocalManager ; a process manager
@@ -20,6 +18,7 @@ type LocalManager struct {
 	path             string
 	dir              string
 	entry            string
+	interpreter      string
 	userRestarted    bool
 	restartCounter   int
 	gracefulshutdown bool
@@ -70,11 +69,12 @@ func NewBinaryManager(conf *LocalProcessConfig) *LocalManager {
 
 // NewInterpretedManager ; as in new process manager to monitor an interpreted
 // of a specified type
-func NewInterpretedManager(conf *LocalProcessConfig, interpreter Type) *LocalManager {
+func NewInterpretedManager(conf *LocalProcessConfig, interpreter Type, interpreterPath string) *LocalManager {
 	return &LocalManager{
 		name:          conf.Name,
 		args:          conf.Args,
 		env:           conf.Env,
+		interpreter:   interpreterPath,
 		path:          conf.Path,
 		dir:           conf.Dir,
 		entry:         conf.Entry,
@@ -228,8 +228,10 @@ func (m *LocalManager) getCmd() *exec.Cmd {
 	switch m.info.Type {
 	case Binary:
 		cmd = exec.Command(m.path, m.args...)
+	// case Go:
+	// 	cmd = exec.Command(config.GoInterpreter, append([]string{"run", "."}, m.args...)...)
 	case Node:
-		cmd = exec.Command(config.NodeInterpreter, append([]string{m.entry}, m.args...)...)
+		cmd = exec.Command(m.interpreter, append([]string{m.entry}, m.args...)...)
 	}
 
 	cmd.Env = m.env

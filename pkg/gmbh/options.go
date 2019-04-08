@@ -8,7 +8,7 @@ type Option func(*options)
 // options contain the runtime configurable parameters
 type options struct {
 
-	// RuntimeOptions are options that can be determined at runtime
+	// RuntimeOptions are options that affect runtime behavior
 	runtime *RuntimeOptions
 
 	// standalone options are those intended for use without the service launcher or remotes
@@ -31,12 +31,13 @@ type RuntimeOptions struct {
 // StandaloneOptions - user configurable, for use only without the service launcher or remotes
 type StandaloneOptions struct {
 	// The address back to core
+	// NOTE: This will be overriden depending on environment
 	CoreAddress string
 }
 
 // ServiceOptions - user configurable, a name must be set, this is how other services will contact this one.
 type ServiceOptions struct {
-	// Name - the unique name of the service
+	// Name - the unique name of the service as registered to core
 	Name string
 
 	// Aliases - like the name, must be unique across all services; act as shortcut names

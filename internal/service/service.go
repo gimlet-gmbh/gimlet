@@ -80,7 +80,6 @@ func NewService(id string, conf *config.ServiceConfig) (*Service, error) {
 func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 
 	conf := &process.LocalProcessConfig{
-		// Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
 		Dir:    s.Path,
 		Args:   s.Static.Args,
 		Env:    append(os.Environ(), s.Static.Env...),
@@ -91,6 +90,10 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	case "node":
 		conf.Path = s.Static.SrcPath
 		conf.Entry = s.Static.EntryPoint
+	// case "go":
+	// 	conf.Path = s.Static.SrcPath
+	// case "python":
+
 	default:
 		conf.Path = s.createAbsPathToBin(s.Path, s.Static.BinPath)
 	}
@@ -124,7 +127,13 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	}
 	switch s.Static.Language {
 	case "node":
-		s.Process = process.NewInterpretedManager(conf, process.Node)
+		interpreter := config.NodeInterpreter
+		if mode == "C" {
+			interpreter = config.NodeInterpreterAlpine
+		}
+		s.Process = process.NewInterpretedManager(conf, process.Node, interpreter)
+	// case "go":
+	// 	s.Process = process.NewInterpretedManager(conf, process.Go)
 	default:
 		s.Process = process.NewBinaryManager(conf)
 	}
