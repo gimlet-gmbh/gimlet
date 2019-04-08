@@ -207,7 +207,7 @@ func genNodeConf(node int, services []*config.ServiceConfig) error {
 			"/services/"+s.ID+"/"+filepath.Base(s.BinPath),
 			s.SrcPath,
 			s.Interpreter,
-			s.EntryPoint,
+			"/services/"+s.ID+"/"+filepath.Base(s.EntryPoint),
 		))
 	}
 
@@ -232,7 +232,7 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 			makeStr := "cd ./" + s.ID + "; go get ./...; go build ."
 			makeInstrs = append(makeInstrs, makeStr)
 		} else if s.Language == "node" {
-			makeStr := "cd ./" + s.ID + "; npm rebuild"
+			makeStr := "cd ./" + s.ID + "; npm install"
 			makeInstrs = append(makeInstrs, makeStr)
 		}
 	}
