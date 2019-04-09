@@ -144,14 +144,6 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	}
 	return strconv.Itoa(p), nil
 
-	// } else if s.Static.Language == "go" {
-	// 	return "-1", errors.New("service.StartService.goNotYetSupported")
-	// } else if s.Static.Language == "node" {
-	// 	return "-1", errors.New("service.StartService.nodeNotYetSupported")
-	// } else if s.Static.Language == "python" {
-	// 	return "-1", errors.New("service.StartService.pythonNotYetSupported")
-	// }
-	// return "-1", errors.New("service.StartService.invalidLanguage")
 }
 
 // Restart the process

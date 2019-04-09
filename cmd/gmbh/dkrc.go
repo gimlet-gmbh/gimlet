@@ -228,13 +228,13 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 	makeInstrs := []string{}
 	for _, s := range services {
 		addLocs = append(addLocs, s.SrcPath+" ./"+s.ID)
+		makeStr := "# Build instructions for " + s.ID + "\nRUN "
 		if s.Language == "go" {
-			makeStr := "cd ./" + s.ID + "; go get ./...; go build ."
-			makeInstrs = append(makeInstrs, makeStr)
+			makeStr += "cd ./" + s.ID + "; go get ./...; go build ."
 		} else if s.Language == "node" {
-			makeStr := "cd ./" + s.ID + "; npm install"
-			makeInstrs = append(makeInstrs, makeStr)
+			makeStr += "cd ./" + s.ID + "; npm install"
 		}
+		makeInstrs = append(makeInstrs, makeStr)
 	}
 
 	addStr := ""
@@ -244,7 +244,7 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 
 	makeStr := ""
 	for _, v := range makeInstrs {
-		makeStr += "RUN " + v + "\n"
+		makeStr += v + "\n"
 	}
 
 	nodeConf := "node_" + strconv.Itoa(node)

@@ -1,6 +1,6 @@
 package gmbh
 
-import "github.com/gmbh-micro/config"
+const coreAddress = "localhost:49500"
 
 // Option functions set options from the client
 type Option func(*options)
@@ -58,7 +58,7 @@ var defaultOptions = options{
 		Verbose:  false,
 	},
 	standalone: &StandaloneOptions{
-		CoreAddress: config.DefaultSystemCore.Address,
+		CoreAddress: coreAddress,
 	},
 	service: &ServiceOptions{
 		Name:       "",

@@ -108,7 +108,7 @@ RUN git clone https://github.com/gmbh-micro/gmbh.git \
 
 WORKDIR $SERVICEDIR
 
-# ADD ./services/c0 ./c0
+# Add services to the image
 %s
 
 ## INSTRUCTIONS FOR BUILDING SERVICES

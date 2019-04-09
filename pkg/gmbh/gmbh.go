@@ -16,8 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gmbh-micro/config"
-	"github.com/gmbh-micro/fileutil"
 	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/rpc"
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -132,7 +130,7 @@ func NewClient(opt ...Option) (*Client, error) {
 	print("  _  ._ _  |_  |_| /  | o  _  ._ _|_  ")
 	print(" (_| | | | |_) | | \\_ | | (/_ | | |_ ")
 	print("  _|                                  ")
-	print("service started from %s", fileutil.Getpwd())
+	print("service started from %s", getpwd())
 	print("PeerGroup=" + strings.Join(g.opts.service.PeerGroups, ","))
 
 	// If the address back to core has been set using an environment variable, use that. Otherwise
@@ -295,11 +293,25 @@ func (g *Client) getReg() *registration {
 	return g.reg
 }
 
+// logStamp is the date format string for log messages
+const logStamp = "06/01/02 15:04"
+
 func print(format string, a ...interface{}) {
 	name := "client"
 	if g.opts.service.Name != "" {
 		name = g.opts.service.Name
 	}
-	format = "[" + time.Now().Format(config.LogStamp) + "] [" + name + "] " + format
+	format = "[" + time.Now().Format(logStamp) + "] [" + name + "] " + format
 	notify.LnMagentaF(format, a...)
+	// fmt.Printf(format, a...)
+}
+
+// getpwd returns the directory that the process was launched from according to the os package
+// Unlike the os package it never returns and error, only an empty string
+func getpwd() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return dir
 }
