@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version of gmbh{Core,Procm,Data}
-	Version = "0.9.5"
+	Version = "0.9.6"
 
 	// Code name of gmbh release
 	Code = "launching"
