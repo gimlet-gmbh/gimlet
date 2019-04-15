@@ -1,6 +1,7 @@
 package gmbh
 
 import (
+	b64 "encoding/base64"
 	"encoding/json"
 
 	"github.com/gmbh-micro/rpc/intrigue"
@@ -35,12 +36,21 @@ func (p *Payload) Get(key string) interface{} {
 	return obj
 }
 
-// GetAsString returns the string value of payload.JSON at key
+// GetAsString returns the string value of payload.JSON at key, else returns the empty string
 func (p *Payload) GetAsString(key string) string {
 	value := p.Get(key)
 	str, ok := value.(string)
 	if !ok {
 		return ""
+	}
+	bstr, err := b64.URLEncoding.DecodeString(str)
+	if err != nil {
+		return str
+	}
+
+	str = string(bstr)
+	if str[0] == '"' && str[len(str)-1] == '"' {
+		str = str[1 : len(str)-1]
 	}
 	return str
 }
