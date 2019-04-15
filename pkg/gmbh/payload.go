@@ -2,7 +2,6 @@ package gmbh
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/gmbh-micro/rpc/intrigue"
 )
@@ -27,12 +26,11 @@ func (p *Payload) Get(key string) interface{} {
 	var obj interface{}
 	v, ok := p.JSON[key]
 	if !ok {
-		fmt.Println("could not find in map")
 		return obj
 	}
 	err := json.Unmarshal(v, &obj)
 	if err != nil {
-		fmt.Println(err)
+		return obj
 	}
 	return obj
 }
@@ -54,7 +52,6 @@ func (p *Payload) Append(key string, value interface{}) {
 	}
 	bytes, err := json.Marshal(value)
 	if err != nil {
-		fmt.Println(err.Error())
 		return
 	}
 	p.JSON[key] = bytes
