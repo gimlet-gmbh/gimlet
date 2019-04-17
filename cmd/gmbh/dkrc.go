@@ -232,7 +232,7 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 		if s.Language == "go" {
 			makeStr += "cd ./" + s.ID + "; go get ./...; go build ."
 		} else if s.Language == "node" {
-			makeStr += "cd ./" + s.ID + "; npm install"
+			makeStr += "cd ./" + s.ID + "; rm -rf node_modules; npm install"
 		}
 		makeInstrs = append(makeInstrs, makeStr)
 	}

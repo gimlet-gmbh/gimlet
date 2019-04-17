@@ -72,6 +72,10 @@ func NewService(id string, conf *config.ServiceConfig) (*Service, error) {
 		Static:  conf,
 	}
 
+	if conf.SrcPath != "" {
+		service.Path = conf.SrcPath
+	}
+
 	return &service, nil
 }
 
