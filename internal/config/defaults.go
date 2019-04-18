@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version of gmbh{Core,Procm,Data}
-	Version = "0.9.5"
+	Version = "0.9.6"
 
 	// Code name of gmbh release
 	Code = "launching"
@@ -109,4 +109,15 @@ const (
 
 	// LogStamp for output to logs
 	LogStamp = "06/01/02 15:04"
+)
+
+const (
+	// NodeInterpreter ; default for node services
+	NodeInterpreter = "/usr/local/bin/node"
+
+	// NodeInterpreterAlpine ; location to node in alpine images
+	NodeInterpreterAlpine = "/usr/bin/node"
+
+	// GoInterpreter ; default for go services
+	GoInterpreter = "/usr/local/go/bin/go"
 )

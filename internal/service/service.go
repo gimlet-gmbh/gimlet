@@ -10,6 +10,7 @@ import (
 
 	"github.com/gmbh-micro/config"
 	"github.com/gmbh-micro/fileutil"
+	"github.com/gmbh-micro/notify"
 	"github.com/gmbh-micro/service/process"
 )
 
@@ -71,6 +72,10 @@ func NewService(id string, conf *config.ServiceConfig) (*Service, error) {
 		Static:  conf,
 	}
 
+	if conf.SrcPath != "" {
+		service.Path = conf.SrcPath
+	}
+
 	return &service, nil
 }
 
@@ -79,11 +84,22 @@ func NewService(id string, conf *config.ServiceConfig) (*Service, error) {
 func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 
 	conf := &process.LocalProcessConfig{
-		Path:   s.createAbsPathToBin(s.Path, s.Static.BinPath),
 		Dir:    s.Path,
 		Args:   s.Static.Args,
 		Env:    append(os.Environ(), s.Static.Env...),
 		Signal: syscall.SIGINT,
+	}
+
+	switch s.Static.Language {
+	case "node":
+		conf.Path = s.Static.SrcPath
+		conf.Entry = s.Static.EntryPoint
+	// case "go":
+	// 	conf.Path = s.Static.SrcPath
+	// case "python":
+
+	default:
+		conf.Path = s.createAbsPathToBin(s.Path, s.Static.BinPath)
 	}
 
 	// in managed mode, a log file is set to capture stdout and stderr
@@ -113,22 +129,25 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	} else {
 		s.Mode = Remote
 	}
-	s.Process = process.NewLocalBinaryManager(conf)
+	switch s.Static.Language {
+	case "node":
+		interpreter := config.NodeInterpreter
+		if mode == "C" {
+			interpreter = config.NodeInterpreterAlpine
+		}
+		s.Process = process.NewInterpretedManager(conf, process.Node, interpreter)
+	// case "go":
+	// 	s.Process = process.NewInterpretedManager(conf, process.Go)
+	default:
+		s.Process = process.NewBinaryManager(conf)
+	}
 	p, err := s.Process.Start()
 	if err != nil {
-		// notify.LnMagentaF("failed to start; err=%s", err.Error())
+		notify.LnMagentaF("failed to start; err=%s", err.Error())
 		return "-1", errors.New("service.StartService.couldNotStartNewService")
 	}
 	return strconv.Itoa(p), nil
 
-	// } else if s.Static.Language == "go" {
-	// 	return "-1", errors.New("service.StartService.goNotYetSupported")
-	// } else if s.Static.Language == "node" {
-	// 	return "-1", errors.New("service.StartService.nodeNotYetSupported")
-	// } else if s.Static.Language == "python" {
-	// 	return "-1", errors.New("service.StartService.pythonNotYetSupported")
-	// }
-	// return "-1", errors.New("service.StartService.invalidLanguage")
 }
 
 // Restart the process

@@ -26,7 +26,10 @@ args = %s
 env = %s
 language = "%s"
 bin_path = "%s"
-src_path = "%s"`
+src_path = "%s"
+interpreter = "%s"
+entry_point = "%s"`
+
 	core = `[[service]]
 id = "CoreData"
 args = %s
@@ -203,6 +206,8 @@ func genNodeConf(node int, services []*config.ServiceConfig) error {
 			s.Language,
 			"/services/"+s.ID+"/"+filepath.Base(s.BinPath),
 			s.SrcPath,
+			s.Interpreter,
+			"/services/"+s.ID+"/"+filepath.Base(s.EntryPoint),
 		))
 	}
 
@@ -223,7 +228,13 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 	makeInstrs := []string{}
 	for _, s := range services {
 		addLocs = append(addLocs, s.SrcPath+" ./"+s.ID)
-		makeInstrs = append(makeInstrs, "cd ./"+s.ID+"; make")
+		makeStr := "# Build instructions for " + s.ID + "\nRUN "
+		if s.Language == "go" {
+			makeStr += "cd ./" + s.ID + "; go get ./...; go build ."
+		} else if s.Language == "node" {
+			makeStr += "cd ./" + s.ID + "; rm -rf node_modules; npm install"
+		}
+		makeInstrs = append(makeInstrs, makeStr)
 	}
 
 	addStr := ""
@@ -233,7 +244,7 @@ func genDockerfile(node int, services []*config.ServiceConfig) error {
 
 	makeStr := ""
 	for _, v := range makeInstrs {
-		makeStr += "RUN " + v + "\n"
+		makeStr += v + "\n"
 	}
 
 	nodeConf := "node_" + strconv.Itoa(node)

@@ -17,6 +17,8 @@ type LocalManager struct {
 	env              []string
 	path             string
 	dir              string
+	entry            string
+	interpreter      string
 	userRestarted    bool
 	restartCounter   int
 	gracefulshutdown bool
@@ -36,20 +38,22 @@ type LocalProcessConfig struct {
 	Name   string
 	Path   string
 	Dir    string
+	Entry  string
 	LogF   *os.File
 	Args   []string
 	Env    []string
 	Signal syscall.Signal
 }
 
-// NewLocalBinaryManager ; as in new process manager to monitor a binary forked from the shell
-func NewLocalBinaryManager(conf *LocalProcessConfig) *LocalManager {
+// NewBinaryManager ; as in new process manager to monitor a binary forked from the shell
+func NewBinaryManager(conf *LocalProcessConfig) *LocalManager {
 	return &LocalManager{
 		name:          conf.Name,
 		args:          conf.Args,
 		env:           conf.Env,
 		path:          conf.Path,
 		dir:           conf.Dir,
+		entry:         conf.Entry,
 		ssignal:       conf.Signal,
 		restartBuffer: make(chan bool, 100),
 		exitedBuffer:  make(chan bool, 100),
@@ -63,21 +67,29 @@ func NewLocalBinaryManager(conf *LocalProcessConfig) *LocalManager {
 	}
 }
 
-// // NewLocalGoManager ; as in new process manager to monitor bulding from go source code
-// func NewLocalGoManager(name string, path string, dir string, args []string, env []string) *LocalManager {
-// 	return &LocalManager{
-// 		// name: name,
-// 		args: args,
-// 		env:  env,
-// 		path: path,
-// 		dir:  dir,
-// 		mu:   &sync.Mutex{},
-// 		info: Info{
-// 			Type:   Go,
-// 			Errors: make([]error, 0),
-// 		},
-// 	}
-// }
+// NewInterpretedManager ; as in new process manager to monitor an interpreted
+// of a specified type
+func NewInterpretedManager(conf *LocalProcessConfig, interpreter Type, interpreterPath string) *LocalManager {
+	return &LocalManager{
+		name:          conf.Name,
+		args:          conf.Args,
+		env:           conf.Env,
+		interpreter:   interpreterPath,
+		path:          conf.Path,
+		dir:           conf.Dir,
+		entry:         conf.Entry,
+		ssignal:       conf.Signal,
+		restartBuffer: make(chan bool, 100),
+		exitedBuffer:  make(chan bool, 100),
+		mu:            &sync.Mutex{},
+		logFile:       conf.LogF,
+		info: Info{
+			Type:   interpreter,
+			Status: Initialized,
+			Errors: make([]error, 0),
+		},
+	}
+}
 
 // Start a process if possible
 func (m *LocalManager) Start() (PID int, err error) {
@@ -211,25 +223,29 @@ func (m *LocalManager) forkExec(pid chan int, errChan chan error) {
 }
 
 func (m *LocalManager) getCmd() *exec.Cmd {
-	if m.info.Type == Binary {
+	var cmd *exec.Cmd
 
-		var cmd *exec.Cmd
-
+	switch m.info.Type {
+	case Binary:
 		cmd = exec.Command(m.path, m.args...)
-		cmd.Env = m.env
-		cmd.Dir = m.dir
-
-		if m.logFile != nil {
-			cmd.Stdout = m.logFile
-			cmd.Stderr = m.logFile
-		} else {
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-		}
-
-		return cmd
+	// case Go:
+	// 	cmd = exec.Command(config.GoInterpreter, append([]string{"run", "."}, m.args...)...)
+	case Node:
+		cmd = exec.Command(m.interpreter, append([]string{m.entry}, m.args...)...)
 	}
-	return nil
+
+	cmd.Env = m.env
+	cmd.Dir = m.dir
+
+	if m.logFile != nil {
+		cmd.Stdout = m.logFile
+		cmd.Stderr = m.logFile
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	return cmd
 }
 
 func (m *LocalManager) handleFailure() {

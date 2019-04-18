@@ -1,6 +1,8 @@
 syntax = "proto3";
 package intrigue;
 
+import "google/protobuf/any.proto";
+
 service Cabal {
 
     rpc RegisterService (NewServiceRequest) returns (Receipt) {}
@@ -203,6 +205,9 @@ message Payload {
     map<string, uint64> Uint64Fields = 72;
     map<string, double> DoubleFields = 74;
     map<string, float> FloatFields = 76;
+
+    // map<string, google.protobuf.Any> Data = 80;
+    // bytes Data = 82;
 }
 
 message subFields {

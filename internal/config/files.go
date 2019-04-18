@@ -3,7 +3,7 @@ package config
 // ProcMDkr procm dockerfile template
 const ProcMDkr = `FROM golang:1.11-alpine
 
-RUN apk add wget supervisor curl git mercurial make
+RUN apk add wget supervisor curl git mercurial make nodejs nodejs-npm
 
 ## Install Deps
 RUN go get github.com/golang/protobuf/proto \
@@ -11,7 +11,8 @@ RUN go get github.com/golang/protobuf/proto \
     && go get google.golang.org/grpc \
     && go get github.com/fatih/color \
     && go get github.com/BurntSushi/toml \
-    && go get github.com/rs/xid
+    && go get github.com/rs/xid \
+    && npm i 
 
 
 ENV SRCDIR=/build/gmbh
@@ -39,7 +40,7 @@ CMD ["gmbhProcm"]`
 
 // CoreDkr MUST SPECIFY THE CONFIG FILE USING SPRINTF
 const CoreDkr = `FROM golang:1.11-alpine
-RUN apk add wget supervisor curl git mercurial make
+RUN apk add wget supervisor curl git mercurial make nodejs nodejs-npm
 
 ## Install Deps
 RUN go get github.com/golang/protobuf/proto \
@@ -80,7 +81,7 @@ CMD ["gmbhProcm", "--remote", "--config=./core.toml", "--verbose"]`
 // ServiceDkr docker template
 const ServiceDkr = `FROM golang:1.11-alpine
 
-RUN apk add wget supervisor curl git mercurial make
+RUN apk add wget supervisor curl git mercurial make nodejs nodejs-npm
 
 ## Install Deps
 RUN go get github.com/golang/protobuf/proto \
@@ -107,7 +108,7 @@ RUN git clone https://github.com/gmbh-micro/gmbh.git \
 
 WORKDIR $SERVICEDIR
 
-# ADD ./services/c0 ./c0
+# Add services to the image
 %s
 
 ## INSTRUCTIONS FOR BUILDING SERVICES

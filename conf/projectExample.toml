@@ -78,5 +78,12 @@ procm_bin = ""  # default is $GOPATH/bin/gmbhProcm
     #       *.go (with *_test.go filtered out)
     src_path = ""
     #
+    # For interpreted services, the entry-point file
+    entry_point = ""
+    #
     # If this service will require a port to be opened, specify it here.
     ports = [""]
+    #
+    # what interpreter to use?
+    # Defaults: go:go python:python3 node:node
+    interpreter = ""
