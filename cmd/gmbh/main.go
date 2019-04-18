@@ -127,10 +127,10 @@ func start(cfile string, verbose, nolog, daemon bool) {
 
 		// signal the processes
 		// print("signaled sigusr1")
-		proccmd.Process.Signal(syscall.SIGUSR1)
+		proccmd.Process.Signal(syscall.SIGALRM)
 
 		// shutdown the process manager
-		proccmd.Process.Signal(syscall.SIGUSR2)
+		proccmd.Process.Signal(syscall.SIGQUIT)
 		proccmd.Wait()
 		// print("procm shutdown")
 

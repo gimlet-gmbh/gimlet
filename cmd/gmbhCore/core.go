@@ -139,7 +139,7 @@ func (c *Core) Wait() {
 	if c.env == "M" {
 		print("managed mode; listening for sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGQUIT)
-		signal.Ignore(syscall.SIGTRAP, syscall.SIGINT)
+		signal.Ignore(syscall.SIGALRM, syscall.SIGINT)
 	} else {
 		signal.Notify(sig, syscall.SIGINT)
 	}
