@@ -23,11 +23,11 @@ gmbh requires several parameters to be passed into the constructor for the clien
 **Required Parameters**
 ```go
 service := gmbh.SetService(
-    gmbh.ServiceOptions{
-        Name: "",                           // the identifier gmbh will use to refer to the service
-        Aliases: []string{""},              // additional identifiers gmbh will use to refer to the service
-        PeerGroups: []string{"universal"},  // the permissions group the service belongs to
-    })
+gmbh.ServiceOptions{
+    Name: "",                           // the identifier gmbh will use to refer to the service
+    Aliases: []string{""},              // additional identifiers gmbh will use to refer to the service
+    PeerGroups: []string{"universal"},  // the permissions group the service belongs to
+})
 ```
 **Optional Parameters**
 ```go
@@ -39,18 +39,18 @@ runtime := gmbh.SetRuntime(
 ```
 #### 2) Instantiate the client
 ```go
-    package main
-    
-    import "github.com/gmbh-micro/gmbh"
-    
-    func main(){
-        client, err := gmbh.NewClient(runtime, ...Options)
-    }
+package main
+
+import "github.com/gmbh-micro/gmbh"
+
+func main(){
+    client, err := gmbh.NewClient(runtime, ...Options)
+}
 ```
 
 #### 3) Registering Routes
 ```go
-    client.Route("RouteName", routeHandler)
+client.Route("RouteName", routeHandler)
 ```
 
 Handler functions have the type signature and behave similarly to the built in go http package ResponseWriter and Request objects.
@@ -65,26 +65,26 @@ func routeHandler(req gmbh.Request, resp *gmbh.Responder)
 
 ## Making Requests
 ```go
-	payload := gmbh.NewPayload()
-	payload.Append("<dataName>", <dataValue>)
-	result, err := client.MakeRequest("<serviceName>", "<registeredRoute>", payload)
+payload := gmbh.NewPayload()
+payload.Append("<dataName>", <dataValue>)
+result, err := client.MakeRequest("<serviceName>", "<registeredRoute>", payload)
 ```
 <dataValue> is an interface{} in the Go Client.
 
 ## Handling Requests
 ```go
-    func handleData(req gmbh.Request, resp *gmbh.Responder) {
+func handleData(req gmbh.Request, resp *gmbh.Responder) {
+
+    // Get the data out of the request
+    data := req.GetPayload()
+    value := data.Get("<dataName>")             // Returns an interface{}
+    value := data.GetAsString("<dataName2>")    // Returns data as a string
+
+    // Create a response 
+    payload := gmbh.NewPayload()
+    payload.Append("<dataName>", <data>)
     
-        // Get the data out of the request
-	    data := req.GetPayload()
-	    value := data.Get("<dataName>")             // Returns an interface{}
-	    value := data.GetAsString("<dataName2>")    // Returns data as a string
-	
-	    // Create a response 
-    	payload := gmbh.NewPayload()
-    	payload.Append("<dataName>", <data>)
-    	
-    	// send the response
-    	resp.SetPayload(payload)
-    }
+    // send the response
+    resp.SetPayload(payload)
+}
 ```
