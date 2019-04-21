@@ -27,10 +27,11 @@ type LocalManager struct {
 	restartBuffer chan bool
 	// true is sent to this buffer when the command for a process has finished
 	exitedBuffer chan bool
-	ssignal      syscall.Signal
-	logFile      *os.File
-	mu           *sync.Mutex
-	info         Info
+	// ssignal = shutdown signal
+	ssignal syscall.Signal
+	logFile *os.File
+	mu      *sync.Mutex
+	info    Info
 }
 
 // LocalProcessConfig is used to pass relevant data to the process launcher

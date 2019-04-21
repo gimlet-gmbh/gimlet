@@ -49,7 +49,7 @@ const (
 // Client - the structure between a service and gmbhCore
 type Client struct {
 
-	// registratrion with data from gmbhCore
+	// registration with data from gmbhCore
 	reg *registration
 
 	// The user configurable options of the server

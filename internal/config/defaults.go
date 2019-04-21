@@ -114,4 +114,10 @@ const (
 
 	// GoInterpreter ; default for go services
 	GoInterpreter = "/usr/local/go/bin/go"
+
+	// Python3Interpreter ; default for python services
+	Python3Interpreter = "/usr/local/bin/python3"
+
+	// Python3InterpreterAlpine ; default for python services in alpine images
+	Python3InterpreterAlpine = "/usr/local/bin/python3"
 )

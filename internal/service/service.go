@@ -130,12 +130,22 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 		s.Mode = Remote
 	}
 	switch s.Static.Language {
-	case "node":
+	case "node", "javascript", "nodeJS":
 		interpreter := config.NodeInterpreter
 		if mode == "C" {
 			interpreter = config.NodeInterpreterAlpine
+		} else if s.Static.Interpreter != "" {
+			interpreter = s.Static.Interpreter
 		}
 		s.Process = process.NewInterpretedManager(conf, process.Node, interpreter)
+	case "python", "python3", "py":
+		interpreter := config.Python3Interpreter
+		if mode == "C" {
+			interpreter = config.Python3InterpreterAlpine
+		} else if s.Static.Interpreter != "" {
+			interpreter = s.Static.Interpreter
+		}
+		s.Process = process.NewInterpretedManager(conf, process.Py, interpreter)
 	// case "go":
 	// 	s.Process = process.NewInterpretedManager(conf, process.Go)
 	default:

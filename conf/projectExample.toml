@@ -1,9 +1,14 @@
 ##################################################################################
 ## gmbH Project
 ##################################################################################
-
-
+#
+# The maximum number of services that each node in a cluster should manage.
 max_services_per_node = 3
+#
+# The dashboard is a web client that assists in managing gmbh projects.
+# NOTE: This will only be included in docker-compose clusters, not locally managed
+#       projects.
+# For more, see https://github.com/gmbh-micro/gmbh-dashboard
 include_dashboard = true
 
 ##################################################################################
