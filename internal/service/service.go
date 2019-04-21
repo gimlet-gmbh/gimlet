@@ -91,7 +91,7 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 	}
 
 	switch s.Static.Language {
-	case "node":
+	case "node", "javascript", "nodeJS", "python", "python3", "py":
 		conf.Path = s.Static.SrcPath
 		conf.Entry = s.Static.EntryPoint
 	// case "go":
