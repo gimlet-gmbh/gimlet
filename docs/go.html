@@ -1,0 +1,105 @@
+
+
+
+<!doctype html>
+
+</head>
+    <title>gmbh-micro Documentation</title>
+
+    <link rel="stylesheet" href="./includes/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./includes/css/style.css">
+    <!-- <link rel="stylesheet" href="/css/default.css"> -->
+</head>
+<body class="">
+
+<nav class="navbar navbar-expand-lg ml-auto sticky-top navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/"><img src="./includes/img/logo_white.png" width="300px"></a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="/accounts/logout"></a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container">
+    <div class="row">
+        <div class="col-3 nav-border">
+            <br>
+            <nav class="nav flex-column">
+                <a class="nav-link disabled" href="#"><b>Getting Started</b></a>
+                <a class="nav-link" href="./index.html">Index</a>
+                <a class="nav-link" href="./install.html">Installation</a>
+                <a class="nav-link" href="./run.html">Running gmbh Projects</a>
+                <a class="nav-link" href="./cli.html">Using the CLI</a>
+                <a class="nav-link" href="./dashboard.html">Using the Dashboard</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Configuring Projects</b></a>
+                <a class="nav-link" href="./structure.html">Structuring a project</a>
+                <a class="nav-link" href="./config.html">Building a project config</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Using the Clients</b></a>
+                <a class="nav-link" href="./go.html">Go Client</a>
+                <a class="nav-link" href="./python.html">Python Client</a>
+                <a class="nav-link" href="./node.html">Node Client</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Handling Data</b></a>
+                <a class="nav-link" href="./handlingRequests.html">Handling Requests</a>
+                <a class="nav-link" href="./makingRequests.html">Making Requests</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Environements</b></a>
+                <a class="nav-link" href="./local.html">Managing Local Instances</a>
+                <a class="nav-link" href="./clusters.html">Building Docker-Compose Clusters</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Tutorial</b></a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b></b></a>
+                <a class="nav-link" href="./about.html">About</a>
+            </nav>
+            <br>
+            <p>© 2019 the gmbh-micro team</p>
+        </div>
+        <div class="col-9">
+            <br>
+            <h2><a id="Getting_Started_Using_the_Go_26"></a>Getting Started Using the Go</h2>
+<p>The go package is installed with gmbhCore.</p>
+<h4><a id="1_Configuring_the_client_28"></a>1) Configuring the client</h4>
+<p>gmbh requires several parameters to be passed into the constructor for the client.<br>
+<strong>Required Parameters</strong></p>
+<pre><code class="language-go">service := gmbh.SetService(
+    gmbh.ServiceOptions{
+        Name: <span class="hljs-string">""</span>,                           <span class="hljs-comment">// the identifier gmbh will use to refer to the service</span>
+        Aliases: []<span class="hljs-typename">string</span>{<span class="hljs-string">""</span>},              <span class="hljs-comment">// additional identifiers gmbh will use to refer to the service</span>
+        PeerGroups: []<span class="hljs-typename">string</span>{<span class="hljs-string">"universal"</span>},  <span class="hljs-comment">// the permissions group the service belongs to</span>
+    })
+</code></pre>
+<h4><a id="2_Instantiate_the_client_40"></a>2) Instantiate the client</h4>
+<pre><code class="language-go"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> <span class="hljs-string">"github.com/gmbh-micro/gmbh"</span>
+
+<span class="hljs-keyword">func</span> main(){
+    client, err := gmbh.NewClient(runtime, ...Options)
+}
+</code></pre>
+<h4><a id="3_Registering_Routes_51"></a>3) Registering Routes</h4>
+<pre><code class="language-go">client.Route(<span class="hljs-string">"RouteName"</span>, routeHandler)
+</code></pre>
+<p>Handler functions have the type signature and behave similarly to the built in Go http package ResponseWriter and Request objects.</p>
+<pre><code class="language-go"><span class="hljs-keyword">func</span> routeHandler(req gmbh.Request, resp *gmbh.Responder) 
+</code></pre>
+<h4><a id="4_Starting_the_client_61"></a>4) Starting the client</h4>
+<pre><code class="language-go">client.Start()
+</code></pre>
+        </div>
+    </div>
+</div>
+</body>
+</html>

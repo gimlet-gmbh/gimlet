@@ -1,0 +1,83 @@
+
+
+
+<!doctype html>
+
+</head>
+    <title>gmbh-micro Documentation</title>
+
+    <link rel="stylesheet" href="./includes/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./includes/css/style.css">
+    <!-- <link rel="stylesheet" href="/css/default.css"> -->
+</head>
+<body class="">
+
+<nav class="navbar navbar-expand-lg ml-auto sticky-top navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/"><img src="./includes/img/logo_white.png" width="300px"></a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="/accounts/logout"></a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container">
+    <div class="row">
+        <div class="col-3 nav-border">
+            <br>
+            <nav class="nav flex-column">
+                <a class="nav-link disabled" href="#"><b>Getting Started</b></a>
+                <a class="nav-link" href="./index.html">Index</a>
+                <a class="nav-link" href="./install.html">Installation</a>
+                <a class="nav-link" href="./run.html">Running gmbh Projects</a>
+                <a class="nav-link" href="./cli.html">Using the CLI</a>
+                <a class="nav-link" href="./dashboard.html">Using the Dashboard</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Configuring Projects</b></a>
+                <a class="nav-link" href="./structure.html">Structuring a project</a>
+                <a class="nav-link" href="./config.html">Building a project config</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Using the Clients</b></a>
+                <a class="nav-link" href="./go.html">Go Client</a>
+                <a class="nav-link" href="./python.html">Python Client</a>
+                <a class="nav-link" href="./node.html">Node Client</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Handling Data</b></a>
+                <a class="nav-link" href="./handlingRequests.html">Handling Requests</a>
+                <a class="nav-link" href="./makingRequests.html">Making Requests</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Environements</b></a>
+                <a class="nav-link" href="./local.html">Managing Local Instances</a>
+                <a class="nav-link" href="./clusters.html">Building Docker-Compose Clusters</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Tutorial</b></a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b></b></a>
+                <a class="nav-link" href="./about.html">About</a>
+            </nav>
+            <br>
+            <p>© 2019 the gmbh-micro team</p>
+        </div>
+        <div class="col-9">
+            <br>
+            <h1><a id="Structuring_a_Project_0"></a>Structuring a Project</h1>
+<p>While there is no one way to structure a gmbh-project, the easiest way is to create a config file and then put all services in a ‘services’ directory.</p>
+<pre><code>/
+    config.toml
+    /services
+        &lt;service_a&gt;/
+        &lt;service_b&gt;/
+</code></pre>
+        </div>
+    </div>
+</div>
+</body>
+</html>

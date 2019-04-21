@@ -1,0 +1,93 @@
+
+
+
+<!doctype html>
+
+</head>
+    <title>gmbh-micro Documentation</title>
+
+    <link rel="stylesheet" href="./includes/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./includes/css/style.css">
+    <!-- <link rel="stylesheet" href="/css/default.css"> -->
+</head>
+<body class="">
+
+<nav class="navbar navbar-expand-lg ml-auto sticky-top navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/"><img src="./includes/img/logo_white.png" width="300px"></a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="/accounts/logout"></a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container">
+    <div class="row">
+        <div class="col-3 nav-border">
+            <br>
+            <nav class="nav flex-column">
+                <a class="nav-link disabled" href="#"><b>Getting Started</b></a>
+                <a class="nav-link" href="./index.html">Index</a>
+                <a class="nav-link" href="./install.html">Installation</a>
+                <a class="nav-link" href="./run.html">Running gmbh Projects</a>
+                <a class="nav-link" href="./cli.html">Using the CLI</a>
+                <a class="nav-link" href="./dashboard.html">Using the Dashboard</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Configuring Projects</b></a>
+                <a class="nav-link" href="./structure.html">Structuring a project</a>
+                <a class="nav-link" href="./config.html">Building a project config</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Using the Clients</b></a>
+                <a class="nav-link" href="./go.html">Go Client</a>
+                <a class="nav-link" href="./python.html">Python Client</a>
+                <a class="nav-link" href="./node.html">Node Client</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Handling Data</b></a>
+                <a class="nav-link" href="./handlingRequests.html">Handling Requests</a>
+                <a class="nav-link" href="./makingRequests.html">Making Requests</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Environements</b></a>
+                <a class="nav-link" href="./local.html">Managing Local Instances</a>
+                <a class="nav-link" href="./clusters.html">Building Docker-Compose Clusters</a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b>Tutorial</b></a>
+                <hr class="nav-hr">
+                <a class="nav-link disabled" href="#"><b></b></a>
+                <a class="nav-link" href="./about.html">About</a>
+            </nav>
+            <br>
+            <p>© 2019 the gmbh-micro team</p>
+        </div>
+        <div class="col-9">
+            <br>
+            <h1><a id="Running_gmbh_Projects_0"></a>Running gmbh Projects</h1>
+<p>Projects can be controlled via the command line.</p>
+<h3><a id="Getting_Started_3"></a>Getting Started</h3>
+<p>From the directory that the gmbh config file is <code>gmbh --run --config=&lt;configFile&gt;.toml</code></p>
+<h5><a id="Logs_5"></a>Logs</h5>
+<p>This will redirect all output to the logs which will be located in the <strong>./gmbh/logs/</strong> directory.</p>
+<h5><a id="Verbose_Mode_8"></a>Verbose Mode</h5>
+<p>To redirect gmbhCore’s output to standard out, include the <code>--verbose</code> flag.</p>
+<br>
+<h1><a id="Shutting_Down_gmbh_Projects_11"></a>Shutting Down</h1>
+<p>To shutdown gmbh projects, signal the process using <strong>ctrl+c</strong> in the terminal and all associated processes will be shutdown.</p>
+<br>
+<h1><a id="Advanced_14"></a>Advanced</h1>
+<h5><a id="Daemon_Mode_15"></a>Daemon Mode</h5>
+<p>To run gmbh in daemon mode specify the <code>--daemon</code> flag.</p>
+<h5><a id="No_Log_Mode_17"></a>No Log Mode</h5>
+<p>To not log anything except what is directed to Standard out specify the <code>--nolog</code> flag.</p>
+
+        </div>
+    </div>
+</div>
+</body>
+</html>

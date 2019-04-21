@@ -96,8 +96,6 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 		conf.Entry = s.Static.EntryPoint
 	// case "go":
 	// 	conf.Path = s.Static.SrcPath
-	// case "python":
-
 	default:
 		conf.Path = s.createAbsPathToBin(s.Path, s.Static.BinPath)
 	}
