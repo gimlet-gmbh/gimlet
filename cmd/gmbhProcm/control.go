@@ -169,6 +169,7 @@ func (c *controlServer) StopServer(ctx context.Context, in *intrigue.EmptyReques
 	}
 	go func() {
 		time.Sleep(time.Second * 2)
+		pm.shutdownmu.Lock()
 		pm.Shutdown(true)
 	}()
 	return &intrigue.Receipt{Message: "ack"}, nil

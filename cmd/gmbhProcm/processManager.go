@@ -122,7 +122,7 @@ func (p *ProcessManager) Wait() {
 func (p *ProcessManager) gracefulShutdownListener() {
 
 	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, syscall.SIGALRM)
+	signal.Notify(shutdown, syscall.SIGTERM)
 
 	_ = <-shutdown
 	// print("SIGUSR1 reported")
@@ -282,7 +282,7 @@ func (p *ProcessManager) Shutdown(remote bool) {
 	<-noticesSent
 	p.con.Disconnect()
 
-	// print("shutdown; time=%s", time.Now().Format(time.Stamp))
+	print("shutdown; time=%s", time.Now().Format(time.Stamp))
 	p.shutdownmu.Unlock()
 	return
 }

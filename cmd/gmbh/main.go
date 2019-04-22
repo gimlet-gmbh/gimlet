@@ -127,7 +127,7 @@ func start(cfile string, verbose, nolog, daemon bool) {
 
 		// signal the processes
 		// print("signaled sigusr1")
-		proccmd.Process.Signal(syscall.SIGALRM)
+		proccmd.Process.Signal(syscall.SIGTERM)
 
 		// shutdown the process manager
 		proccmd.Process.Signal(syscall.SIGQUIT)
@@ -257,7 +257,7 @@ func genNode(node int, services []*config.ServiceConfig) error {
 
 	for _, s := range services {
 		args, _ := json.Marshal(s.Args)
-		w(fmt.Sprintf(service, s.ID, args, s.Env, s.Language, s.BinPath, s.SrcPath, s.Interpreter, fileutil.GetAbsFilePath(s.EntryPoint)))
+		w(fmt.Sprintf(service, s.ID, args, s.Env, s.Language, s.BinPath, s.SrcPath, s.Interpreter, s.EntryPoint))
 	}
 
 	f.Close()

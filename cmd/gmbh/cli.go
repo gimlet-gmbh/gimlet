@@ -157,7 +157,7 @@ func restartOne(id string) {
 }
 
 func shutdown() {
-	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second)
+	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second*10)
 	if err != nil {
 		notify.LnRedF("error: " + err.Error())
 	}

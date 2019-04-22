@@ -118,6 +118,9 @@ const (
 	// NodeInterpreterAlpine ; location to node in alpine images
 	NodeInterpreterAlpine = "/usr/bin/node"
 
+	// NodeInterpreterWindows ; default for node services on Windows
+	NodeInterpreterWindows = "C:\\Program Files\\nodejs\\node.exe"
+
 	// GoInterpreter ; default for go services
 	GoInterpreter = "/usr/local/go/bin/go"
 )

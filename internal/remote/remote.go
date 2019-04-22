@@ -139,7 +139,7 @@ func (r *Remote) Start() {
 	if r.env == "M" {
 		print("remote is in managed mode; using sigusr2; ignoring sigusr1, sigint")
 		signal.Notify(sig, syscall.SIGQUIT)
-		signal.Ignore(syscall.SIGINT, syscall.SIGALRM)
+		signal.Ignore(syscall.SIGINT, syscall.SIGTERM)
 	} else {
 		print("remote is in standalone mode; using sigint")
 		signal.Notify(sig, syscall.SIGINT)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
@@ -134,6 +135,9 @@ func (s *Service) Start(mode string, verbose bool) (pid string, err error) {
 		interpreter := config.NodeInterpreter
 		if mode == "C" {
 			interpreter = config.NodeInterpreterAlpine
+		}
+		if runtime.GOOS == "windows" {
+			interpreter = config.NodeInterpreterWindows
 		}
 		s.Process = process.NewInterpretedManager(conf, process.Node, interpreter)
 	// case "go":
