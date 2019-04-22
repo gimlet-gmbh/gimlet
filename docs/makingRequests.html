@@ -69,12 +69,30 @@
         <div class="col-9">
             <br>
             <h2><a id="Making_Requests_66"></a>Making Requests</h2>
+
+<p>Making data requests is as easy as creating a payload object with the desired data and asking the client object to send it.</p>
+
+<br>
+<h3><a id="In_JS_4"></a>In Go</h3>
 <p>To send data through gmbh-micro, it first must be encapsulated in a payload. Payloads are maps or hashtables that contain (key,value) pairs of data. </p>
 <pre><code class="language-go">payload := gmbh.NewPayload()
 payload.Append(<span class="hljs-string">"&lt;dataName&gt;"</span>, &lt;dataValue&gt;)
 result, err := client.MakeRequest(<span class="hljs-string">"&lt;serviceName&gt;"</span>, <span class="hljs-string">"&lt;registeredRoute&gt;"</span>, payload)
 </code></pre>
 <p>&lt;dataValue&gt; is an interface{} in the Go Client.</p>
+
+<br>
+<h3><a id="In_JS_4"></a>In Node</h3>
+<pre><code class="language-javascript"><span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">main</span>(<span class="hljs-params"></span>)</span>{
+    client = <span class="hljs-keyword">new</span> gmbh.gmbh();
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-keyword">let</span> payload = <span class="hljs-keyword">new</span> gmbh.payload();
+    <span class="hljs-keyword">let</span> data = <span class="hljs-keyword">await</span> client.MakeRequest(<span class="hljs-string">"&lt;serviceName&gt;"</span>,<span class="hljs-string">"&lt;registeredRoute&gt;"</span>,payload);
+}
+</code></pre>
+
+<br>
+<h3><a id="In_JS_4"></a>In Python</h3>
         </div>
     </div>
 </div>

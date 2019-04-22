@@ -70,10 +70,9 @@
             <br>
             <h2><a id="Handling_Requests_74"></a>Handling Requests</h2>
 
-<p>When routing data, there are several things to keep in mind. <p>
-<br>
+<p>Handling data requests in gmbh is fairly straightforward. All request contain a Payload object to retrieve data from and either the same or a different Payload object is used to return data to the caller.<p>
 
-Go version
+<h3>In Go</h3>
 <pre><code class="language-go"><span class="hljs-keyword">func</span> handleData(req gmbh.Request, resp *gmbh.Responder) {
 
     <span class="hljs-comment">// Get the data out of the request</span>
@@ -91,8 +90,23 @@ Go version
 </code></pre>
 
 <br>
+<h3><a id="In_JS_4"></a>In Node</h3>
+<pre><code class="language-javascript"><span class="hljs-comment">// sender is the string name of the service requesting the data</span>
+<span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">requestData</span>(<span class="hljs-params">sender, request</span>) </span>{
+
+    <span class="hljs-comment">// getting things from a request</span>
+    <span class="hljs-keyword">let</span> inputs = request.get(<span class="hljs-string">"&lt;dataName&gt;"</span>);
+
+    <span class="hljs-comment">// settings things in the return payload</span>
+    <span class="hljs-keyword">let</span> p = client.NewPayload();
+    p.append(<span class="hljs-string">"&lt;dataName&gt;"</span>,data);
+    <span class="hljs-comment">// always make sure to return the payload in the Node client</span>
+    <span class="hljs-keyword">return</span> p;
+}
+</code></pre>
+
 <br>
-NodeJS version
+<h3><a id="In_JS_4"></a>In Python</h3>
         </div>
     </div>
 </div>

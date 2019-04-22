@@ -68,7 +68,15 @@
         </div>
         <div class="col-9">
             <br>
-            
+            <h1><a id="Managing_Local_Instances_of_gmbhmicro_0"></a>Managing Docker-Compose Clusters</h1>
+
+<p>gmbh-micro can genrate bare bones docker-compose clusters, including all Dockerfiles needed to build the appropriate images. These Dockerfiles can then be edited to suit the needs of the project.<p>
+
+<p> To build the deployment scaffold, run 
+<br><code>gmbh --build-deploy --config=configFile.toml --verbose</code>
+<br>
+<br>This will generate all of the neccesary files in the gmbh-deploy subdirectory including a build script that can be used to build all of the images specified in the docker-compose file.</p>
+<p></p>
         </div>
     </div>
 </div>

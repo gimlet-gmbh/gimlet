@@ -68,7 +68,12 @@
         </div>
         <div class="col-9">
             <br>
-            
+            <h1><a id="Managing_Local_Instances_of_gmbhmicro_0"></a>Managing Local Instances of gmbh-micro</h1>
+<p>gmbh-micro consists of two different modes: local and containerized. In Local mode, all of the services are managed on the same machine and the project is controlled via the command line.</p>
+<h2><a id="Structure_4"></a>Structure</h2>
+<p>gmbh-micro projects are divided into many processes. The two main ones are Core and Procm. Core is the router for handling data requests and all services are connected to core via either the Go, Node, or Python client. Procm is a process manager. Procm manages remotes and remotes are the mechanism that manages the actual processes of each service. Remotes act primarily as a keep alive and reporter for each service.</p>
+<p>The number of services managed by each remote is configurable via the ‘max_services_per_node’ parameter in the configuration. Core will always be started in its’ own remote.</p>
+<p>All output of local gmbh-micro instances will be sent to the ./gmbh subdirectory of the main project directory where the config file is located. There the config for each remote will be generated and a log directory will be created.</p>
         </div>
     </div>
 </div>
