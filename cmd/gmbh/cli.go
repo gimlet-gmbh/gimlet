@@ -15,27 +15,27 @@ import (
 
 func listAll() {
 
-	// remotes := []*intrigue.ProcessManager{}
-	// {
-	// 	client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second*2)
-	// 	if err != nil {
-	// 		notify.LnRedF("error: " + err.Error())
-	// 	}
-	// 	defer can()
+	remotes := []*intrigue.ProcessManager{}
+	{
+		client, ctx, can, err := rpc.GetControlRequest(config.DefaultSystemProcm.Address, time.Second*2)
+		if err != nil {
+			notify.LnRedF("error: " + err.Error())
+		}
+		defer can()
 
-	// 	request := intrigue.Action{
-	// 		Request: "summary.all",
-	// 	}
-	// 	resp, err := client.Summary(ctx, &request)
-	// 	if err != nil {
-	// 		notify.LnBlueF("Could not contact gmbhProcm; error=%s", err.Error())
-	// 		return
-	// 	}
-	// 	if resp.Error != "" {
-	// 		notify.LnBlueF("Could not contact gmbhCore; error=%s", resp.Error)
-	// 	}
-	// 	remotes = resp.GetRemotes()
-	// }
+		request := intrigue.Action{
+			Request: "summary.all",
+		}
+		resp, err := client.Summary(ctx, &request)
+		if err != nil {
+			notify.LnBlueF("Could not contact gmbhProcm; error=%s", err.Error())
+			return
+		}
+		if resp.Error != "" {
+			notify.LnBlueF("Could not contact gmbhCore; error=%s", resp.Error)
+		}
+		remotes = resp.GetRemotes()
+	}
 	services := []*intrigue.CoreService{}
 	{
 		client, ctx, can, err := rpc.GetCabalRequest(config.DefaultSystemCore.Address, time.Second*2)
@@ -56,8 +56,7 @@ func listAll() {
 		}
 		services = resp.GetServices()
 	}
-	fmt.Println(services)
-	// pprintListAll(remotes, services)
+	pprintListAll(remotes, services)
 }
 
 func runReport() {
