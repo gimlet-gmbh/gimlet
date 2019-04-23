@@ -3,6 +3,7 @@ package gmbh
 import (
 	b64 "encoding/base64"
 	"encoding/json"
+	"fmt"
 
 	"github.com/gmbh-micro/rpc/intrigue"
 )
@@ -20,8 +21,12 @@ func NewPayload() *Payload {
 
 // Get returns the value of payload.JSON at key
 func (p *Payload) Get(key string) interface{} {
+	if p == nil {
+		return make(map[string]interface{})
+	}
+
 	if p.JSON == nil {
-		return nil
+		return make(map[string]interface{})
 	}
 
 	var obj interface{}
@@ -36,9 +41,34 @@ func (p *Payload) Get(key string) interface{} {
 	return obj
 }
 
+// GetAsInt returns the int value of the key, else 0
+func (p *Payload) GetAsInt(key string) int {
+	value := p.Get(key)
+
+	switch value.(type) {
+	case int:
+		return value.(int)
+	case float64:
+		return int(value.(float64))
+	case string:
+		return 0
+	}
+	return 0
+}
+
 // GetAsString returns the string value of payload.JSON at key, else returns the empty string
 func (p *Payload) GetAsString(key string) string {
 	value := p.Get(key)
+
+	switch value.(type) {
+	case int:
+		return fmt.Sprintf("%d", value.(int))
+	case float64:
+		return fmt.Sprintf("%f", value.(float64))
+	case string:
+		return value.(string)
+	}
+
 	str, ok := value.(string)
 	if !ok {
 		return ""
